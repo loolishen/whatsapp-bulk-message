@@ -1,0 +1,500 @@
+{% load static %}
+{% load analytics_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analytics — WhatsApp Campaigns</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ===== Modern CRM theme (shared) ===== */
+    :root{
+      --bg:#f3f6fb; --card:#fff; --text:#0f172a; --muted:#667085; --line:#e5e7eb;
+      --brand:#0ea5e9; --brand-strong:#0284c7; --accent:#22c55e; --radius:14px;
+      --shadow:0 6px 20px rgba(2,8,23,.08);
+      --danger:#ef4444; --ok:#16a34a; --warn:#f59e0b;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+
+    /* Topbar (same as other pages) */
+    .topbar{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #e5e7eb}
+    .topbar__inner{
+      max-width:1200px;margin:0 auto;
+      display:grid;grid-template-columns:240px 1fr 240px;
+      align-items:center;gap:12px;padding:8px 16px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+    .brand__logo{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:var(--brand);color:#fff;font-weight:800;font-size:18px}
+    .brand__text{color:var(--text);font-weight:800;letter-spacing:.2px}
+    .tabs{display:flex;justify-content:center;gap:6px}
+    .tab{min-width:110px;height:40px;display:grid;place-items:center;border-radius:10px;color:#64748b;text-decoration:none;font-weight:700}
+    .tab:hover{background:#f1f5f9;color:#0f172a}
+    .tab--active{color:var(--brand)}
+    .tab__icon{display:flex;align-items:center;gap:8px;font-size:14px}
+    .actions{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+    .action{width:40px;height:40px;border-radius:999px;display:grid;place-items:center;background:#f1f5f9;border:1px solid #e5e7eb}
+    .action:hover{background:#e2e8f0}
+    .avatar{width:36px;height:36px;border-radius:999px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+
+    /* Layout */
+    .layout{max-width:1200px;margin:22px auto;display:grid;gap:20px;grid-template-columns:1fr;padding:0 16px}
+
+    /* Header strip (Xero-style: title + period switcher + compare toggle) */
+    .hero{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+    .hero__row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+    .hero__title{font-size:20px;font-weight:800;margin:0}
+    .period{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{border:1px solid var(--line);background:#f8fafc;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer}
+    .pill.is-on{background:#e6f4ff;border-color:#bfdbfe;color:#0369a1}
+    .toggle{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px}
+    .toggle input{accent-color:var(--brand)}
+
+    /* KPI tiles with sparklines */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .kpi{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;display:grid;gap:8px}
+    .kpi .l{font-size:12px;color:var(--muted);font-weight:700}
+    .kpi .n{font-size:26px;font-weight:900;color:#0f172a}
+    .kpi .d{font-size:12px}
+    .kpi .good{color:var(--ok)} .kpi .bad{color:var(--danger)} .kpi .warn{color:var(--warn)}
+    .spark{height:44px}
+
+    /* Sections */
+    .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+    .card__head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .card__title{font-weight:800}
+    .card__body{padding:14px}
+    .chart{height:320px}
+    .small{height:240px}
+
+    /* Table */
+    .tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{background:#f8fafc;text-align:left;padding:12px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+    td{padding:12px 14px;border-bottom:1px solid var(--line)}
+    tbody tr:hover{background:#f9fbff}
+
+    @media (max-width:1100px){
+      .topbar__inner{grid-template-columns:1fr}
+      .actions{display:none}
+      .tabs{justify-content:flex-start;flex-wrap:wrap}
+      .kpis{grid-template-columns:1fr 1fr}
+      .grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <!-- Top NAV -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <a href="{% url 'main_page' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+      <div class="tabs">
+        <a href="{% url 'main_page' %}" class="tab {% if request.path == '/' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12l9-9 9 9" /><path d="M9 21V9h6v12" />
+            </svg>
+            Campaign
+          </span>
+        </a>
+        <a href="{% url 'manage_customers' %}" class="tab {% if request.path|slice:':10' == '/customers' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 11a4 4 0 1 0-8 0" />
+              <path d="M3 21a7 7 0 0 1 18 0" />
+            </svg>
+            Customers
+          </span>
+        </a>
+        <a href="{% url 'crm_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'crm_dashboard' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            CRM
+          </span>
+        </a>
+        <a href="{% url 'analytics_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'analytics_dashboard' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+              <line x1="15" y1="21" x2="15" y2="4"></line>
+              <line x1="20" y1="21" x2="20" y2="17"></line>
+            </svg>
+            Analytics
+          </span>
+        </a>
+      </div>
+
+      <div class="actions">
+        <button class="action" title="Export" aria-label="Export">
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 20h16M12 4v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <!-- Header strip -->
+    <section class="hero">
+      <div class="hero__row">
+        <div>
+          <h1 class="hero__title">Analytics Overview</h1>
+          <div style="color:var(--muted);font-size:12px">Insights across contacts, delivery, engagement and participation.</div>
+        </div>
+        <div class="period">
+          <button class="pill is-on" data-range="30d">Last 30 days</button>
+          <button class="pill" data-range="90d">Last 90 days</button>
+          <button class="pill" data-range="12m">Last 12 months</button>
+          <div class="toggle">
+            <input type="checkbox" id="compareToggle" />
+            <label for="compareToggle" style="cursor:pointer">Compare to previous period</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPI row -->
+    <section class="kpis">
+      <div class="kpi">
+        <div class="l">Total Contacts</div>
+        <div class="n">{{ total_contacts|default:0 }}</div>
+        <div class="d"><span class="good">+{{ recent_additions|default:0 }}</span> this month</div>
+        <canvas id="sp_contacts" class="spark"></canvas>
+      </div>
+      <div class="kpi">
+        <div class="l">States Represented</div>
+        <div class="n">{{ unique_states|default:0 }}</div>
+        <div class="d"><span class="warn">{{ cross_tab_races|length|default:0 }}</span> races tracked</div>
+        <canvas id="sp_states" class="spark"></canvas>
+      </div>
+      <div class="kpi">
+        <div class="l">Events (Sources)</div>
+        <div class="n">{{ unique_events|default:0 }}</div>
+        <div class="d"><span class="good">active</span> sources</div>
+        <canvas id="sp_events" class="spark"></canvas>
+      </div>
+      <div class="kpi">
+        <div class="l">Participation (last 30d)</div>
+        <div class="n">{{ event_timeline_data|last|default:0 }}</div>
+        <div class="d"><span class="bad">{% firstof drop_rate " " %}</span></div>
+        <canvas id="sp_participation" class="spark"></canvas>
+      </div>
+    </section>
+
+    <!-- Main charts (Xero-style: two up) -->
+    <section class="grid">
+      <div class="card">
+        <div class="card__head"><div class="card__title">Distribution by States</div></div>
+        <div class="card__body"><canvas id="stateChart" class="chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card__head"><div class="card__title">Distribution by Race</div></div>
+        <div class="card__body"><canvas id="raceChart" class="chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Secondary charts -->
+    <section class="grid">
+      <div class="card">
+        <div class="card__head"><div class="card__title">Distribution by Gender</div></div>
+        <div class="card__body"><canvas id="genderChart" class="small"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card__head"><div class="card__title">Distribution by Event Source</div></div>
+        <div class="card__body"><canvas id="eventSourceChart" class="small"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Timelines -->
+    <section class="grid">
+      <div class="card">
+        <div class="card__head"><div class="card__title">Registration Timeline (12 months)</div></div>
+        <div class="card__body"><canvas id="registrationTimelineChart" class="chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card__head"><div class="card__title">Event Participation Timeline</div></div>
+        <div class="card__body"><canvas id="eventTimelineChart" class="chart"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Cross-tab -->
+    <section class="card">
+      <div class="card__head"><div class="card__title">State × Race Cross-tabulation</div></div>
+      <div class="card__body">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>State</th>
+                {% for race in cross_tab_races %}<th>{{ race }}</th>{% endfor %}
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for state, races in cross_tabulation.items %}
+              <tr>
+                <td>{{ state }}</td>
+                {% for race in cross_tab_races %}<td>{{ races|lookup:race|default:0 }}</td>{% endfor %}
+                <td><strong>{{ races.total|default:0 }}</strong></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recent contacts -->
+    <section class="card">
+      <div class="card__head"><div class="card__title">Recent Contacts</div></div>
+      <div class="card__body">
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th><th>Phone</th><th>State</th><th>Race</th><th>Event Source</th><th>Date Added</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for contact in recent_contacts %}
+              <tr>
+                <td>{{ contact.name }}</td>
+                <td>{{ contact.phone_number }}</td>
+                <td>{{ contact.get_state_display|default:"-" }}</td>
+                <td>{{ contact.get_race_display|default:"-" }}</td>
+                <td>{{ contact.event_source|default:"-" }}</td>
+                <td>{{ contact.date_added|date:"M d, Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" style="text-align:center;color:var(--muted)">No contacts found</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+    <!-- Chart.js Initialization Scripts -->
+    <script>
+        // Chart color palette - More distinct and varied colors
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3', 
+            '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43', '#EE5A24', '#0ABDE3',
+            '#10AC84', '#F79F1F', '#A3CB38', '#FDA7DF', '#6C5CE7', '#26DE81',
+            '#FD79A8', '#FDCB6E', '#6C5CE7', '#A29BFE', '#74B9FF', '#00CEC9',
+            '#55A3FF', '#FD79A8', '#FDCB6E', '#81ECEC', '#FFB8B8', '#C4E538'
+        ];
+
+        // State Distribution Chart
+        const stateCtx = document.getElementById('stateChart').getContext('2d');
+        new Chart(stateCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ state_labels|safe }},
+                datasets: [{
+                    data: {{ state_data|safe }},
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+
+        // Race Distribution Chart
+        const raceCtx = document.getElementById('raceChart').getContext('2d');
+        new Chart(raceCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ race_labels|safe }},
+                datasets: [{
+                    data: {{ race_data|safe }},
+                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
+                }
+            }
+        });
+
+        // Gender Distribution Chart
+        const genderCtx = document.getElementById('genderChart').getContext('2d');
+        new Chart(genderCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ gender_labels|safe }},
+                datasets: [{
+                    label: 'Number of Contacts',
+                    data: {{ gender_data|safe }},
+                    backgroundColor: ['#36A2EB', '#FF6384'],
+                    borderColor: ['#2E8BC0', '#E55A71'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Event Source Distribution Chart
+        const eventSourceCtx = document.getElementById('eventSourceChart').getContext('2d');
+        new Chart(eventSourceCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ event_source_labels|safe }},
+                datasets: [{
+                    label: 'Number of Participants',
+                    data: {{ event_source_data|safe }},
+                    backgroundColor: colors.slice(0, {{ event_source_labels|length }}),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Registration Timeline Chart
+        const registrationTimelineCtx = document.getElementById('registrationTimelineChart').getContext('2d');
+        new Chart(registrationTimelineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ timeline_labels|safe }},
+                datasets: [{
+                    label: 'New Registrations',
+                    data: {{ timeline_data|safe }},
+                    borderColor: '#36A2EB',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Event Timeline Chart
+        const eventTimelineCtx = document.getElementById('eventTimelineChart').getContext('2d');
+        new Chart(eventTimelineCtx, {
+            type: 'line',
+            data: {
+                labels: {{ event_timeline_labels|safe }},
+                datasets: [{
+                    label: 'Event Participants',
+                    data: {{ event_timeline_data|safe }},
+                    borderColor: '#FF6384',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+        </div> <!-- Close main-content -->
+    </div> <!-- Close layout -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/your-font-awesome-kit.js" crossorigin="anonymous"></script>
+
+
+
+</body>
+</html>

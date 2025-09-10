@@ -1,0 +1,41 @@
+# Django
+*.pyc
+__pycache__/
+db.sqlite3
+*.sqlite3
+media/
+*.log
+
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local settings
+local_settings.py
+
+# Migrations (keep initial migrations)
+messaging/migrations/0*.py
+!messaging/migrations/0001_initial.py
+!messaging/migrations/__init__.py
+
+# Uploaded files
+static/media/
+message_images/
+
+# Temporary files
+create_contacts.py
+*.tmp
+*.bak

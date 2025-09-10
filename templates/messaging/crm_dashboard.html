@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM — Campaigns, Audience, Creatives, Reporting</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  <style>
+    /* ===== Modern CRM theme (shared) ===== */
+    :root{
+      --bg:#f3f6fb; --card:#fff; --text:#0f172a; --muted:#667085; --line:#e5e7eb;
+      --brand:#0ea5e9; --brand-strong:#0284c7; --accent:#22c55e; --radius:14px;
+      --shadow:0 6px 20px rgba(2,8,23,.08);
+      --danger:#ef4444; --warning:#f59e0b; --ok:#16a34a;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+
+    /* Top bar (same as recipients/recipients_select pages) */
+    .topbar{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #e5e7eb}
+    .topbar__inner{
+      max-width:1200px;margin:0 auto;
+      display:grid;grid-template-columns:240px 1fr 240px;
+      align-items:center;gap:12px;padding:8px 16px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
+    .brand__logo{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:var(--brand);color:#fff;font-weight:800;font-size:18px}
+    .brand__text{color:var(--text);font-weight:800;letter-spacing:.2px}
+    .tabs{display:flex;justify-content:center;gap:6px}
+    .tab{min-width:110px;height:40px;display:grid;place-items:center;border-radius:10px;color:#64748b;text-decoration:none;font-weight:700}
+    .tab:hover{background:#f1f5f9;color:#0f172a}
+    .tab--active{color:var(--brand)}
+    .tab__icon{display:flex;align-items:center;gap:8px;font-size:14px}
+    .actions{display:flex;justify-content:flex-end;gap:8px;align-items:center}
+    .action{width:40px;height:40px;border-radius:999px;display:grid;place-items:center;background:#f1f5f9;border:1px solid #e5e7eb}
+    .action:hover{background:#e2e8f0}
+    .avatar{width:36px;height:36px;border-radius:999px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+
+    /* Layout (no sidebar) */
+    .layout{max-width:1200px;margin:22px auto;display:grid;gap:20px;grid-template-columns:1fr;padding:0 16px}
+
+    /* Cards & page grid */
+    .page{display:grid;gap:20px;grid-template-columns:1fr 1fr;grid-template-areas:
+      "title title" "wizard wizard" "funnel funnel" "builder builder" "report people";}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card h2{margin:0 0 10px;font-size:16px}
+    .page-title.card{grid-area:title;padding:18px}
+    .page-title h1{margin:0;font-size:22px}
+
+    /* Wizard */
+    .wizard.card{grid-area:wizard;padding:14px 16px;position:relative}
+    .wizard__steps{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+    .wizard__step{background:transparent;border:0;text-align:left;display:flex;gap:12px;align-items:flex-start;cursor:pointer;padding:10px;border-radius:12px;transition:.15s}
+    .wizard__step:hover{background:#f8fafc}
+    .wizard__badge{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#e5e7eb;color:#111827;font-weight:800;border:2px solid #e5e7eb;flex:0 0 auto}
+    .wizard__title{font-weight:700;font-size:14px}
+    .wizard__desc{font-size:12px;color:var(--muted);margin-top:4px}
+    .wizard__step.is-complete .wizard__badge{background:#22c55e;border-color:#16a34a;color:#fff}
+    .wizard__step.is-current .wizard__badge{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 0 0 4px rgba(14,165,233,.22)}
+    .wizard__step.is-current .wizard__title{color:var(--brand-strong)}
+
+    /* Funnel */
+    .funnel.card{grid-area:funnel;padding:16px}
+    .funnel-rows{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+    .funnel-box{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center}
+    .funnel-title{font-size:12px;color:var(--muted);font-weight:700}
+    .funnel-metric{font-size:26px;font-weight:800;color:var(--brand-strong)}
+    .funnel-sub{font-size:12px;color:var(--muted)}
+
+    /* Builder */
+    .builder.card{grid-area:builder;padding:16px}
+    .section{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;overflow:hidden}
+    .section__head{display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:12px 14px;border-bottom:1px solid var(--line)}
+    .section__title{font-weight:800}
+    .section__body{padding:14px}
+    label{display:block;font-size:12px;color:#475569;font-weight:700;margin:8px 0 6px}
+    input[type="text"],input[type="url"],input[type="datetime-local"],textarea,select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;outline:none}
+    textarea{min-height:100px;resize:vertical}
+    input:focus,textarea:focus,select:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(14,165,233,.25)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid transparent;font-weight:700;cursor:pointer;transition:.15s}
+    .btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{background:var(--brand-strong)}
+    .btn-ghost{background:#eef6ff;color:#0b5cab;border:1px solid #dbeafe}
+    .btn-danger{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca}
+
+    .chip{background:#f1f5f9;border:1px solid var(--line);padding:8px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:13px}
+    .chip.good{background:#ecfeff;border-color:#a5f3fc}
+
+    /* Reporting */
+    .report.card{grid-area:report;padding:16px}
+    .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:10px}
+    .kpi{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .kpi .n{font-size:24px;font-weight:800;color:var(--brand-strong)}
+    .kpi .l{font-size:12px;color:var(--muted)}
+    .chart{height:220px;border:1px dashed var(--line);border-radius:12px;display:grid;place-items:center;color:#94a3b8;font-size:12px}
+
+    /* People */
+    .people.card{grid-area:people;padding:16px}
+    .tools{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+    .table{overflow:auto;border:1px solid var(--line);border-radius:12px}
+    table{width:100%;border-collapse:separate;border-spacing:0}
+    thead th{background:#f8fafc;text-align:left;padding:12px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+    td{padding:12px 14px;border-bottom:1px solid var(--line)}
+    tbody tr:hover{background:#f9fbff}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700}
+    .b-warm{background:#fff7ed;border:1px solid #fed7aa;color:#c2410c}
+    .b-cool{background:#ecfeff;border:1px solid #a5f3fc;color:#0369a1}
+    .b-danger{background:#fee2e2;border:1px solid #fecaca;color:#b91c1c}
+    .b-ok{background:#dcfce7;border:1px solid #bbf7d0;color:#166534}
+
+    /* Responsive */
+    @media (max-width:1100px){
+      .topbar__inner{grid-template-columns:1fr}
+      .actions{display:none}
+      .tabs{justify-content:flex-start;flex-wrap:wrap}
+      .page{grid-template-columns:1fr;grid-template-areas:
+        "title" "wizard" "funnel" "builder" "report" "people"}
+      .row{grid-template-columns:1fr}
+      .kpis{grid-template-columns:1fr}
+      .funnel-rows{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top NAV (unified tabs/icons) -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Left: brand -->
+      <a href="{% url 'main_page' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+      <!-- Center: tabs -->
+      <div class="tabs">
+        <a href="{% url 'main_page' %}" class="tab {% if request.path == '/' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <!-- home -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12l9-9 9 9" /><path d="M9 21V9h6v12" />
+            </svg>
+            Campaign
+          </span>
+        </a>
+        <a href="{% url 'manage_customers' %}" class="tab {% if request.path|slice:':10' == '/customers' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <!-- users -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 11a4 4 0 1 0-8 0" />
+              <path d="M3 21a7 7 0 0 1 18 0" />
+            </svg>
+            Customers
+          </span>
+        </a>
+        <a href="{% url 'crm_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'crm_dashboard' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <!-- grid -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            CRM
+          </span>
+        </a>
+        <a href="{% url 'analytics_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'analytics_dashboard' %}tab--active{% endif %}">
+          <span class="tab__icon">
+            <!-- bars -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+              <line x1="15" y1="21" x2="15" y2="4"></line>
+              <line x1="20" y1="21" x2="20" y2="17"></line>
+            </svg>
+            Analytics
+          </span>
+        </a>
+      </div>
+
+      <!-- Right: actions -->
+      <div class="actions">
+        <button class="action" title="New Campaign" onclick="scrollToSel('#builder-basic')" aria-label="New Campaign">
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="action" title="Notifications" aria-label="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 10-12 0v3.2c0 .53-.21 1.04-.59 1.41L4 17h5m6 0v1a3 3 0 11-6 0v-1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <main class="page">
+      <!-- Title -->
+      <section class="page-title card">
+        <h1>CRM — Campaigns, Audiences & Reporting</h1>
+        <div style="color:var(--muted);margin-top:6px">Build multi-step WhatsApp campaigns with audience segments, creatives, and full analytics.</div>
+      </section>
+
+      <!-- Wizard -->
+      <section class="wizard card" id="wizard">
+        <div class="wizard__steps">
+          <button class="wizard__step is-current" data-step="1" onclick="scrollToSel('#builder-basic')">
+            <span class="wizard__badge">1</span>
+            <div><div class="wizard__title">Campaign</div><div class="wizard__desc">Name & objective</div></div>
+          </button>
+          <button class="wizard__step" data-step="2" onclick="scrollToSel('#builder-audience')">
+            <span class="wizard__badge">2</span>
+            <div><div class="wizard__title">Audience</div><div class="wizard__desc">Segments & filters</div></div>
+          </button>
+          <button class="wizard__step" data-step="3" onclick="scrollToSel('#builder-creatives')">
+            <span class="wizard__badge">3</span>
+            <div><div class="wizard__title">Creatives</div><div class="wizard__desc">Text / Image / Video</div></div>
+          </button>
+          <button class="wizard__step" data-step="4" onclick="scrollToSel('#builder-schedule')">
+            <span class="wizard__badge">4</span>
+            <div><div class="wizard__title">Schedule</div><div class="wizard__desc">Run window</div></div>
+          </button>
+          <button class="wizard__step" data-step="5" onclick="scrollToSel('#builder-review')">
+            <span class="wizard__badge">5</span>
+            <div><div class="wizard__title">Review & Send</div><div class="wizard__desc">Double-check</div></div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Funnel -->
+      <section class="funnel card">
+        <h2>Funnel</h2>
+        <div class="funnel-rows" id="funnel">
+          <div class="funnel-box"><div class="funnel-title">Audience size</div><div class="funnel-metric" id="m_audience">0</div><div class="funnel-sub">Selected contacts</div></div>
+          <div class="funnel-box"><div class="funnel-title">Delivered</div><div class="funnel-metric" id="m_delivered">0</div><div class="funnel-sub">from provider webhook</div></div>
+          <div class="funnel-box"><div class="funnel-title">Read</div><div class="funnel-metric" id="m_read">0</div><div class="funnel-sub">message reads</div></div>
+          <div class="funnel-box"><div class="funnel-title">Clicked / Viewed</div><div class="funnel-metric" id="m_clicked">0</div><div class="funnel-sub">link/video engagements</div></div>
+          <div class="funnel-box"><div class="funnel-title">Participated</div><div class="funnel-metric" id="m_participated">0</div><div class="funnel-sub">submissions / claims</div></div>
+        </div>
+        <div style="margin-top:12px;color:var(--muted);font-size:12px">Retention insight: compares participants of prior events vs current to estimate loyalty.</div>
+      </section>
+
+      <!-- Builder -->
+      <section class="builder card" id="builder">
+        <h2>Campaign Builder</h2>
+
+        <!-- Basic -->
+        <div class="section" id="builder-basic">
+          <div class="section__head">
+            <div class="section__title">1) Campaign Basics</div>
+            <div><button class="btn btn-ghost" type="button" onclick="saveDraft()">Save Draft</button></div>
+          </div>
+          <div class="section__body">
+            <div class="row">
+              <div>
+                <label for="cName">Campaign Name</label>
+                <input id="cName" type="text" placeholder="e.g., Merdeka Giveaway Push" oninput="syncState()" />
+              </div>
+              <div>
+                <label for="cObjective">Objective</label>
+                <select id="cObjective" onchange="syncState()">
+                  <option value="retention">Retention</option>
+                  <option value="acquisition">Acquisition</option>
+                  <option value="announcement">Announcement</option>
+                  <option value="re-engagement">Re-engagement</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="cSource">Landing / Submission URL (track)</label>
+                <input id="cSource" type="url" placeholder="https://example.com/contest" oninput="syncState()" />
+              </div>
+              <div>
+                <label for="cCompare">Compare against previous event</label>
+                <select id="cCompare" onchange="syncState()">
+                  <option value="">None</option>
+                  <option value="eid_2024_may">MAY-2024 Eid Contest</option>
+                  <option value="merdeka_2024">Merdeka 2024</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audience -->
+        <div class="section" id="builder-audience">
+          <div class="section__head">
+            <div class="section__title">2) Audience / Segment</div>
+            <div><button class="btn btn-ghost" type="button" onclick="openAudienceModal()">+ New Segment</button></div>
+          </div>
+          <div class="section__body">
+            <label>Selected Segments</label>
+            <div id="segmentChips" style="display:flex;gap:10px;flex-wrap:wrap">
+              <span class="chip good">All Contacts</span>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <div>
+                <label>Filters</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-ghost" type="button" onclick="addFilter('responsive')">Responsive</button>
+                  <button class="btn btn-ghost" type="button" onclick="addFilter('cold')">Cold</button>
+                  <button class="btn btn-ghost" type="button" onclick="addFilter('clicked')">Clicked Link</button>
+                  <button class="btn btn-ghost" type="button" onclick="addFilter('video_viewed')">Viewed Video</button>
+                  <button class="btn btn-ghost" type="button" onclick="addFilter('blocked')">Blocked/Spam</button>
+                </div>
+                <div id="filterList" style="margin-top:8px;color:var(--muted);font-size:12px">No filters added.</div>
+              </div>
+              <div>
+                <label>Demographics (optional, consented)</label>
+                <div class="row" style="grid-template-columns:1fr 1fr">
+                  <select id="demoGender" onchange="syncState()">
+                    <option value="">Any Gender</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                  </select>
+                  <select id="demoAge" onchange="syncState()">
+                    <option value="">Any Age</option>
+                    <option value="18-24">18-24</option>
+                    <option value="25-34">25-34</option>
+                    <option value="35-44">35-44</option>
+                    <option value="45+">45+</option>
+                  </select>
+                </div>
+                <div style="color:var(--muted);font-size:11px;margin-top:6px">Note: Use only if legally consented and compliant with PDPA/Privacy policy.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Creatives -->
+        <div class="section" id="builder-creatives">
+          <div class="section__head">
+            <div class="section__title">3) Creatives</div>
+            <div style="color:var(--muted);font-size:12px">Text message and optional Image/Video</div>
+          </div>
+          <div class="section__body">
+            <label for="msgText">Message</label>
+            <textarea id="msgText" placeholder="Write your WhatsApp message (include voucher codes or CTA)…" oninput="syncState()"></textarea>
+
+            <div class="row">
+              <div>
+                <label for="mediaImage">Image</label>
+                <input id="mediaImage" type="file" accept="image/*" onchange="previewMedia(event,'imgPreview')">
+                <img id="imgPreview" alt="image preview" style="display:none;max-width:320px;border-radius:12px;margin-top:6px"/>
+              </div>
+              <div>
+                <label for="mediaVideo">Video</label>
+                <input id="mediaVideo" type="file" accept="video/*" onchange="previewMedia(event,'vidPreview')">
+                <video id="vidPreview" controls style="display:none;max-width:320px;border-radius:12px;margin-top:6px"></video>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="section" id="builder-schedule">
+          <div class="section__head">
+            <div class="section__title">4) Schedule</div>
+          </div>
+          <div class="section__body row">
+            <div>
+              <label for="runStart">Start</label>
+              <input id="runStart" type="datetime-local" onchange="syncState()" />
+            </div>
+            <div>
+              <label for="runEnd">End</label>
+              <input id="runEnd" type="datetime-local" onchange="syncState()" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Review & Send -->
+        <div class="section" id="builder-review">
+          <div class="section__head">
+            <div class="section__title">5) Review & Send</div>
+            <div><button class="btn btn-primary" type="button" onclick="createCampaign()">Create Campaign</button></div>
+          </div>
+          <div class="section__body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-weight:800;margin-bottom:6px">Summary</div>
+                <ul style="margin:0 0 10px 18px;color:#475569">
+                  <li><strong>Name:</strong> <span id="sumName">—</span></li>
+                  <li><strong>Audience:</strong> <span id="sumAudience">All Contacts</span></li>
+                  <li><strong>Filters:</strong> <span id="sumFilters">None</span></li>
+                  <li><strong>Creatives:</strong> <span id="sumCreative">Text</span></li>
+                  <li><strong>Run:</strong> <span id="sumRun">—</span></li>
+                </ul>
+              </div>
+              <div>
+                <div class="funnel-box" style="height:100%">
+                  <div class="funnel-title">Compliance</div>
+                  <div class="funnel-sub" style="margin-top:6px">Ensure message complies with PDPA and WhatsApp policy. Only contacts with consent should be targeted.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reporting -->
+      <section class="report card" id="report">
+        <h2>Reporting</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="n" id="k_sent">0</div><div class="l">Messages Sent</div></div>
+          <div class="kpi"><div class="n" id="k_read">0</div><div class="l">Read</div></div>
+          <div class="kpi"><div class="n" id="k_clicked">0</div><div class="l">Clicked / Viewed</div></div>
+          <div class="kpi"><div class="n" id="k_converted">0</div><div class="l">Participated</div></div>
+        </div>
+        <div class="chart">(Chart placeholder — integrate your chart lib or server-rendered SVG)</div>
+      </section>
+
+      <!-- People Analytics -->
+      <section class="people card" id="people">
+        <h2>People Analytics</h2>
+        <div class="tools">
+          <input type="text" id="peopleSearch" placeholder="Search name or phone…" style="padding:10px 12px;border:1px solid var(--line);border-radius:10px;max-width:320px">
+          <select id="peopleFilter" onchange="filterPeople()">
+            <option value="">All</option>
+            <option value="responsive">Responsive</option>
+            <option value="cold">Cold</option>
+            <option value="blocked">Blocked/Spam</option>
+            <option value="clicked">Clicked</option>
+            <option value="video">Viewed Video</option>
+          </select>
+          <button class="btn btn-ghost" type="button" onclick="exportPeople()">Export CSV</button>
+        </div>
+        <div class="table">
+          <table id="peopleTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Reads</th>
+                <th>Clicks</th>
+                <th>Video</th>
+                <th>Blocks</th>
+                <th>Last Activity</th>
+              </tr>
+            </thead>
+            <tbody id="peopleBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Audience Modal -->
+  <div class="modal" id="audModal" aria-hidden="true" style="display:none;align-items:center;justify-content:center;padding:20px;position:fixed;inset:0;background:rgba(2,8,23,.55)">
+    <div class="box" style="background:#fff;border-radius:16px;border:1px solid var(--line);box-shadow:var(--shadow);width:min(760px,96%);max-height:90vh;overflow:auto">
+      <div class="head" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)">
+        <div style="font-weight:800">New Segment</div>
+        <button class="btn btn-ghost" onclick="closeAudienceModal()">Close</button>
+      </div>
+      <div class="body" style="padding:14px">
+        <div class="row">
+          <div>
+            <label for="segName">Segment Name</label>
+            <input id="segName" type="text" placeholder="e.g., Responsive + Clicked in last 30d">
+          </div>
+          <div>
+            <label for="segLogic">Match Logic</label>
+            <select id="segLogic">
+              <option value="all">All rules (AND)</option>
+              <option value="any">Any rules (OR)</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label>Rules</label>
+          <div id="segRules"></div>
+          <button class="btn btn-ghost" type="button" onclick="addSegRule()">+ Add rule</button>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn" type="button" onclick="closeAudienceModal()">Cancel</button>
+          <button class="btn btn-primary" type="button" onclick="saveSegment()">Save Segment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===== Utilities / Nav ===== */
+    function scrollToSel(sel){ const el=document.querySelector(sel); if(el){ el.scrollIntoView({behavior:'smooth', block:'start'});} }
+
+    function setStepState(n,state){
+      const step=document.querySelector(`.wizard__step[data-step="${n}"]`);
+      if(!step) return;
+      step.classList.remove('is-current','is-complete');
+      if(state==='current') step.classList.add('is-current');
+      if(state==='complete') step.classList.add('is-complete');
+    }
+
+    function updateWizard(){
+      const hasName=(document.getElementById('cName')?.value||'').trim().length>0;
+      const hasAudience=(chips.length>0);
+      const hasCreative=(document.getElementById('msgText')?.value||'').trim().length>0 || !!state.media.image || !!state.media.video;
+      document.querySelectorAll('.wizard__step').forEach(s=>s.classList.remove('is-current','is-complete'));
+      if(!hasName){ setStepState(1,'current'); return; }
+      if(hasName && !hasAudience){ setStepState(1,'complete'); setStepState(2,'current'); return; }
+      if(hasName && hasAudience && !hasCreative){ setStepState(1,'complete'); setStepState(2,'complete'); setStepState(3,'current'); return; }
+      setStepState(1,'complete'); setStepState(2,'complete'); setStepState(3,'complete'); setStepState(4,'current');
+    }
+
+    /* ===== State ===== */
+    const state = {
+      name: '', objective:'retention', compare:'', source:'',
+      audience: { segments: ['All Contacts'], filters: [] , demographics:{} },
+      media: { image:null, video:null },
+      schedule: { start:'', end:'' }
+    };
+    const chips = [];
+
+    function syncState(){
+      state.name = document.getElementById('cName').value.trim();
+      state.objective = document.getElementById('cObjective').value;
+      state.compare = document.getElementById('cCompare').value;
+      state.source = document.getElementById('cSource').value.trim();
+      state.schedule.start = document.getElementById('runStart').value;
+      state.schedule.end = document.getElementById('runEnd').value;
+      state.audience.demographics.gender = document.getElementById('demoGender').value;
+      state.audience.demographics.age = document.getElementById('demoAge').value;
+
+      // Summary tiles
+      document.getElementById('sumName').textContent = state.name || '—';
+      document.getElementById('sumAudience').textContent = state.audience.segments.join(', ');
+      document.getElementById('sumFilters').textContent = state.audience.filters.length ? state.audience.filters.join(', ') : 'None';
+      const creativeTypes = ['Text'];
+      if(state.media.image) creativeTypes.push('Image');
+      if(state.media.video) creativeTypes.push('Video');
+      document.getElementById('sumCreative').textContent = creativeTypes.join(' + ');
+      document.getElementById('sumRun').textContent = state.schedule.start && state.schedule.end ? `${state.schedule.start} → ${state.schedule.end}` : '—';
+      updateWizard();
+    }
+
+    function saveDraft(){
+      localStorage.setItem('crmCampaignDraft', JSON.stringify(state));
+      alert('Draft saved locally.');
+    }
+
+    /* ===== Audience chips & filters ===== */
+    function openAudienceModal(){ document.getElementById('audModal').style.display='flex'; }
+    function closeAudienceModal(){ document.getElementById('audModal').style.display='none'; }
+
+    function addFilter(tag){
+      if(!state.audience.filters.includes(tag)) state.audience.filters.push(tag);
+      renderFilters(); syncState();
+    }
+    function renderFilters(){
+      const el = document.getElementById('filterList');
+      if(state.audience.filters.length===0){ el.textContent = 'No filters added.'; return; }
+      el.innerHTML = state.audience.filters.map(t=>`<span class="chip">${t} <button class="btn" style="padding:2px 6px" onclick="removeFilter('${t}')">×</button></span>`).join(' ');
+    }
+    function removeFilter(tag){
+      state.audience.filters = state.audience.filters.filter(x=>x!==tag);
+      renderFilters(); syncState();
+    }
+
+    function addSegRule(){
+      const id = 'r'+Math.random().toString(36).slice(2,7);
+      const row = document.createElement('div');
+      row.className='row';
+      row.innerHTML = `
+        <div>
+          <label>Field</label>
+          <select id="f_${id}">
+            <option value="responsive">Responsive</option>
+            <option value="cold">Cold</option>
+            <option value="clicked">Clicked</option>
+            <option value="video_viewed">Viewed Video</option>
+            <option value="blocked">Blocked/Spam</option>
+          </select>
+        </div>
+        <div>
+          <label>Condition</label>
+          <select id="op_${id}">
+            <option value="is">is</option>
+            <option value=">=">≥</option>
+            <option value="<=">≤</option>
+          </select>
+          <input id="v_${id}" type="text" placeholder="e.g., true or a number" />
+        </div>`;
+      document.getElementById('segRules').appendChild(row);
+    }
+    function saveSegment(){
+      const name = (document.getElementById('segName').value||'').trim();
+      if(!name){ alert('Segment name required'); return; }
+      state.audience.segments.push(name);
+      const chip = document.createElement('span'); chip.className='chip good'; chip.textContent = name;
+      document.getElementById('segmentChips').appendChild(chip);
+      closeAudienceModal(); syncState();
+    }
+
+    /* ===== Media preview ===== */
+    function previewMedia(evt, target){
+      const file = evt.target.files && evt.target.files[0];
+      if(!file) return;
+      const url = URL.createObjectURL(file);
+      if(target==='imgPreview'){ const img=document.getElementById('imgPreview'); img.src=url; img.style.display='block'; state.media.image=url; }
+      if(target==='vidPreview'){ const vid=document.getElementById('vidPreview'); vid.src=url; vid.style.display='block'; state.media.video=url; }
+      syncState();
+    }
+
+    /* ===== Create Campaign (stub to backend) ===== */
+    function createCampaign(){
+      if(!state.name){ alert('Campaign Name is required'); scrollToSel('#builder-basic'); return; }
+      if(!document.getElementById('msgText').value.trim()){ alert('Message is required'); scrollToSel('#builder-creatives'); return; }
+
+      const payload = {
+        name: state.name,
+        objective: state.objective,
+        segments: state.audience.segments,
+        filters: state.audience.filters,
+        demographics: state.audience.demographics,
+        message: document.getElementById('msgText').value.trim(),
+        image: state.media.image || null,
+        video: state.media.video || null,
+        source_url: state.source,
+        compare_event: state.compare,
+        schedule: state.schedule
+      };
+
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+      fetch('/crm/campaigns/create/', {
+        method:'POST', headers:{ 'Content-Type':'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload)
+      }).then(r=>r.json()).then(data=>{
+        if(data.success){ alert('Campaign created.'); }
+        else { alert(data.message || 'Failed to create campaign'); }
+      }).catch(()=>alert('Network error creating campaign.'));
+    }
+
+    /* ===== People demo data & helpers ===== */
+    const demoPeople = [
+      {name:'Aiman', phone:'+60123456789', status:'responsive', reads:5, clicks:2, video:1, blocks:0, last:'2025-08-01 10:20'},
+      {name:'Bella', phone:'+6011333555', status:'cold', reads:0, clicks:0, video:0, blocks:0, last:'2025-07-22 09:00'},
+      {name:'Chong', phone:'+6019555777', status:'blocked', reads:1, clicks:0, video:0, blocks:1, last:'2025-07-28 14:05'},
+      {name:'Devi', phone:'+6018666333', status:'responsive', reads:3, clicks:1, video:1, blocks:0, last:'2025-08-03 19:12'},
+    ];
+
+    function renderPeople(rows){
+      const tb = document.getElementById('peopleBody');
+      tb.innerHTML = rows.map(r=>{
+        const s = r.status;
+        const badge = s==='responsive' ? 'b-ok' : s==='cold' ? 'b-warm' : s==='blocked' ? 'b-danger' : 'b-cool';
+        return `<tr>
+          <td>${r.name}</td>
+          <td>${r.phone}</td>
+          <td><span class="badge ${badge}">${s}</span></td>
+          <td>${r.reads}</td>
+          <td>${r.clicks}</td>
+          <td>${r.video}</td>
+          <td>${r.blocks}</td>
+          <td>${r.last}</td>
+        </tr>`
+      }).join('');
+      document.getElementById('m_audience').textContent = rows.length;
+    }
+
+    function filterPeople(){
+      const q = (document.getElementById('peopleSearch').value||'').toLowerCase();
+      const f = document.getElementById('peopleFilter').value;
+      const rows = demoPeople.filter(p=>{
+        const matchesText = (p.name+' '+p.phone).toLowerCase().includes(q);
+        const matchesFilter = !f || p.status===f || (f==='clicked' && p.clicks>0) || (f==='video' && p.video>0);
+        return matchesText && matchesFilter;
+      });
+      renderPeople(rows);
+    }
+    document.getElementById('peopleSearch').addEventListener('input', filterPeople);
+
+    function exportPeople(){
+      const headers = ['Name','Phone','Status','Reads','Clicks','Video','Blocks','Last Activity'];
+      const rows = Array.from(document.querySelectorAll('#peopleBody tr')).map(tr=>
+        Array.from(tr.children).map(td=>`"${td.innerText.replace(/"/g,'""')}"`).join(',')
+      );
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], {type:'text/csv'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'people_analytics.csv'; a.click();
+    }
+
+    // Init
+    (function init(){
+      renderPeople(demoPeople);
+      renderFilters();
+      syncState();
+    })();
+  </script>
+</body>
+</html>

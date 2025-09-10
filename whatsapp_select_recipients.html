@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Recipients - WhatsApp Bulk Message</title>
+    <style>
+        body {
+            background: #ece5dd;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .wa-list-container {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: 400px;
+            padding: 24px 20px 20px 20px;
+        }
+        h2 {
+            color: #075e54;
+            margin-top: 0;
+            margin-bottom: 18px;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px 8px;
+            text-align: left;
+        }
+        th {
+            background: #f0f0f0;
+            color: #075e54;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .select-btn {
+            background: #25d366;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .select-btn.selected {
+            background: #075e54;
+        }
+        .select-all-btn {
+            background: #34b7f1;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 7px 16px;
+            cursor: pointer;
+            font-size: 15px;
+            margin-bottom: 15px;
+            display: block;
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="wa-list-container">
+        <h2>Select Recipients</h2>
+        <button class="select-all-btn" onclick="selectAll()" id="selectAllBtn">Select All</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Phone Number</th>
+                    <th>Select</th>
+                </tr>
+            </thead>
+            <tbody id="peopleList">
+                <!-- Rows will be populated by JS -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        const people = [
+            { name: 'Alice', phone: '+1234567890' },
+            { name: 'Bob', phone: '+1987654321' },
+            { name: 'Charlie', phone: '+1122334455' },
+            { name: 'Diana', phone: '+1098765432' }
+        ];
+        const selected = new Set();
+
+        function renderList() {
+            const tbody = document.getElementById('peopleList');
+            tbody.innerHTML = '';
+            people.forEach((person, idx) => {
+                const isSelected = selected.has(idx);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${person.name}</td>
+                        <td>${person.phone}</td>
+                        <td><button class="select-btn${isSelected ? ' selected' : ''}" onclick="toggleSelect(${idx})" id="selectBtn${idx}">${isSelected ? 'Selected' : 'Select'}</button></td>
+                    </tr>
+                `;
+            });
+            updateSelectAllBtn();
+        }
+
+        function toggleSelect(idx) {
+            if (selected.has(idx)) {
+                selected.delete(idx);
+            } else {
+                selected.add(idx);
+            }
+            renderList();
+        }
+
+        function selectAll() {
+            if (selected.size === people.length) {
+                selected.clear();
+            } else {
+                people.forEach((_, idx) => selected.add(idx));
+            }
+            renderList();
+        }
+
+        function updateSelectAllBtn() {
+            const btn = document.getElementById('selectAllBtn');
+            if (selected.size === people.length) {
+                btn.textContent = 'Deselect All';
+            } else {
+                btn.textContent = 'Select All';
+            }
+        }
+
+        renderList();
+    </script>
+</body>
+</html>
