@@ -535,6 +535,78 @@ class ContestEntry(models.Model):
         
         return True
 
+class ContestFlowState(models.Model):
+    """
+    Tracks the current state of a customer's contest entry flow
+    """
+    FLOW_STEPS = [
+        ('initial', 'Initial Contact'),
+        ('pdpa_sent', 'PDPA Message Sent'),
+        ('pdpa_response', 'PDPA Response Received'),
+        ('instructions_sent', 'Instructions Sent'),
+        ('awaiting_submission', 'Awaiting Submission'),
+        ('submitted', 'Submitted'),
+        ('completed', 'Completed'),
+    ]
+    
+    flow_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='contest_flows')
+    contest = models.ForeignKey('Contest', on_delete=models.CASCADE, related_name='flow_states')
+    current_step = models.CharField(max_length=20, choices=FLOW_STEPS, default='initial')
+    
+    # Flow tracking
+    started_at = models.DateTimeField(default=dj_timezone.now)
+    last_updated = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    
+    # Response tracking
+    pdpa_response = models.CharField(max_length=10, blank=True, null=True)  # 'yes', 'no', 'stop'
+    pdpa_responded_at = models.DateTimeField(blank=True, null=True)
+    
+    # Custom messages sent
+    messages_sent = models.JSONField(default=list, blank=True)  # Track which messages were sent
+    
+    # Flow metadata
+    metadata = models.JSONField(default=dict, blank=True)  # Store additional flow data
+    
+    class Meta:
+        unique_together = ['customer', 'contest']
+        ordering = ['-last_updated']
+    
+    def __str__(self):
+        return f"{self.customer.name} - {self.contest.name} ({self.current_step})"
+    
+    @property
+    def is_completed(self):
+        return self.current_step == 'completed'
+    
+    @property
+    def is_pdpa_accepted(self):
+        return self.pdpa_response == 'yes'
+    
+    def advance_step(self, new_step):
+        """Advance to the next step in the flow"""
+        self.current_step = new_step
+        self.last_updated = dj_timezone.now()
+        
+        if new_step == 'completed':
+            self.completed_at = dj_timezone.now()
+        
+        self.save()
+    
+    def add_message_sent(self, message_type, content=None):
+        """Track that a message was sent"""
+        self.messages_sent.append({
+            'type': message_type,
+            'content': content,
+            'sent_at': dj_timezone.now().isoformat()
+        })
+        self.save()
+    
+    def has_message_been_sent(self, message_type):
+        """Check if a specific message type has been sent"""
+        return any(msg['type'] == message_type for msg in self.messages_sent)
+
 class PromptReply(models.Model):
     """Saved quick replies for CRM agents."""
     prompt_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

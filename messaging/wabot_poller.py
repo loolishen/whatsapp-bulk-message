@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from .models import Customer, CoreMessage, Conversation, WhatsAppConnection, Tenant
 from .pdpa_service import PDPAConsentService
+from .step_by_step_contest_service import StepByStepContestService
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,7 @@ class WABOTPoller:
         self.access_token = "68a0a10422130"
         self.instance_id = "68A0A11A89A8D"
         self.pdpa_service = PDPAConsentService()
+        self.step_contest_service = StepByStepContestService()
     
     def poll_messages(self):
         """Poll WABOT for new messages"""
@@ -104,6 +106,15 @@ class WABOTPoller:
             
             # Process with PDPA service
             self.pdpa_service.handle_incoming_message(customer, message_text, tenant)
+            
+            # Process step-by-step contest flow (after PDPA)
+            contest_results = self.step_contest_service.process_message_for_contests(
+                customer, message_text, tenant, conversation
+            )
+            
+            # Log contest processing results
+            if contest_results['flows_processed'] > 0:
+                logger.info(f"Step-by-step contest processing: {contest_results}")
             
             logger.info(f"Processed message from {from_number}: {message_text[:50]}...")
             

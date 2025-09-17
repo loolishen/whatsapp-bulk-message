@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .debug_webhook import debug_webhook
+from . import auto_contest_views
 
 # Guard views that may import legacy models before migrations
 def _safe(view_func):
@@ -28,6 +29,12 @@ urlpatterns = [
     path('contest/<str:contest_id>/entries/', views.contest_entries, name='contest_entries'),
     path('contest/entry/<str:entry_id>/verify/', views.contest_verify_entry, name='contest_verify_entry'),
     path('contest/analytics/', views.contest_analytics, name='contest_analytics'),
+    
+    # Auto Contest Management
+    path('auto-contest/', auto_contest_views.auto_contest_dashboard, name='auto_contest_dashboard'),
+    path('auto-contest/settings/', auto_contest_views.auto_contest_settings, name='auto_contest_settings'),
+    path('auto-contest/test/', auto_contest_views.auto_contest_test, name='auto_contest_test'),
+    path('api/auto-contest/stats/', auto_contest_views.auto_contest_stats_api, name='auto_contest_stats_api'),
     
     # Legacy contest URLs (for backward compatibility)
     path('contest/contacts/', views.contest_contacts, name='contest_contacts'),

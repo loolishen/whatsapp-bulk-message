@@ -1,0 +1,108 @@
+{% extends "messaging/base.html" %}
+{% load static %}
+
+{% block title %}Test Auto Contest{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>🧪 Test Auto Contest Functionality</h1>
+                <a href="{% url 'auto_contest_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Test Message Processing</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label for="phone_number">Phone Number</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="phone_number" 
+                                   name="phone_number" 
+                                   placeholder="60123456789"
+                                   value="60123456789"
+                                   required>
+                            <small class="form-text text-muted">Enter a phone number to test with</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="message_text">Message Text</label>
+                            <textarea class="form-control" 
+                                      id="message_text" 
+                                      name="message_text" 
+                                      rows="3" 
+                                      placeholder="Enter a test message..."
+                                      required>Hello, I want to participate in the contest!</textarea>
+                            <small class="form-text text-muted">This message will be processed as if sent via WhatsApp</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Test Auto Contest Processing
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li>Enter a phone number and message</li>
+                        <li>Click "Test Auto Contest Processing"</li>
+                        <li>The system will:</li>
+                        <ul>
+                            <li>Create/find the customer</li>
+                            <li>Check for active contests</li>
+                            <li>Automatically add them to contests</li>
+                            <li>Send notification messages</li>
+                        </ul>
+                        <li>Check the results and dashboard</li>
+                    </ol>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Test Numbers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <button class="list-group-item list-group-item-action" onclick="setPhone('60123456789')">
+                            60123456789
+                        </button>
+                        <button class="list-group-item list-group-item-action" onclick="setPhone('60187654321')">
+                            60187654321
+                        </button>
+                        <button class="list-group-item list-group-item-action" onclick="setPhone('60111223344')">
+                            60111223344
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setPhone(phone) {
+    document.getElementById('phone_number').value = phone;
+}
+</script>
+{% endblock %}

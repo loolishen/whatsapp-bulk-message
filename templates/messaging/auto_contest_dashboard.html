@@ -1,0 +1,220 @@
+{% extends "messaging/base.html" %}
+{% load static %}
+
+{% block title %}Auto Contest Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>🎯 Auto Contest Dashboard</h1>
+                <div>
+                    <a href="{% url 'auto_contest_test' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-flask"></i> Test Functionality
+                    </a>
+                    <a href="{% url 'auto_contest_settings' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.active_contests }}</h4>
+                            <p class="mb-0">Active Contests</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-trophy fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.total_entries }}</h4>
+                            <p class="mb-0">Total Entries</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.status_breakdown.pending|default:0 }}</h4>
+                            <p class="mb-0">Pending</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4>{{ stats.status_breakdown.verified|default:0 }}</h4>
+                            <p class="mb-0">Verified</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Contests -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">🏆 Active Contests</h5>
+                </div>
+                <div class="card-body">
+                    {% if active_contests %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Contest Name</th>
+                                        <th>Entries</th>
+                                        <th>Verified</th>
+                                        <th>Start Date</th>
+                                        <th>End Date</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contest in active_contests %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ contest.name }}</strong>
+                                            {% if contest.description %}
+                                                <br><small class="text-muted">{{ contest.description|truncatechars:50 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-primary">{{ contest.total_entries }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge badge-success">{{ contest.verified_entries }}</span>
+                                        </td>
+                                        <td>{{ contest.starts_at|date:"M d, Y H:i" }}</td>
+                                        <td>{{ contest.ends_at|date:"M d, Y H:i" }}</td>
+                                        <td>
+                                            {% if contest.is_currently_active %}
+                                                <span class="badge badge-success">Active</span>
+                                            {% else %}
+                                                <span class="badge badge-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-trophy fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Active Contests</h5>
+                            <p class="text-muted">Create a contest to start automatic entry processing</p>
+                            <a href="{% url 'contest_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Create Contest
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Entries -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">📋 Recent Contest Entries</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_entries %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Contest</th>
+                                        <th>Status</th>
+                                        <th>Submitted</th>
+                                        <th>Phone</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in recent_entries %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ entry.customer.name }}</strong>
+                                        </td>
+                                        <td>{{ entry.contest.name }}</td>
+                                        <td>
+                                            <span class="badge badge-{% if entry.status == 'verified' %}success{% elif entry.status == 'pending' %}warning{% elif entry.status == 'rejected' %}danger{% else %}secondary{% endif %}">
+                                                {{ entry.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ entry.submitted_at|date:"M d, Y H:i" }}</td>
+                                        <td>{{ entry.customer.phone_number }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Contest Entries Yet</h5>
+                            <p class="text-muted">Contest entries will appear here when customers send messages during active contests</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh stats every 30 seconds
+setInterval(function() {
+    fetch('{% url "auto_contest_stats_api" %}')
+        .then(response => response.json())
+        .then(data => {
+            // Update stats if needed
+            console.log('Stats updated:', data);
+        })
+        .catch(error => console.error('Error updating stats:', error));
+}, 30000);
+</script>
+{% endblock %}

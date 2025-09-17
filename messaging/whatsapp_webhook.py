@@ -15,6 +15,7 @@ from .models import Customer, CoreMessage
 from .ocr_service import OCRService
 from .whatsapp_service import WhatsAppAPIService
 from .pdpa_service import PDPAConsentService
+from .step_by_step_contest_service import StepByStepContestService
 import requests
 
 logger = logging.getLogger(__name__)
@@ -499,6 +500,16 @@ class WhatsAppWebhookView(View):
             # Handle PDPA consent management
             pdpa_service = PDPAConsentService()
             pdpa_handled = pdpa_service.handle_incoming_message(contact, message_text, tenant)
+            
+            # Process step-by-step contest flow (after PDPA)
+            step_contest_service = StepByStepContestService()
+            contest_results = step_contest_service.process_message_for_contests(
+                contact, message_text, tenant, conversation
+            )
+            
+            # Log contest processing results
+            if contest_results['flows_processed'] > 0:
+                logger.info(f"Step-by-step contest processing: {contest_results}")
             
             # If PDPA didn't handle the message, use normal auto-response
             if not pdpa_handled:

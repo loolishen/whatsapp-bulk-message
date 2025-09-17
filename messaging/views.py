@@ -145,6 +145,7 @@ def contest_home(request):
         'active_contest': active_contest,
         'active_contest_stats': active_contest_stats,
         'contest_stats': contest_stats,
+        'now': dj_timezone.now(),
     }
     return render(request, 'messaging/contest_home_enhanced.html', context)
 

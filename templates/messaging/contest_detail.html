@@ -248,10 +248,10 @@
         <div>
           <h2 class="contest-title">{{ contest.name }}</h2>
           <div class="contest-status 
-            {% if contest.is_currently_active %}status-active
+            {% if contest.is_active and contest.starts_at <= now and contest.ends_at >= now %}status-active
             {% elif contest.starts_at > now %}status-upcoming
             {% else %}status-ended{% endif %}">
-            {% if contest.is_currently_active %}Active
+            {% if contest.is_active and contest.starts_at <= now and contest.ends_at >= now %}Active
             {% elif contest.starts_at > now %}Upcoming
             {% else %}Ended{% endif %}
           </div>
