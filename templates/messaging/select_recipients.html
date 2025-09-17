@@ -8,67 +8,151 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
 
   <style>
-    /* ===== Modern CRM theme (same as recipients_and_preview.html) ===== */
+    /* ===== Facebook CRM Design System ===== */
     :root{
-      --bg:#f3f6fb; --card:#fff; --text:#0f172a; --muted:#667085; --line:#e5e7eb;
-      --brand:#0ea5e9; --brand-strong:#0284c7; --accent:#22c55e; --radius:14px;
-      --shadow:0 6px 20px rgba(2,8,23,.08);
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
 
-    /* Top bar (same pattern) */
-    .topbar{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #e5e7eb}
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
     .topbar__inner{
-      max-width:1100px;margin:0 auto;
-      display:grid;grid-template-columns:220px 1fr 220px;
-      align-items:center;gap:12px;padding:8px 16px;
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
     }
-    .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-    .brand__logo{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:var(--brand);color:#fff;font-weight:800;font-size:18px}
-    .brand__text{color:var(--text);font-weight:800;letter-spacing:.2px}
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
 
-    /* Tabs inline in top bar */
-    .tabs{display:flex;justify-content:center;gap:6px}
-    .tab{min-width:100px;height:40px;display:grid;place-items:center;border-radius:10px;color:#64748b;text-decoration:none;font-weight:700}
-    .tab:hover{background:#f1f5f9;color:#0f172a}
-    .tab--active{color:var(--brand)}
-    .tab__icon{display:flex;align-items:center;gap:8px;font-size:14px}
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
 
-    .actions{display:flex;justify-content:flex-end;gap:8px;align-items:center}
-    .action{width:40px;height:40px;border-radius:999px;display:grid;place-items:center;background:#f1f5f9;border:1px solid #e5e7eb}
-    .action:hover{background:#e2e8f0}
-    .avatar{width:36px;height:36px;border-radius:999px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
 
-    /* Page layout (single column) */
-    .layout{max-width:1100px;margin:22px auto;display:grid;gap:20px;grid-template-columns:1fr;padding:0 16px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .card h2{margin:0 0 12px;font-size:16px}
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
 
-    /* Add contact + list */
-    .stack{display:grid;gap:16px}
-    .form-row{display:grid;gap:10px}
-    label{display:block;font-size:12px;color:#475569;font-weight:700;margin:4px 0 4px}
-    input[type="text"]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;outline:none}
-    input:focus{border-color:var(--brand);box-shadow:0 0 0 4px rgba(14,165,233,.25)}
-    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1px solid transparent;font-weight:700;cursor:pointer;transition:.15s}
-    .btn-primary{background:var(--brand);color:#fff}.btn-primary:hover{background:var(--brand-strong)}
-    .btn-secondary{background:#eef6ff;color:#0b5cab;border:1px solid #dbeafe}
-    .btn-muted{background:#f1f5f9;color:#0f172a;border:1px solid var(--line)}
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .card-body{padding:20px}
 
+    /* ===== Forms ===== */
+    .form-group{margin-bottom:16px}
+    .form-label{
+      display:block; font-size:14px; font-weight:600; color:var(--fb-text);
+      margin-bottom:6px
+    }
+    .form-input, .form-select{
+      width:100%; padding:12px 16px; border:1px solid var(--fb-border); border-radius:var(--fb-radius);
+      background:var(--fb-white); font-size:14px; transition:border-color 0.2s
+    }
+    .form-input:focus, .form-select:focus{
+      outline:none; border-color:var(--fb-blue); box-shadow:0 0 0 3px rgba(24,119,242,0.1)
+    }
+
+    /* ===== Buttons ===== */
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; padding:10px 20px;
+      border-radius:var(--fb-radius); font-weight:600; cursor:pointer;
+      transition:all 0.2s; text-decoration:none; border:none; font-size:14px
+    }
+    .btn-primary{background:var(--fb-blue); color:white}
+    .btn-primary:hover{background:var(--fb-blue-hover)}
+    .btn-secondary{background:var(--fb-gray-light); color:var(--fb-text); border:1px solid var(--fb-border)}
+    .btn-secondary:hover{background:var(--fb-border)}
+
+    /* ===== Table ===== */
+    .table-container{background:var(--fb-white); border-radius:var(--fb-radius-lg); overflow:hidden; box-shadow:var(--fb-shadow)}
+    .table-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px
+    }
+    .table-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .table-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    .data-table{
+      width:100%; border-collapse:collapse; font-size:14px
+    }
+    .data-table th{
+      background:var(--fb-gray-light); padding:12px 16px; text-align:left;
+      font-weight:600; color:var(--fb-text); border-bottom:1px solid var(--fb-border)
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--fb-border); vertical-align:middle
+    }
+    .data-table tbody tr:hover{background:var(--fb-gray-light)}
+
+    .badge{
+      display:inline-block; padding:4px 8px; border-radius:12px;
+      font-size:12px; font-weight:600; background:var(--fb-gray-light); color:var(--fb-text)
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px}
+      .page-title{font-size:24px}
+      .table-header{flex-direction:column; align-items:stretch}
+      .table-actions{justify-content:center}
+    }
     /* Message preview chip */
-    .preview-chip{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:14px;color:#0f172a}
-
-    /* Table */
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{background:#f8fafc;text-align:left;padding:12px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
-    td{padding:12px 14px;border-bottom:1px solid var(--line)}
-    tbody tr:hover{background:#f9fbff}
+    .preview-chip{background:#f8fafc;border:1px solid var(--fb-border);border-radius:var(--fb-radius);padding:10px;font-size:14px;color:var(--fb-text)}
     .right{text-align:right}
-    .select-btn{background:#eef6ff;color:#0b5cab;border:1px solid #dbeafe;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:700}
-    .select-btn.selected{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .select-btn{background:var(--fb-blue-light);color:var(--fb-blue);border:1px solid var(--fb-blue);border-radius:var(--fb-radius);padding:8px 12px;cursor:pointer;font-weight:700}
+    .select-btn.selected{background:var(--fb-blue);color:white;border-color:var(--fb-blue)}
     .toolbar{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:12px 14px}
-    .sticky-footer{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(243,246,251,0),rgba(243,246,251,1) 40%);padding:14px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px}
+    .sticky-footer{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(243,246,251,0),rgba(243,246,251,1) 40%);padding:14px;border-top:1px solid var(--fb-border);display:flex;justify-content:flex-end;gap:10px}
   </style>
 </head>
 <body>
@@ -101,7 +185,7 @@
             Customers
           </span>
         </a>
-        <a href="{% url 'crm_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'crm_dashboard' %}tab--active{% endif %}">
+        <a href="{% url 'crm_home' %}" class="tab {% if request.resolver_match.url_name == 'crm_home' %}tab--active{% endif %}">
           <span class="tab__icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>

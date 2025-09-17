@@ -1,406 +1,222 @@
-"""
-OCR Service for processing Malaysian IC cards and receipts
-"""
+import os
 import re
-import json
-import requests
-from decimal import Decimal
-from datetime import datetime, date
-from typing import Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Optional, Dict, Any, List, Tuple
 from django.conf import settings
-import logging
-
-logger = logging.getLogger(__name__)
-
-class MalaysianICParser:
-    """Parser for Malaysian IC numbers"""
-    
-    STATE_CODES = {
-        '01': 'JHR', '02': 'KDH', '03': 'KTN', '04': 'MLK', '05': 'NSN',
-        '06': 'PHG', '07': 'PNG', '08': 'PRK', '09': 'PLS', '10': 'SEL',
-        '11': 'TRG', '12': 'SBH', '13': 'SWK', '14': 'KUL', '15': 'LBN',
-        '16': 'PJY'
-    }
-    
-    @staticmethod
-    def parse_ic_number(ic_number: str) -> Dict:
-        """
-        Parse Malaysian IC number to extract information
-        
-        Format: YYMMDD-SS-GGGV
-        YY: Birth year (00-30 = 2000-2030, 31-99 = 1931-1999)
-        MM: Birth month (01-12)
-        DD: Birth day (01-31)
-        SS: State code (01-16)
-        GGG: Sequential number
-        V: Gender (odd = male, even = female)
-        """
-        if not ic_number or len(ic_number) != 12:
-            return {'valid': False, 'error': 'Invalid IC number format'}
-        
-        try:
-            # Remove any dashes or spaces
-            ic_clean = re.sub(r'[-\s]', '', ic_number)
-            
-            if len(ic_clean) != 12 or not ic_clean.isdigit():
-                return {'valid': False, 'error': 'IC number must be 12 digits'}
-            
-            # Extract components
-            birth_year = int(ic_clean[:2])
-            birth_month = int(ic_clean[2:4])
-            birth_day = int(ic_clean[4:6])
-            state_code = ic_clean[6:8]
-            gender_digit = int(ic_clean[-1])
-            
-            # Convert birth year
-            if birth_year <= 30:
-                full_birth_year = 2000 + birth_year
-            else:
-                full_birth_year = 1900 + birth_year
-            
-            # Validate date
-            try:
-                birth_date = date(full_birth_year, birth_month, birth_day)
-            except ValueError:
-                return {'valid': False, 'error': 'Invalid birth date in IC'}
-            
-            # Calculate age
-            today = date.today()
-            age = today.year - birth_date.year
-            if today.month < birth_month or (today.month == birth_month and today.day < birth_day):
-                age -= 1
-            
-            # Determine gender
-            gender = 'M' if gender_digit % 2 == 1 else 'F'
-            
-            # Get state
-            state = MalaysianICParser.STATE_CODES.get(state_code, 'N/A')
-            
-            return {
-                'valid': True,
-                'ic_number': ic_clean,
-                'birth_date': birth_date.strftime('%Y-%m-%d'),
-                'age': age,
-                'gender': gender,
-                'state': state,
-                'state_code': state_code,
-                'birth_year': full_birth_year,
-                'birth_month': birth_month,
-                'birth_day': birth_day
-            }
-            
-        except Exception as e:
-            return {'valid': False, 'error': f'Error parsing IC: {str(e)}'}
-
-
-class ReceiptParser:
-    """Parser for receipt text extracted via OCR"""
-    
-    @staticmethod
-    def parse_receipt_text(text: str) -> Dict:
-        """
-        Parse receipt text to extract purchase information
-        """
-        if not text:
-            return {'valid': False, 'error': 'No text provided'}
-        
-        try:
-            # Clean text
-            text_clean = re.sub(r'\s+', ' ', text.strip())
-            
-            # Extract total amount
-            total_amount = ReceiptParser._extract_total_amount(text_clean)
-            
-            # Extract date
-            purchase_date = ReceiptParser._extract_date(text_clean)
-            
-            # Extract items
-            items = ReceiptParser._extract_items(text_clean)
-            
-            return {
-                'valid': True,
-                'total_amount': total_amount,
-                'purchase_date': purchase_date,
-                'items': items,
-                'raw_text': text_clean
-            }
-            
-        except Exception as e:
-            return {'valid': False, 'error': f'Error parsing receipt: {str(e)}'}
-    
-    @staticmethod
-    def _extract_total_amount(text: str) -> Optional[Decimal]:
-        """Extract total amount from receipt text"""
-        # Common patterns for total amount
-        patterns = [
-            r'total[:\s]*rm\s*(\d+\.?\d*)',
-            r'total[:\s]*\$?\s*(\d+\.?\d*)',
-            r'jumlah[:\s]*rm\s*(\d+\.?\d*)',
-            r'amount[:\s]*rm\s*(\d+\.?\d*)',
-            r'grand\s*total[:\s]*rm\s*(\d+\.?\d*)',
-            r'rm\s*(\d+\.?\d*)\s*total',
-            r'(\d+\.?\d*)\s*rm\s*total',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                try:
-                    return Decimal(match.group(1))
-                except:
-                    continue
-        
-        # Fallback: look for any RM amount at the end of lines
-        rm_pattern = r'rm\s*(\d+\.?\d*)'
-        matches = re.findall(rm_pattern, text, re.IGNORECASE)
-        if matches:
-            try:
-                # Return the largest amount found
-                amounts = [Decimal(m) for m in matches]
-                return max(amounts)
-            except:
-                pass
-        
-        return None
-    
-    @staticmethod
-    def _extract_date(text: str) -> Optional[str]:
-        """Extract purchase date from receipt text"""
-        # Common date patterns
-        patterns = [
-            r'(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})',  # DD/MM/YYYY or DD-MM-YYYY
-            r'(\d{2,4})[\/\-](\d{1,2})[\/\-](\d{1,2})',  # YYYY/MM/DD or YYYY-MM-DD
-            r'(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{2,4})',  # DD Mon YYYY
-        ]
-        
-        month_names = {
-            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-            'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
-        }
-        
-        for pattern in patterns:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                try:
-                    if len(match.groups()) == 3:
-                        if pattern == patterns[2]:  # DD Mon YYYY
-                            day, month_name, year = match.groups()
-                            month = month_names.get(month_name.lower(), 1)
-                            year = int(year)
-                            if year < 100:
-                                year += 2000 if year < 50 else 1900
-                        else:
-                            part1, part2, part3 = match.groups()
-                            # Try to determine format
-                            if len(part3) == 4:  # YYYY format
-                                if int(part1) > 12:  # DD/MM/YYYY
-                                    day, month, year = int(part1), int(part2), int(part3)
-                                else:  # MM/DD/YYYY or YYYY/MM/DD
-                                    if int(part1) > 31:  # YYYY/MM/DD
-                                        year, month, day = int(part1), int(part2), int(part3)
-                                    else:  # MM/DD/YYYY
-                                        month, day, year = int(part1), int(part2), int(part3)
-                            else:  # YY format
-                                if int(part1) > 12:  # DD/MM/YY
-                                    day, month, year = int(part1), int(part2), int(part3)
-                                    year += 2000 if year < 50 else 1900
-                                else:  # MM/DD/YY
-                                    month, day, year = int(part1), int(part2), int(part3)
-                                    year += 2000 if year < 50 else 1900
-                        
-                        # Validate date
-                        purchase_date = date(year, month, day)
-                        return purchase_date.strftime('%Y-%m-%d')
-                except:
-                    continue
-        
-        return None
-    
-    @staticmethod
-    def _extract_items(text: str) -> List[Dict]:
-        """Extract items from receipt text"""
-        items = []
-        
-        # Look for item patterns
-        # This is a simplified version - you might want to enhance this based on your receipt format
-        lines = text.split('\n')
-        
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            
-            # Look for lines that might contain items with prices
-            # Pattern: Item name ... RM amount
-            item_match = re.search(r'(.+?)\s+rm\s*(\d+\.?\d*)', line, re.IGNORECASE)
-            if item_match:
-                item_name = item_match.group(1).strip()
-                try:
-                    price = Decimal(item_match.group(2))
-                    if price > 0 and len(item_name) > 2:  # Basic validation
-                        items.append({
-                            'name': item_name,
-                            'price': float(price),
-                            'quantity': 1
-                        })
-                except:
-                    continue
-        
-        return items
+from django.utils import timezone
+from .models import Customer, Tenant
+from .ocr_extractor import run_ocr
+from .parsers import (
+    extract_store_name, extract_store_location, extract_products, 
+    extract_amount_spent, extract_nric_info, decide_validity
+)
 
 
 class OCRService:
-    """Main OCR service for processing images"""
+    """Service for processing OCR and extracting customer information"""
     
     def __init__(self):
-        self.api_key = getattr(settings, 'OCR_API_KEY', None)
-        self.api_url = getattr(settings, 'OCR_API_URL', 'https://api.ocr.space/parse/image')
+        self.temp_dir = Path(settings.MEDIA_ROOT) / 'temp_ocr'
+        self.temp_dir.mkdir(exist_ok=True)
     
-    def process_image(self, image_url: str, image_type: str = 'OTHER') -> Dict:
+    def clean_phone_number(self, phone: str) -> str:
+        """Clean and normalize phone number"""
+        # Remove all non-digit characters except +
+        cleaned = re.sub(r'[^\d+]', '', phone)
+        
+        # Handle Malaysian phone numbers
+        if cleaned.startswith('+60'):
+            cleaned = cleaned[3:]
+        elif cleaned.startswith('60'):
+            cleaned = cleaned[2:]
+        
+        # Add country code if missing
+        if not cleaned.startswith('+'):
+            cleaned = '+60' + cleaned
+        
+        return cleaned
+    
+    def process_image(self, image_path: str, tenant: Tenant, phone_number: str) -> Dict[str, Any]:
         """
-        Process image using OCR service
+        Process an image with OCR and extract customer information
         
         Args:
-            image_url: URL of the image to process
-            image_type: Type of image ('IC', 'RECEIPT', 'OTHER')
+            image_path: Path to the image file
+            tenant: Tenant instance
+            phone_number: Customer's phone number
+            
+        Returns:
+            Dict with extracted information and processing status
+        """
+        try:
+            # Run OCR on the image
+            image_path_obj = Path(image_path)
+            if not image_path_obj.exists():
+                return {
+                    'success': False,
+                    'error': 'Image file not found',
+                    'extracted_data': {}
+                }
+            
+            # Run OCR
+            ocr_lines = run_ocr(image_path_obj)
+            
+            if not ocr_lines:
+                return {
+                    'success': False,
+                    'error': 'No text extracted from image',
+                    'extracted_data': {}
+                }
+            
+            # Extract information using parsers
+            extracted_data = self._extract_customer_data(ocr_lines)
+            
+            # Clean phone number
+            cleaned_phone = self.clean_phone_number(phone_number)
+            
+            # Find or create customer
+            customer = self._find_or_create_customer(tenant, cleaned_phone, extracted_data)
+            
+            # Update customer with extracted data
+            self._update_customer_data(customer, extracted_data, ocr_lines)
+            
+            return {
+                'success': True,
+                'customer': customer,
+                'extracted_data': extracted_data,
+                'ocr_lines': ocr_lines
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'extracted_data': {}
+            }
+    
+    def _extract_customer_data(self, ocr_lines: List[str]) -> Dict[str, Any]:
+        """Extract customer data from OCR lines"""
+        data = {}
         
+        # Extract store information
+        data['store_name'] = extract_store_name(ocr_lines)
+        data['store_location'] = extract_store_location(ocr_lines, None, None)
+        
+        # Extract products
+        products = extract_products(ocr_lines, max_items=5)
+        data['products'] = [{'name': name, 'quantity': qty} for name, qty in products]
+        
+        # Extract amount spent
+        amount_str = extract_amount_spent(ocr_lines)
+        if amount_str:
+            # Convert RM123.45 to 123.45
+            amount_clean = re.sub(r'[^\d.]', '', amount_str)
+            try:
+                data['total_spent'] = float(amount_clean)
+            except ValueError:
+                data['total_spent'] = None
+        else:
+            data['total_spent'] = None
+        
+        # Extract NRIC information
+        nric_info = extract_nric_info(ocr_lines)
+        data.update(nric_info)
+        
+        # Determine validity
+        validity, reason = decide_validity(amount_str, products, False)
+        data['validity'] = validity
+        data['validity_reason'] = reason
+        
+        return data
+    
+    def _find_or_create_customer(self, tenant: Tenant, phone_number: str, extracted_data: Dict[str, Any]) -> Customer:
+        """Find existing customer or create new one"""
+        try:
+            # Try to find customer by phone number
+            customer = Customer.objects.get(tenant=tenant, phone_number=phone_number)
+        except Customer.DoesNotExist:
+            # Create new customer
+            name = extracted_data.get('name', 'Unknown Customer')
+            customer = Customer.objects.create(
+                tenant=tenant,
+                name=name,
+                phone_number=phone_number
+            )
+        
+        return customer
+    
+    def _update_customer_data(self, customer: Customer, extracted_data: Dict[str, Any], ocr_lines: List[str]):
+        """Update customer with extracted data"""
+        updated = False
+        
+        # Update name if we have a better one
+        if extracted_data.get('name') and extracted_data['name'] != 'Unknown Customer':
+            if not customer.name or customer.name == 'Unknown Customer':
+                customer.name = extracted_data['name']
+                updated = True
+        
+        # Update NRIC
+        if extracted_data.get('nric') and not customer.nric:
+            customer.nric = extracted_data['nric']
+            updated = True
+        
+        # Update address
+        if extracted_data.get('address') and not customer.address:
+            customer.address = extracted_data['address']
+            updated = True
+        
+        # Update store information
+        if extracted_data.get('store_name'):
+            customer.store_name = extracted_data['store_name']
+            updated = True
+        
+        if extracted_data.get('store_location'):
+            customer.store_location = extracted_data['store_location']
+            updated = True
+        
+        # Update spending information
+        if extracted_data.get('total_spent'):
+            customer.total_spent = extracted_data['total_spent']
+            customer.last_receipt_date = timezone.now()
+            updated = True
+        
+        # Update products purchased
+        if extracted_data.get('products'):
+            # Merge with existing products
+            existing_products = customer.products_purchased or []
+            new_products = extracted_data['products']
+            
+            # Simple merge - in production, you might want more sophisticated logic
+            all_products = existing_products + new_products
+            customer.products_purchased = all_products[-10:]  # Keep last 10 purchases
+            updated = True
+        
+        # Update OCR confidence (simplified - in production, calculate actual confidence)
+        customer.ocr_confidence = 0.8 if extracted_data.get('validity') == 'VALID' else 0.5
+        updated = True
+        
+        if updated:
+            customer.save()
+    
+    def process_whatsapp_image(self, image_url: str, tenant: Tenant, phone_number: str) -> Dict[str, Any]:
+        """
+        Process image from WhatsApp webhook
+        
+        Args:
+            image_url: URL or path to the image
+            tenant: Tenant instance
+            phone_number: Customer's phone number
+            
         Returns:
             Dict with processing results
         """
         try:
-            # For demo purposes, we'll use a mock OCR service
-            # In production, you would integrate with a real OCR service like:
-            # - Google Cloud Vision API
-            # - AWS Textract
-            # - Azure Computer Vision
-            # - OCR.space API
-            
-            if image_type == 'IC':
-                return self._process_ic_image(image_url)
-            elif image_type == 'RECEIPT':
-                return self._process_receipt_image(image_url)
-            else:
-                return self._process_generic_image(image_url)
-                
+            # For now, assume image_url is a local path
+            # In production, you might need to download from URL first
+            return self.process_image(image_url, tenant, phone_number)
         except Exception as e:
-            logger.error(f"OCR processing error: {str(e)}")
             return {
                 'success': False,
-                'error': str(e),
-                'confidence': 0.0
+                'error': f'Failed to process WhatsApp image: {str(e)}',
+                'extracted_data': {}
             }
-    
-    def _process_ic_image(self, image_url: str) -> Dict:
-        """Process IC card image"""
-        # Mock OCR result for IC card
-        # In production, this would call a real OCR service
-        mock_text = """
-        MALAYSIA
-        KAD PENGENALAN
-        NAMA: AHMAD BIN ALI
-        NO. KAD: 901201-10-1234
-        TARIKH LAHIR: 01/12/1990
-        TEMPAT LAHIR: JOHOR
-        """
-        
-        # Extract IC number from text
-        ic_match = re.search(r'(\d{6}-\d{2}-\d{4})', mock_text)
-        if ic_match:
-            ic_number = ic_match.group(1).replace('-', '')
-            
-            # Parse IC number
-            ic_parser = MalaysianICParser()
-            parsed_data = ic_parser.parse_ic_number(ic_number)
-            
-            if parsed_data['valid']:
-                return {
-                    'success': True,
-                    'extracted_text': mock_text,
-                    'confidence': 0.95,
-                    'extracted_data': parsed_data,
-                    'image_type': 'IC'
-                }
-        
-        return {
-            'success': False,
-            'error': 'Could not extract valid IC number',
-            'extracted_text': mock_text,
-            'confidence': 0.3
-        }
-    
-    def _process_receipt_image(self, image_url: str) -> Dict:
-        """Process receipt image"""
-        # Mock OCR result for receipt
-        mock_text = """
-        ABC STORE SDN BHD
-        123 MAIN STREET
-        KUALA LUMPUR
-        
-        Date: 15/08/2024
-        Time: 14:30
-        
-        Item 1                    RM 25.50
-        Item 2                    RM 15.00
-        Item 3                    RM 8.90
-        
-        Subtotal                  RM 49.40
-        Tax (6%)                  RM 2.96
-        Total                     RM 52.36
-        
-        Thank you for your purchase!
-        """
-        
-        # Parse receipt text
-        receipt_parser = ReceiptParser()
-        parsed_data = receipt_parser.parse_receipt_text(mock_text)
-        
-        if parsed_data['valid']:
-            return {
-                'success': True,
-                'extracted_text': mock_text,
-                'confidence': 0.92,
-                'extracted_data': parsed_data,
-                'image_type': 'RECEIPT'
-            }
-        
-        return {
-            'success': False,
-            'error': 'Could not extract valid receipt data',
-            'extracted_text': mock_text,
-            'confidence': 0.4
-        }
-    
-    def _process_generic_image(self, image_url: str) -> Dict:
-        """Process generic image"""
-        # Mock OCR result for generic image
-        mock_text = "This is a generic image with some text content."
-        
-        return {
-            'success': True,
-            'extracted_text': mock_text,
-            'confidence': 0.85,
-            'extracted_data': {'text': mock_text},
-            'image_type': 'OTHER'
-        }
-    
-    def extract_ic_from_text(self, text: str) -> Optional[Dict]:
-        """Extract IC number from text and parse it"""
-        # Look for IC number patterns
-        ic_patterns = [
-            r'(\d{6}-\d{2}-\d{4})',  # Standard format with dashes
-            r'(\d{12})',  # 12 digits without dashes
-        ]
-        
-        for pattern in ic_patterns:
-            match = re.search(pattern, text)
-            if match:
-                ic_number = match.group(1).replace('-', '')
-                ic_parser = MalaysianICParser()
-                return ic_parser.parse_ic_number(ic_number)
-        
-        return None
-    
-    def extract_receipt_data_from_text(self, text: str) -> Optional[Dict]:
-        """Extract receipt data from text"""
-        receipt_parser = ReceiptParser()
-        return receipt_parser.parse_receipt_text(text)

@@ -10,281 +10,392 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* ===== Modern CRM theme (shared) ===== */
+    /* ===== Facebook CRM Design System ===== */
     :root{
-      --bg:#f3f6fb; --card:#fff; --text:#0f172a; --muted:#667085; --line:#e5e7eb;
-      --brand:#0ea5e9; --brand-strong:#0284c7; --accent:#22c55e; --radius:14px;
-      --shadow:0 6px 20px rgba(2,8,23,.08);
-      --danger:#ef4444; --ok:#16a34a; --warn:#f59e0b;
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
 
-    /* Topbar (same as other pages) */
-    .topbar{position:sticky;top:0;z-index:1000;background:#fff;border-bottom:1px solid #e5e7eb}
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
     .topbar__inner{
-      max-width:1200px;margin:0 auto;
-      display:grid;grid-template-columns:240px 1fr 240px;
-      align-items:center;gap:12px;padding:8px 16px;
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
     }
-    .brand{display:flex;align-items:center;gap:10px;text-decoration:none}
-    .brand__logo{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;background:var(--brand);color:#fff;font-weight:800;font-size:18px}
-    .brand__text{color:var(--text);font-weight:800;letter-spacing:.2px}
-    .tabs{display:flex;justify-content:center;gap:6px}
-    .tab{min-width:110px;height:40px;display:grid;place-items:center;border-radius:10px;color:#64748b;text-decoration:none;font-weight:700}
-    .tab:hover{background:#f1f5f9;color:#0f172a}
-    .tab--active{color:var(--brand)}
-    .tab__icon{display:flex;align-items:center;gap:8px;font-size:14px}
-    .actions{display:flex;justify-content:flex-end;gap:8px;align-items:center}
-    .action{width:40px;height:40px;border-radius:999px;display:grid;place-items:center;background:#f1f5f9;border:1px solid #e5e7eb}
-    .action:hover{background:#e2e8f0}
-    .avatar{width:36px;height:36px;border-radius:999px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
 
-    /* Layout */
-    .layout{max-width:1200px;margin:22px auto;display:grid;gap:20px;grid-template-columns:1fr;padding:0 16px}
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
 
-    /* Header strip (Xero-style: title + period switcher + compare toggle) */
-    .hero{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px}
-    .hero__row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-    .hero__title{font-size:20px;font-weight:800;margin:0}
-    .period{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .pill{border:1px solid var(--line);background:#f8fafc;border-radius:999px;padding:8px 12px;font-weight:700;cursor:pointer}
-    .pill.is-on{background:#e6f4ff;border-color:#bfdbfe;color:#0369a1}
-    .toggle{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 10px}
-    .toggle input{accent-color:var(--brand)}
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
 
-    /* KPI tiles with sparklines */
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .kpi{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;display:grid;gap:8px}
-    .kpi .l{font-size:12px;color:var(--muted);font-weight:700}
-    .kpi .n{font-size:26px;font-weight:900;color:#0f172a}
-    .kpi .d{font-size:12px}
-    .kpi .good{color:var(--ok)} .kpi .bad{color:var(--danger)} .kpi .warn{color:var(--warn)}
-    .spark{height:44px}
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+    /* ===== Sidebar Navigation ===== */
+    .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
 
-    /* Sections */
-    .grid{display:grid;gap:16px;grid-template-columns:1fr 1fr}
-    .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
-    .card__head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
-    .card__title{font-weight:800}
-    .card__body{padding:14px}
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .card-body{padding:20px}
+
+    /* ===== Stats Grid ===== */
+    .stats-grid{
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+      gap:16px; margin-bottom:24px
+    }
+    .stat-card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); padding:20px;
+      box-shadow:var(--fb-shadow); border:1px solid var(--fb-border)
+    }
+    .stat-value{font-size:32px; font-weight:700; color:var(--fb-text); margin-bottom:4px}
+    .stat-label{color:var(--fb-gray-dark); font-size:14px; font-weight:500}
+    .stat-change{
+      font-size:12px; font-weight:600; margin-top:8px; display:flex; align-items:center; gap:4px
+    }
+    .stat-change.positive{color:var(--fb-success)}
+    .stat-change.negative{color:var(--fb-danger)}
+
+    /* ===== Charts Grid ===== */
+    .charts-grid{
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(400px, 1fr));
+      gap:20px; margin-bottom:24px
+    }
     .chart{height:320px}
-    .small{height:240px}
+    .chart-small{height:240px}
 
-    /* Table */
-    .tableWrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead th{background:#f8fafc;text-align:left;padding:12px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
-    td{padding:12px 14px;border-bottom:1px solid var(--line)}
-    tbody tr:hover{background:#f9fbff}
+    /* ===== Table ===== */
+    .table-container{background:var(--fb-white); border-radius:var(--fb-radius-lg); overflow:hidden; box-shadow:var(--fb-shadow)}
+    .table-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px
+    }
+    .table-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .table-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
 
-    @media (max-width:1100px){
-      .topbar__inner{grid-template-columns:1fr}
-      .actions{display:none}
-      .tabs{justify-content:flex-start;flex-wrap:wrap}
-      .kpis{grid-template-columns:1fr 1fr}
-      .grid{grid-template-columns:1fr}
+    .data-table{
+      width:100%; border-collapse:collapse; font-size:14px
+    }
+    .data-table th{
+      background:var(--fb-gray-light); padding:12px 16px; text-align:left;
+      font-weight:600; color:var(--fb-text); border-bottom:1px solid var(--fb-border)
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--fb-border); vertical-align:middle
+    }
+    .data-table tbody tr:hover{background:var(--fb-gray-light)}
+
+    .badge{
+      display:inline-block; padding:4px 8px; border-radius:12px;
+      font-size:12px; font-weight:600; background:var(--fb-gray-light); color:var(--fb-text)
+    }
+
+    /* ===== Period Selector ===== */
+    .period-selector{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:20px
+    }
+    .period-btn{
+      padding:8px 16px; border:1px solid var(--fb-border); background:var(--fb-white);
+      border-radius:var(--fb-radius); font-weight:600; cursor:pointer; transition:all 0.2s
+    }
+    .period-btn:hover{background:var(--fb-gray-light)}
+    .period-btn.active{background:var(--fb-blue); color:white; border-color:var(--fb-blue)}
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px; flex-direction:column}
+      .sidebar{width:100%; position:static; margin-bottom:16px}
+      .main-content{flex:1}
+      .page-title{font-size:24px}
+      .stats-grid{grid-template-columns:1fr}
+      .charts-grid{grid-template-columns:1fr}
+      .table-header{flex-direction:column; align-items:stretch}
+      .table-actions{justify-content:center}
     }
   </style>
 </head>
 <body>
-  <!-- Top NAV -->
+  <!-- ===== Facebook-style Top Navigation ===== -->
   <nav class="topbar">
     <div class="topbar__inner">
-      <a href="{% url 'main_page' %}" class="brand">
+      <!-- Brand -->
+      <a href="{% url 'dashboard' %}" class="brand">
         <div class="brand__logo">WA</div>
         <div class="brand__text">Campaign</div>
       </a>
 
-      <div class="tabs">
-        <a href="{% url 'main_page' %}" class="tab {% if request.path == '/' %}tab--active{% endif %}">
-          <span class="tab__icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12l9-9 9 9" /><path d="M9 21V9h6v12" />
-            </svg>
-            Campaign
-          </span>
-        </a>
-        <a href="{% url 'manage_customers' %}" class="tab {% if request.path|slice:':10' == '/customers' %}tab--active{% endif %}">
-          <span class="tab__icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M16 11a4 4 0 1 0-8 0" />
-              <path d="M3 21a7 7 0 0 1 18 0" />
-            </svg>
-            Customers
-          </span>
-        </a>
-        <a href="{% url 'crm_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'crm_dashboard' %}tab--active{% endif %}">
-          <span class="tab__icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-            </svg>
-            CRM
-          </span>
-        </a>
-        <a href="{% url 'analytics_dashboard' %}" class="tab {% if request.resolver_match.url_name == 'analytics_dashboard' %}tab--active{% endif %}">
-          <span class="tab__icon">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" y1="21" x2="4" y2="14"></line>
-              <line x1="9" y1="21" x2="9" y2="9"></line>
-              <line x1="15" y1="21" x2="15" y2="4"></line>
-              <line x1="20" y1="21" x2="20" y2="17"></line>
-            </svg>
-            Analytics
-          </span>
-        </a>
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
       </div>
 
-      <div class="actions">
-        <button class="action" title="Export" aria-label="Export">
-          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 20h16M12 4v12m0 0 4-4m-4 4-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <button class="action-btn" title="Export">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 20h16M12 4v12m0 0 4-4m-4 4-4-4"/>
+          </svg>
         </button>
-        <div class="avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+        <a href="{% url 'auth_logout' %}" class="action-btn" title="Logout">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </a>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
       </div>
     </div>
   </nav>
 
-  <div class="layout">
-    <!-- Header strip -->
-    <section class="hero">
-      <div class="hero__row">
-        <div>
-          <h1 class="hero__title">Analytics Overview</h1>
-          <div style="color:var(--muted);font-size:12px">Insights across contacts, delivery, engagement and participation.</div>
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">Analytics</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'analytics_dashboard' %}" class="active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Overview
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_analytics' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            CRM Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'contest_analytics' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            Contest Analytics
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Analytics Overview</h1>
+      <p class="page-subtitle">Insights across contacts, delivery, engagement and participation</p>
+    </div>
+
+    <!-- Period Selector -->
+    <div class="period-selector">
+      <button class="period-btn active" data-range="30d">Last 30 days</button>
+      <button class="period-btn" data-range="90d">Last 90 days</button>
+      <button class="period-btn" data-range="12m">Last 12 months</button>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ total_contacts|default:0 }}</div>
+        <div class="stat-label">Total Contacts</div>
+        <div class="stat-change positive">+{{ recent_additions|default:0 }} this month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ unique_states|default:0 }}</div>
+        <div class="stat-label">States Represented</div>
+        <div class="stat-change positive">{{ cross_tab_races|length|default:0 }} races tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ unique_events|default:0 }}</div>
+        <div class="stat-label">Events (Sources)</div>
+        <div class="stat-change positive">active sources</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ event_timeline_data|last|default:0 }}</div>
+        <div class="stat-label">Participation (last 30d)</div>
+        <div class="stat-change negative">{% firstof drop_rate " " %}</div>
+      </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="charts-grid">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Distribution by States</h3>
         </div>
-        <div class="period">
-          <button class="pill is-on" data-range="30d">Last 30 days</button>
-          <button class="pill" data-range="90d">Last 90 days</button>
-          <button class="pill" data-range="12m">Last 12 months</button>
-          <div class="toggle">
-            <input type="checkbox" id="compareToggle" />
-            <label for="compareToggle" style="cursor:pointer">Compare to previous period</label>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- KPI row -->
-    <section class="kpis">
-      <div class="kpi">
-        <div class="l">Total Contacts</div>
-        <div class="n">{{ total_contacts|default:0 }}</div>
-        <div class="d"><span class="good">+{{ recent_additions|default:0 }}</span> this month</div>
-        <canvas id="sp_contacts" class="spark"></canvas>
-      </div>
-      <div class="kpi">
-        <div class="l">States Represented</div>
-        <div class="n">{{ unique_states|default:0 }}</div>
-        <div class="d"><span class="warn">{{ cross_tab_races|length|default:0 }}</span> races tracked</div>
-        <canvas id="sp_states" class="spark"></canvas>
-      </div>
-      <div class="kpi">
-        <div class="l">Events (Sources)</div>
-        <div class="n">{{ unique_events|default:0 }}</div>
-        <div class="d"><span class="good">active</span> sources</div>
-        <canvas id="sp_events" class="spark"></canvas>
-      </div>
-      <div class="kpi">
-        <div class="l">Participation (last 30d)</div>
-        <div class="n">{{ event_timeline_data|last|default:0 }}</div>
-        <div class="d"><span class="bad">{% firstof drop_rate " " %}</span></div>
-        <canvas id="sp_participation" class="spark"></canvas>
-      </div>
-    </section>
-
-    <!-- Main charts (Xero-style: two up) -->
-    <section class="grid">
-      <div class="card">
-        <div class="card__head"><div class="card__title">Distribution by States</div></div>
-        <div class="card__body"><canvas id="stateChart" class="chart"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card__head"><div class="card__title">Distribution by Race</div></div>
-        <div class="card__body"><canvas id="raceChart" class="chart"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Secondary charts -->
-    <section class="grid">
-      <div class="card">
-        <div class="card__head"><div class="card__title">Distribution by Gender</div></div>
-        <div class="card__body"><canvas id="genderChart" class="small"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card__head"><div class="card__title">Distribution by Event Source</div></div>
-        <div class="card__body"><canvas id="eventSourceChart" class="small"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Timelines -->
-    <section class="grid">
-      <div class="card">
-        <div class="card__head"><div class="card__title">Registration Timeline (12 months)</div></div>
-        <div class="card__body"><canvas id="registrationTimelineChart" class="chart"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card__head"><div class="card__title">Event Participation Timeline</div></div>
-        <div class="card__body"><canvas id="eventTimelineChart" class="chart"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Cross-tab -->
-    <section class="card">
-      <div class="card__head"><div class="card__title">State × Race Cross-tabulation</div></div>
-      <div class="card__body">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>State</th>
-                {% for race in cross_tab_races %}<th>{{ race }}</th>{% endfor %}
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for state, races in cross_tabulation.items %}
-              <tr>
-                <td>{{ state }}</td>
-                {% for race in cross_tab_races %}<td>{{ races|lookup:race|default:0 }}</td>{% endfor %}
-                <td><strong>{{ races.total|default:0 }}</strong></td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="card-body">
+          <canvas id="stateChart" class="chart"></canvas>
         </div>
       </div>
-    </section>
-
-    <!-- Recent contacts -->
-    <section class="card">
-      <div class="card__head"><div class="card__title">Recent Contacts</div></div>
-      <div class="card__body">
-        <div class="tableWrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th><th>Phone</th><th>State</th><th>Race</th><th>Event Source</th><th>Date Added</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for contact in recent_contacts %}
-              <tr>
-                <td>{{ contact.name }}</td>
-                <td>{{ contact.phone_number }}</td>
-                <td>{{ contact.get_state_display|default:"-" }}</td>
-                <td>{{ contact.get_race_display|default:"-" }}</td>
-                <td>{{ contact.event_source|default:"-" }}</td>
-                <td>{{ contact.date_added|date:"M d, Y" }}</td>
-              </tr>
-              {% empty %}
-              <tr><td colspan="6" style="text-align:center;color:var(--muted)">No contacts found</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Distribution by Race</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="raceChart" class="chart"></canvas>
         </div>
       </div>
-    </section>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Distribution by Gender</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="genderChart" class="chart-small"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Distribution by Event Source</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="eventSourceChart" class="chart-small"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Registration Timeline (12 months)</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="registrationTimelineChart" class="chart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Event Participation Timeline</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="eventTimelineChart" class="chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cross-tabulation Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3 class="table-title">State × Race Cross-tabulation</h3>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>State</th>
+            {% for race in cross_tab_races %}<th>{{ race }}</th>{% endfor %}
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for state, races in cross_tabulation.items %}
+          <tr>
+            <td>{{ state }}</td>
+            {% for race in cross_tab_races %}<td>{{ races|lookup:race|default:0 }}</td>{% endfor %}
+            <td><strong>{{ races.total|default:0 }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Recent Contacts Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3 class="table-title">Recent Contacts</h3>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>State</th>
+            <th>Race</th>
+            <th>Event Source</th>
+            <th>Date Added</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in recent_contacts %}
+          <tr>
+            <td>{{ contact.name }}</td>
+            <td>{{ contact.phone_number }}</td>
+            <td><span class="badge">{{ contact.get_state_display|default:"-" }}</span></td>
+            <td><span class="badge">{{ contact.get_race_display|default:"-" }}</span></td>
+            <td>{{ contact.event_source|default:"-" }}</td>
+            <td>{{ contact.date_added|date:"M d, Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align:center; color:var(--fb-gray-dark); padding:40px;">
+              No contacts found
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 
     <!-- Chart.js Initialization Scripts -->

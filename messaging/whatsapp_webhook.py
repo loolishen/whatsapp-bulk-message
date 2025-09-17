@@ -5,14 +5,16 @@ import json
 import logging
 from datetime import datetime
 from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.conf import settings
-from .models import Contact, WhatsAppMessage, OCRProcessingLog, Purchase
+from .models import Customer, CoreMessage
 from .ocr_service import OCRService
 from .whatsapp_service import WhatsAppAPIService
+from .pdpa_service import PDPAConsentService
 import requests
 
 logger = logging.getLogger(__name__)
@@ -24,14 +26,32 @@ class WhatsAppWebhookView(View):
     """
     
     def post(self, request):
-        """Handle incoming webhook POST requests"""
+        """Handle incoming webhook POST requests from WABOT"""
         try:
             # Parse webhook data
-            data = json.loads(request.body)
-            logger.info(f"Received webhook data: {data}")
+            try:
+                data = json.loads(request.body)
+                logger.info(f"Received WABOT webhook data: {data}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in webhook request: {e}")
+                logger.error(f"Raw request body: {request.body}")
+                logger.error(f"Content-Type: {request.META.get('CONTENT_TYPE', 'Not set')}")
+                logger.error(f"Request method: {request.method}")
+                return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
             
-            # Handle different types of webhook events
-            if 'entry' in data:
+            # WABOT webhook format handling
+            if 'type' in data:
+                if data['type'] == 'message':
+                    self._process_wabot_message(data)
+                elif data['type'] == 'status':
+                    self._process_wabot_status(data)
+                elif data['type'] == 'qr':
+                    logger.info("QR code received - instance ready for scanning")
+                else:
+                    logger.info(f"Unknown WABOT event type: {data['type']}")
+            
+            # Also handle Facebook/Meta webhook format for compatibility
+            elif 'entry' in data:
                 for entry in data['entry']:
                     if 'changes' in entry:
                         for change in entry['changes']:
@@ -85,7 +105,7 @@ class WhatsAppWebhookView(View):
             timestamp = message_data.get('timestamp')
             message_type = message_data.get('type')
             
-            # Get or create contact
+            # Get or create customer
             contact = self._get_or_create_contact(from_number)
             
             # Process different message types
@@ -109,20 +129,41 @@ class WhatsAppWebhookView(View):
         try:
             text_content = message_data.get('text', {}).get('body', '')
             
+            # Get tenant from contact (assuming first tenant for now)
+            from .models import Tenant
+            tenant = Tenant.objects.first()
+            
+            # Get or create conversation
+            from .models import WhatsAppConnection, Conversation
+            conn = WhatsAppConnection.objects.filter(tenant=tenant).first()
+            if conn:
+                conversation, _ = Conversation.objects.get_or_create(
+                    tenant=tenant,
+                    customer=contact,
+                    whatsapp_connection=conn,
+                    defaults={}
+                )
+            else:
+                conversation = None
+            
             # Create WhatsApp message record
-            WhatsAppMessage.objects.create(
-                contact=contact,
-                message_type='RECEIVED',
-                message_text=text_content,
-                whatsapp_message_id=message_data.get('id'),
-                status='DELIVERED'
-            )
+                CoreMessage.objects.create(
+                    tenant=tenant,
+                    conversation=conversation,
+                    direction='inbound',
+                    status='delivered',
+                    text_body=text_content,
+                    provider_msg_id=message_data.get('id'),
+                    created_at=timezone.now()
+                )
             
-            # Check if message contains IC number or receipt information
-            self._check_for_ic_or_receipt_info(contact, text_content)
+            # Handle PDPA consent management first
+            pdpa_service = PDPAConsentService()
+            pdpa_handled = pdpa_service.handle_incoming_message(contact, text_content, tenant)
             
-            # Auto-respond if needed
-            self._auto_respond_to_message(contact, text_content)
+            # If PDPA didn't handle the message, use normal auto-response
+            if not pdpa_handled:
+                self._auto_respond_to_message(contact, text_content)
             
         except Exception as e:
             logger.error(f"Error processing text message: {str(e)}")
@@ -139,21 +180,48 @@ class WhatsAppWebhookView(View):
             
             if image_url:
                 # Create WhatsApp message record
-                WhatsAppMessage.objects.create(
-                    contact=contact,
-                    message_type='RECEIVED',
-                    message_text='[Image received]',
-                    media_url=image_url,
-                    media_type='image',
-                    whatsapp_message_id=message_data.get('id'),
-                    status='DELIVERED'
+                CoreMessage.objects.create(
+                    tenant=None,
+                    conversation=None,
+                    direction='inbound',
+                    status='delivered',
+                    text_body='[Image received]',
+                    provider_msg_id=message_data.get('id')
                 )
                 
                 # Process image with OCR
-                self._process_image_with_ocr(contact, image_url, 'OTHER')
+                self._process_image_with_ocr(contact, image_url)
             
         except Exception as e:
             logger.error(f"Error processing image message: {str(e)}")
+    
+    def _process_image_with_ocr(self, contact, image_path):
+        """Process image with OCR to extract customer information"""
+        try:
+            # Get tenant (assuming first tenant for now - in production, determine from contact)
+            from .models import Tenant
+            tenant = Tenant.objects.first()
+            
+            if not tenant:
+                logger.error("No tenant found for OCR processing")
+                return
+            
+            # Initialize OCR service
+            ocr_service = OCRService()
+            
+            # Process image
+            result = ocr_service.process_image(image_path, tenant, contact.phone_number)
+            
+            if result['success']:
+                # Send confirmation message
+                self._send_ocr_confirmation(contact, result['extracted_data'])
+            else:
+                # Send error message
+                self._send_ocr_error(contact, result.get('error', 'Unknown error'))
+                
+        except Exception as e:
+            logger.error(f"Error processing image with OCR: {str(e)}")
+            self._send_ocr_error(contact, str(e))
     
     def _process_document_message(self, contact, message_data):
         """Process incoming document message"""
@@ -168,131 +236,22 @@ class WhatsAppWebhookView(View):
             
             if document_url:
                 # Create WhatsApp message record
-                WhatsAppMessage.objects.create(
-                    contact=contact,
-                    message_type='RECEIVED',
-                    message_text=f'[Document received: {filename}]',
-                    media_url=document_url,
-                    media_type='document',
-                    whatsapp_message_id=message_data.get('id'),
-                    status='DELIVERED'
+                CoreMessage.objects.create(
+                    tenant=None,
+                    conversation=None,
+                    direction='inbound',
+                    status='delivered',
+                    text_body=f'[Document received: {filename}]',
+                    provider_msg_id=message_data.get('id')
                 )
                 
                 # Process document if it's an image
-                if mime_type.startswith('image/'):
-                    self._process_image_with_ocr(contact, document_url, 'OTHER')
+                # OCR processing disabled in this simplified handler
             
         except Exception as e:
             logger.error(f"Error processing document message: {str(e)}")
     
-    def _process_image_with_ocr(self, contact, image_url, image_type):
-        """Process image with OCR service"""
-        try:
-            # Create OCR processing log
-            ocr_log = OCRProcessingLog.objects.create(
-                image_url=image_url,
-                image_type=image_type,
-                contact=contact,
-                status='PROCESSING'
-            )
-            
-            # Process with OCR service
-            ocr_service = OCRService()
-            result = ocr_service.process_image(image_url, image_type)
-            
-            # Update OCR log
-            ocr_log.status = 'COMPLETED' if result['success'] else 'FAILED'
-            ocr_log.extracted_text = result.get('extracted_text', '')
-            ocr_log.confidence_score = result.get('confidence', 0.0)
-            ocr_log.extracted_data = result.get('extracted_data', {})
-            ocr_log.processing_errors = result.get('error', '')
-            ocr_log.processed_at = datetime.now()
-            ocr_log.save()
-            
-            # Process extracted data
-            if result['success']:
-                self._process_ocr_results(contact, ocr_log)
-            
-        except Exception as e:
-            logger.error(f"Error processing image with OCR: {str(e)}")
-    
-    def _process_ocr_results(self, contact, ocr_log):
-        """Process OCR results and update contact/purchase data"""
-        try:
-            extracted_data = ocr_log.extracted_data
-            
-            if ocr_log.image_type == 'IC' and 'valid' in extracted_data and extracted_data['valid']:
-                # Update contact with IC information
-                contact.ic_number = extracted_data.get('ic_number')
-                contact.age = extracted_data.get('age')
-                contact.gender = extracted_data.get('gender')
-                contact.state = extracted_data.get('state')
-                if extracted_data.get('birth_date'):
-                    from datetime import datetime
-                    contact.date_of_birth = datetime.strptime(extracted_data['birth_date'], '%Y-%m-%d').date()
-                contact.save()
-                
-                # Send confirmation message
-                self._send_ic_confirmation(contact, extracted_data)
-                
-            elif ocr_log.image_type == 'RECEIPT' and 'valid' in extracted_data and extracted_data['valid']:
-                # Create purchase record
-                purchase = Purchase.objects.create(
-                    customer=contact,
-                    receipt_image=ocr_log.image_url,
-                    receipt_text=ocr_log.extracted_text,
-                    total_amount=extracted_data.get('total_amount', 0),
-                    purchase_date=datetime.strptime(extracted_data['purchase_date'], '%Y-%m-%d').date() if extracted_data.get('purchase_date') else datetime.now().date(),
-                    items=extracted_data.get('items', []),
-                    ocr_processed=True,
-                    ocr_confidence=ocr_log.confidence_score
-                )
-                
-                # Send confirmation message
-                self._send_receipt_confirmation(contact, purchase)
-                
-        except Exception as e:
-            logger.error(f"Error processing OCR results: {str(e)}")
-    
-    def _check_for_ic_or_receipt_info(self, contact, text):
-        """Check if text message contains IC or receipt information"""
-        try:
-            ocr_service = OCRService()
-            
-            # Check for IC number in text
-            ic_data = ocr_service.extract_ic_from_text(text)
-            if ic_data and ic_data.get('valid'):
-                # Update contact with IC information
-                contact.ic_number = ic_data.get('ic_number')
-                contact.age = ic_data.get('age')
-                contact.gender = ic_data.get('gender')
-                contact.state = ic_data.get('state')
-                if ic_data.get('birth_date'):
-                    from datetime import datetime
-                    contact.date_of_birth = datetime.strptime(ic_data['birth_date'], '%Y-%m-%d').date()
-                contact.save()
-                
-                # Send confirmation
-                self._send_ic_confirmation(contact, ic_data)
-            
-            # Check for receipt information
-            receipt_data = ocr_service.extract_receipt_data_from_text(text)
-            if receipt_data and receipt_data.get('valid'):
-                # Create purchase record
-                purchase = Purchase.objects.create(
-                    customer=contact,
-                    receipt_text=text,
-                    total_amount=receipt_data.get('total_amount', 0),
-                    purchase_date=datetime.strptime(receipt_data['purchase_date'], '%Y-%m-%d').date() if receipt_data.get('purchase_date') else datetime.now().date(),
-                    items=receipt_data.get('items', []),
-                    ocr_processed=True
-                )
-                
-                # Send confirmation
-                self._send_receipt_confirmation(contact, purchase)
-                
-        except Exception as e:
-            logger.error(f"Error checking for IC/receipt info: {str(e)}")
+    # OCR and text extraction features are disabled in this simplified webhook handler.
     
     def _auto_respond_to_message(self, contact, text):
         """Auto-respond to customer messages"""
@@ -346,6 +305,46 @@ class WhatsAppWebhookView(View):
         except Exception as e:
             logger.error(f"Error sending receipt confirmation: {str(e)}")
     
+    def _send_ocr_confirmation(self, contact, extracted_data):
+        """Send OCR processing confirmation message"""
+        try:
+            message = "✅ Image processed successfully!\n\n"
+            
+            # Add extracted information
+            if extracted_data.get('name'):
+                message += f"Name: {extracted_data['name']}\n"
+            
+            if extracted_data.get('nric'):
+                message += f"NRIC: {extracted_data['nric']}\n"
+            
+            if extracted_data.get('store_name'):
+                message += f"Store: {extracted_data['store_name']}\n"
+            
+            if extracted_data.get('total_spent'):
+                message += f"Amount: RM{extracted_data['total_spent']:.2f}\n"
+            
+            if extracted_data.get('products'):
+                message += f"Products: {len(extracted_data['products'])} items\n"
+            
+            message += "\nYour information has been updated in our system."
+            
+            self._send_whatsapp_message(contact, message)
+            
+        except Exception as e:
+            logger.error(f"Error sending OCR confirmation: {str(e)}")
+    
+    def _send_ocr_error(self, contact, error_message):
+        """Send OCR processing error message"""
+        try:
+            message = f"❌ Sorry, I couldn't process your image.\n\n"
+            message += f"Error: {error_message}\n\n"
+            message += "Please try sending a clearer image of your receipt or IC."
+            
+            self._send_whatsapp_message(contact, message)
+            
+        except Exception as e:
+            logger.error(f"Error sending OCR error message: {str(e)}")
+    
     def _send_whatsapp_message(self, contact, message_text):
         """Send WhatsApp message to contact"""
         try:
@@ -353,15 +352,34 @@ class WhatsAppWebhookView(View):
             result = wa_service.send_text_message(contact.phone_number, message_text)
             
             if result['success']:
-                # Create message record
-                WhatsAppMessage.objects.create(
-                    contact=contact,
-                    message_type='SENT',
-                    message_text=message_text,
-                    whatsapp_message_id=result.get('message_id'),
-                    status='SENT',
+                # Get tenant and conversation
+                from .models import Tenant, WhatsAppConnection, Conversation
+                tenant = Tenant.objects.first()
+                conn = WhatsAppConnection.objects.filter(tenant=tenant).first()
+                
+                conversation = None
+                if conn:
+                    conversation, _ = Conversation.objects.get_or_create(
+                        tenant=tenant,
+                        customer=contact,
+                        whatsapp_connection=conn,
+                        defaults={}
+                    )
+                
+                # Create outbound message record
+                CoreMessage.objects.create(
+                    tenant=tenant,
+                    conversation=conversation,
+                    direction='outbound',
+                    status='sent',
+                    text_body=message_text,
+                    provider_msg_id=result.get('data', {}).get('id'),
                     sent_at=datetime.now()
                 )
+                
+                logger.info(f"Sent message to {contact.name}: {message_text[:50]}...")
+            else:
+                logger.error(f"Failed to send message to {contact.name}: {result.get('error')}")
             
         except Exception as e:
             logger.error(f"Error sending WhatsApp message: {str(e)}")
@@ -397,22 +415,123 @@ class WhatsAppWebhookView(View):
             if not clean_phone.startswith('60'):
                 clean_phone = '60' + clean_phone
             
+            # Get tenant (assuming first tenant for now)
+            from .models import Tenant
+            tenant = Tenant.objects.first()
+            if not tenant:
+                logger.error("No tenant found for customer creation")
+                return None
+            
             # Try to find existing contact
-            contact = Contact.objects.filter(phone_number__icontains=clean_phone).first()
+            contact = Customer.objects.filter(
+                phone_number__icontains=clean_phone,
+                tenant=tenant
+            ).first()
             
             if not contact:
-                # Create new contact
-                contact = Contact.objects.create(
-                    name=f"Customer {clean_phone[-4:]}",  # Temporary name
+                # Create new contact with tenant
+                contact = Customer.objects.create(
+                    name=f"Customer {clean_phone[-4:]}",
                     phone_number=clean_phone,
-                    event_source='WhatsApp Webhook'
+                    tenant=tenant,
+                    gender='N/A',
+                    marital_status='N/A'
                 )
+                logger.info(f"Created new customer: {contact.name} ({contact.phone_number})")
+            else:
+                logger.info(f"Found existing customer: {contact.name} ({contact.phone_number})")
             
             return contact
             
         except Exception as e:
             logger.error(f"Error getting/creating contact: {str(e)}")
             return None
+    
+    def _process_wabot_message(self, data):
+        """Process incoming message from WABOT webhook"""
+        try:
+            # Extract WABOT message data
+            message_data = data.get('data', {})
+            from_number = message_data.get('from')
+            message_text = message_data.get('message', '')
+            message_id = message_data.get('id')
+            timestamp = message_data.get('timestamp')
+            
+            logger.info(f"Processing WABOT message from {from_number}: {message_text}")
+            
+            # Get or create customer
+            contact = self._get_or_create_contact(from_number)
+            if not contact:
+                logger.error(f"Failed to create/find contact for {from_number}")
+                return
+            
+            # Get tenant
+            from .models import Tenant
+            tenant = Tenant.objects.first()
+            if not tenant:
+                logger.error("No tenant found")
+                return
+            
+            # Get or create conversation
+            from .models import WhatsAppConnection, Conversation
+            conn = WhatsAppConnection.objects.filter(tenant=tenant).first()
+            if conn:
+                conversation, _ = Conversation.objects.get_or_create(
+                    tenant=tenant,
+                    customer=contact,
+                    whatsapp_connection=conn,
+                    defaults={}
+                )
+            else:
+                conversation = None
+            
+            # Create inbound message record
+            CoreMessage.objects.create(
+                tenant=tenant,
+                conversation=conversation,
+                direction='inbound',
+                status='delivered',
+                text_body=message_text,
+                provider_msg_id=message_id,
+                created_at=datetime.now()
+            )
+            
+            # Handle PDPA consent management
+            pdpa_service = PDPAConsentService()
+            pdpa_handled = pdpa_service.handle_incoming_message(contact, message_text, tenant)
+            
+            # If PDPA didn't handle the message, use normal auto-response
+            if not pdpa_handled:
+                self._auto_respond_to_message(contact, message_text)
+            
+            # Update contact's last interaction
+            contact.last_whatsapp_interaction = datetime.now()
+            contact.save()
+            
+            logger.info(f"Successfully processed message from {contact.name}")
+            
+        except Exception as e:
+            logger.error(f"Error processing WABOT message: {str(e)}")
+    
+    def _process_wabot_status(self, data):
+        """Process message status updates from WABOT"""
+        try:
+            status_data = data.get('data', {})
+            message_id = status_data.get('id')
+            status = status_data.get('status')
+            timestamp = status_data.get('timestamp')
+            
+            logger.info(f"Message status update: {message_id} -> {status}")
+            
+            # Update message status in database
+            if message_id:
+                CoreMessage.objects.filter(provider_msg_id=message_id).update(
+                    status=status,
+                    updated_at=datetime.now()
+                )
+                
+        except Exception as e:
+            logger.error(f"Error processing WABOT status: {str(e)}")
     
     def _process_message_status(self, status_data):
         """Process message status updates"""
@@ -422,22 +541,7 @@ class WhatsAppWebhookView(View):
             timestamp = status_data.get('timestamp')
             
             # Update message status in database
-            try:
-                wa_message = WhatsAppMessage.objects.get(whatsapp_message_id=message_id)
-                
-                if status == 'delivered':
-                    wa_message.status = 'DELIVERED'
-                    wa_message.delivered_at = datetime.fromtimestamp(int(timestamp))
-                elif status == 'read':
-                    wa_message.status = 'READ'
-                    wa_message.read_at = datetime.fromtimestamp(int(timestamp))
-                elif status == 'failed':
-                    wa_message.status = 'FAILED'
-                
-                wa_message.save()
-                
-            except WhatsAppMessage.DoesNotExist:
-                logger.warning(f"Message not found for status update: {message_id}")
+            # TODO: Update CoreMessage by provider_msg_id if desired
                 
         except Exception as e:
             logger.error(f"Error processing message status: {str(e)}")

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM Campaigns</title>
+  <style>
+    /* ===== Facebook CRM Design System ===== */
+    :root{
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
+
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+
+    /* ===== Table ===== */
+    .table-container{background:var(--fb-white); border-radius:var(--fb-radius-lg); overflow:hidden; box-shadow:var(--fb-shadow)}
+    .table-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px
+    }
+    .table-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .table-actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    .data-table{
+      width:100%; border-collapse:collapse; font-size:14px
+    }
+    .data-table th{
+      background:var(--fb-gray-light); padding:12px 16px; text-align:left;
+      font-weight:600; color:var(--fb-text); border-bottom:1px solid var(--fb-border)
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--fb-border); vertical-align:middle
+    }
+    .data-table tbody tr:hover{background:var(--fb-gray-light)}
+
+    .badge{
+      display:inline-block; padding:4px 8px; border-radius:12px;
+      font-size:12px; font-weight:600; background:var(--fb-gray-light); color:var(--fb-text)
+    }
+    .badge.active{background:var(--fb-success); color:white}
+    .badge.inactive{background:var(--fb-gray-dark); color:white}
+    .badge.draft{background:var(--fb-warning); color:white}
+
+    /* ===== Empty State ===== */
+    .empty-state{
+      text-align:center; padding:60px 20px; color:var(--fb-gray-dark)
+    }
+    .empty-icon{
+      width:64px; height:64px; margin:0 auto 16px; background:var(--fb-gray-light);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:24px; color:var(--fb-gray-dark)
+    }
+    .empty-title{
+      font-size:18px; font-weight:600; margin-bottom:8px; color:var(--fb-text)
+    }
+    .empty-description{
+      font-size:14px; color:var(--fb-gray-dark)
+    }
+
+    /* ===== Buttons ===== */
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; padding:10px 20px;
+      border-radius:var(--fb-radius); font-weight:600; cursor:pointer;
+      transition:all 0.2s; text-decoration:none; border:none; font-size:14px
+    }
+    .btn-primary{background:var(--fb-blue); color:white}
+    .btn-primary:hover{background:var(--fb-blue-hover)}
+    .btn-secondary{background:var(--fb-gray-light); color:var(--fb-text); border:1px solid var(--fb-border)}
+    .btn-secondary:hover{background:var(--fb-border)}
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+        /* ===== Sidebar Navigation ===== */
+        .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px}
+      .page-title{font-size:24px}
+      .table-header{flex-direction:column; align-items:stretch}
+      .table-actions{justify-content:center}
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== Facebook-style Top Navigation ===== -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Brand -->
+      <a href="{% url 'main_page' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+      <a href="{% url 'crm_home' %}" class="nav-tab active">CRM</a>
+      <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
+    </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <button class="action-btn" title="Back to CRM" onclick="window.history.back()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </button>
+        <button class="action-btn" title="Refresh Data" onclick="location.reload()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+          </svg>
+        </button>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">CRM</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'crm_home' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'manage_customers' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            Manage Customers
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'main_page' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+            Send Messages
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_prompt_replies' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+            </svg>
+            Prompt Replies
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_schedule_message' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+            </svg>
+            Schedule Message
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_campaigns' %}" class="active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            Campaigns
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_analytics' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'whatsapp_settings' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            Settings
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">CRM Campaigns</h1>
+        <p class="page-subtitle">Manage and track your customer relationship campaigns</p>
+      </div>
+
+    <!-- Campaigns Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3 class="table-title">Campaigns</h3>
+        <div class="table-actions">
+          <button class="btn btn-primary" onclick="location.reload()">Refresh</button>
+        </div>
+      </div>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Campaign Name</th>
+            <th>Status</th>
+            <th>Created Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+      <tbody>
+          {% for campaign in campaigns %}
+          <tr>
+            <td>
+              <div style="font-weight:600; color:var(--fb-text);">{{ campaign.name }}</div>
+              <div style="font-size:12px; color:var(--fb-gray-dark); margin-top:2px;">ID: {{ campaign.id }}</div>
+            </td>
+            <td>
+              <span class="badge {% if campaign.status == 'active' %}active{% elif campaign.status == 'draft' %}draft{% else %}inactive{% endif %}">
+                {{ campaign.status|title }}
+              </span>
+            </td>
+            <td>{{ campaign.created_at|date:"M d, Y" }}</td>
+            <td>
+              <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px;">View</button>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" style="text-align:center; color:var(--fb-gray-dark); padding:40px;">
+              <div class="empty-state">
+                <div class="empty-icon">📊</div>
+                <div class="empty-title">No Campaigns Yet</div>
+                <div class="empty-description">
+                  You haven't created any CRM campaigns yet. Start by creating your first campaign.
+                </div>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    </div>
+  </div>
+</body>
+</html>

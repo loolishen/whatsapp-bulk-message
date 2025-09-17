@@ -6,92 +6,799 @@ import json
 import base64
 import pandas as pd
 import re
+import logging
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from .models import Contact, Message, BulkMessage, Campaign, CustomerSegment, Purchase, WhatsAppMessage, OCRProcessingLog
+try:
+    from .models import Contact, Message, BulkMessage, Campaign, CustomerSegment, Purchase, WhatsAppMessage, OCRProcessingLog
+except Exception:  # during migrations or model refactors
+    Contact = None
+    Message = None
+    BulkMessage = None
+    Campaign = None
+    CustomerSegment = None
+    Purchase = None
+    WhatsAppMessage = None
+    OCRProcessingLog = None
 from .whatsapp_service import WhatsAppAPIService
 from .temp_image_storage import TemporaryImageStorage
 from .cloudinary_service import cloudinary_service
+from .ocr_service import OCRService
 from safe_demographics import process_demographics, get_race_code, get_gender_code
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+# =========================
+# Auth & Plan-Gated Dashboards
+# =========================
+from django.contrib.auth.decorators import login_required
+from django.utils import timezone as dj_timezone
+from django.contrib.auth import authenticate, login, logout
+from django.contrib import messages
+from .models import (
+    Tenant, TenantUser, Customer, CoreMessage, Conversation, WhatsAppConnection,
+    PromptReply, Contest, ContestEntry, TemplateMessage, Segment,
+    Campaign as NewCampaign, CampaignRun, CampaignRecipient, CampaignVariant,
+    CampaignMessage, SendQueue, Consent
+)
+
+
+def _get_tenant(request):
+    if not request.user.is_authenticated:
+        return None
+    try:
+        return request.user.tenant_profile.tenant
+    except Exception:
+        return None
+
+
+def _require_plan(tenant, feature):
+    if not tenant:
+        return False
+    plan = (tenant.plan or '').lower()
+    if plan == 'pro':
+        return True
+    if feature == 'contest' and plan == 'contest':
+        return True
+    if feature == 'crm' and plan == 'crm':
+        return True
+    return False
+
+
+def auth_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        messages.error(request, 'Invalid credentials')
+    return render(request, 'messaging/auth_login.html')
+
+
+def auth_logout(request):
+    logout(request)
+    return redirect('auth_login')
+
+
+@login_required
+def dashboard(request):
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    plan = (tenant.plan or '').upper()
+    return render(request, 'messaging/dashboard.html', {
+        'tenant': tenant,
+        'plan': plan,
+        'can_contest': _require_plan(tenant, 'contest'),
+        'can_crm': _require_plan(tenant, 'crm'),
+    })
+
+
+# =========================
+# Contest Management
+# =========================
+@login_required
+def contest_home(request):
+    """Enhanced contest home with management dashboard"""
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    # Get all contests with statistics
+    contests = Contest.objects.filter(tenant=tenant).order_by('-created_at')
+    
+    # Get active contest
+    active_contest = contests.filter(is_active=True).first()
+    
+    # Get contest statistics
+    contest_stats = []
+    for contest in contests[:5]:  # Show last 5 contests
+        stats = {
+            'contest': contest,
+            'total_entries': contest.total_entries,
+            'verified_entries': contest.verified_entries,
+            'pending_entries': contest.entries.filter(status='pending').count(),
+            'winners': contest.entries.filter(is_winner=True).count(),
+        }
+        contest_stats.append(stats)
+    
+    # Get active contest statistics for quick stats
+    active_contest_stats = {
+        'verified_entries': 0,
+        'pending_entries': 0,
+        'winners': 0,
+    }
+    
+    if active_contest:
+        active_contest_stats = {
+            'verified_entries': active_contest.verified_entries,
+            'pending_entries': active_contest.entries.filter(status='pending').count(),
+            'winners': active_contest.entries.filter(is_winner=True).count(),
+        }
+    
+    context = {
+        'tenant': tenant,
+        'contests': contests,
+        'active_contest': active_contest,
+        'active_contest_stats': active_contest_stats,
+        'contest_stats': contest_stats,
+    }
+    return render(request, 'messaging/contest_home_enhanced.html', context)
+
+
+@login_required
+def contest_contacts(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    q = (request.GET.get('q') or '').strip()
+    customers = Customer.objects.filter(tenant=tenant)
+    if q:
+        customers = customers.filter(name__icontains=q)
+    customers = customers.order_by('name')[:500]
+    return render(request, 'messaging/contest_contacts.html', {'customers': customers, 'q': q})
+
+
+@login_required
+def contest_add_contact(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        phone = request.POST.get('phone')
+        if name and phone:
+            Customer.objects.create(tenant=tenant, name=name, phone_number=phone)
+        return redirect('contest_contacts')
+    return render(request, 'messaging/contest_add_contact.html')
+
+
+@login_required
+def contest_send_message(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    # Get active contest
+    contest = Contest.objects.filter(tenant=tenant, is_active=True).order_by('-starts_at').first()
+    if not contest:
+        messages.error(request, 'No active contest found')
+        return redirect('contest_home')
+    
+    # Get contest entries
+    entries = ContestEntry.objects.filter(tenant=tenant, contest=contest)
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            customer_ids = request.POST.getlist('customer_ids')
+            message_text = request.POST.get('message_text', '').strip()
+            send_immediately = request.POST.get('send_immediately') == 'on'
+            
+            if not customer_ids:
+                messages.error(request, 'Please select at least one customer')
+                return redirect('contest_send_message')
+            
+            if not message_text:
+                messages.error(request, 'Please enter a message')
+                return redirect('contest_send_message')
+            
+            # Initialize WhatsApp service
+            wa_service = WhatsAppAPIService()
+            
+            # Send messages
+            success_count = 0
+            error_count = 0
+            
+            for customer_id in customer_ids:
+                try:
+                    customer = Customer.objects.get(tenant=tenant, customer_id=customer_id)
+                    
+                    # Send via WABot
+                    result = wa_service.send_text_message(customer.phone_number, message_text)
+                    
+                    if result['success']:
+                        # Create conversation and message record
+                        conn = WhatsAppConnection.objects.filter(tenant=tenant).first()
+                        if conn:
+                            convo, _ = Conversation.objects.get_or_create(
+                                tenant=tenant, 
+                                customer=customer, 
+                                whatsapp_connection=conn, 
+                                contest=contest,
+                                defaults={}
+                            )
+                            CoreMessage.objects.create(
+                                tenant=tenant,
+                                conversation=convo,
+                                direction='outbound',
+                                status='sent',
+                                text_body=message_text,
+                                provider_msg_id=result['data'].get('id'),
+                                sent_at=timezone.now()
+                            )
+                        success_count += 1
+                    else:
+                        error_count += 1
+                        logger.error(f"Failed to send message to {customer.phone_number}: {result.get('error')}")
+                        
+                except Customer.DoesNotExist:
+                    error_count += 1
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"Error sending message to customer {customer_id}: {str(e)}")
+            
+            # Show results
+            if success_count > 0:
+                messages.success(request, f'Successfully sent {success_count} message(s)')
+            if error_count > 0:
+                messages.warning(request, f'Failed to send {error_count} message(s)')
+            
+            return redirect('contest_contacts')
+            
+        except Exception as e:
+            messages.error(request, f'Error sending messages: {str(e)}')
+            return redirect('contest_send_message')
+    
+    # GET request - show form
+    # Get customers from contest entries, or all customers if no entries yet
+    if entries.exists():
+        customer_ids = [e.customer.customer_id for e in entries]
+        customers = Customer.objects.filter(tenant=tenant, customer_id__in=customer_ids)
+    else:
+        # If no contest entries yet, show all customers for the tenant
+        customers = Customer.objects.filter(tenant=tenant).order_by('name')[:50]  # Limit to 50 for performance
+    
+    context = {
+        'contest': contest,
+        'entries': entries,
+        'customers': customers
+    }
+    return render(request, 'messaging/contest_send_message.html', context)
+
+
+@login_required
+def contest_select_winner(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    contest = Contest.objects.filter(tenant=tenant, is_active=True).order_by('-starts_at').first()
+    entries = ContestEntry.objects.filter(tenant=tenant, contest=contest)
+    if request.method == 'POST':
+        entry_id = request.POST.get('entry_id')
+        if entry_id:
+            try:
+                entry = entries.get(entry_id=entry_id)
+                entries.update(is_winner=False)
+                entry.is_winner = True
+                entry.save()
+                messages.success(request, 'Winner selected')
+            except ContestEntry.DoesNotExist:
+                messages.error(request, 'Invalid entry')
+        return redirect('contest_select_winner')
+    return render(request, 'messaging/contest_select_winner.html', {'contest': contest, 'entries': entries})
+
+
+# =========================
+# CRM Area
+# =========================
+@login_required
+def crm_home(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    return render(request, 'messaging/crm_home.html', {})
+
+
+@login_required
+def crm_prompt_replies(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    prompts = PromptReply.objects.filter(tenant=tenant).order_by('-created_at')
+    return render(request, 'messaging/crm_prompt_replies.html', {'prompts': prompts})
+
+
+@login_required
+def crm_add_prompt_reply(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        body = request.POST.get('body')
+        if name and body:
+            PromptReply.objects.create(tenant=tenant, name=name, body=body)
+        return redirect('crm_prompt_replies')
+    return render(request, 'messaging/crm_add_prompt_reply.html')
+
+
+@login_required
+def crm_schedule_message(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    if request.method == 'POST':
+        customer_id = request.POST.get('customer_id')
+        text = request.POST.get('text')
+        when = request.POST.get('when')
+        template = TemplateMessage.objects.filter(tenant=tenant).first()
+        customer = get_object_or_404(Customer, tenant=tenant, customer_id=customer_id)
+        seg = Segment.objects.create(tenant=tenant, name='ad-hoc', definition_json={'customer_ids': [str(customer.customer_id)]}, is_dynamic=False)
+        camp = NewCampaign.objects.create(tenant=tenant, name='Adhoc', segment=seg, status='scheduled')
+        run = CampaignRun.objects.create(tenant=tenant, campaign=camp, segment_version_json=seg.definition_json)
+        variant = CampaignVariant.objects.create(tenant=tenant, campaign=camp, name='A', split_pct=100, template=template)
+        recipient = CampaignRecipient.objects.create(
+            tenant=tenant, run=run, campaign=camp, variant=variant, customer=customer,
+            whatsapp_connection=WhatsAppConnection.objects.filter(tenant=tenant).first()
+        )
+        cm = CampaignMessage.objects.create(
+            tenant=tenant, recipient=recipient, campaign=camp, variant=variant, template=template,
+            status='queued', scheduled_at=when
+        )
+        SendQueue.objects.create(tenant=tenant, campaign_message=cm, scheduled_at=when)
+        messages.success(request, 'Scheduled message queued')
+        return redirect('crm_home')
+    customers = Customer.objects.filter(tenant=_get_tenant(request)).order_by('name')[:200]
+    return render(request, 'messaging/crm_schedule.html', {'customers': customers})
+
+
+@login_required
+def crm_campaigns(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    campaigns = NewCampaign.objects.filter(tenant=tenant).order_by('-created_at')
+    return render(request, 'messaging/crm_campaigns.html', {'campaigns': campaigns})
+
+
+@login_required
+def crm_analytics(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'crm'):
+        return redirect('dashboard')
+    total_customers = Customer.objects.filter(tenant=tenant).count()
+    total_msgs = CampaignMessage.objects.filter(tenant=tenant).count()
+    sent = CampaignMessage.objects.filter(tenant=tenant, status='sent').count()
+    delivered = CampaignMessage.objects.filter(tenant=tenant, status='delivered').count()
+    read = CampaignMessage.objects.filter(tenant=tenant, status='read').count()
+    return render(request, 'messaging/crm_analytics.html', {
+        'total_customers': total_customers,
+        'total_msgs': total_msgs,
+        'sent': sent,
+        'delivered': delivered,
+        'read': read,
+    })
+
 
 def main_page(request):
     """Main page with message preview and recipient selection"""
-    contacts = Contact.objects.all()
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    customers = Customer.objects.filter(tenant=tenant)
     
     # Filter functionality
     state_filter = request.GET.get('state')
     gender_filter = request.GET.get('gender')
-    race_filter = request.GET.get('race')
+    marital_filter = request.GET.get('marital_status')
     
     if state_filter:
-        contacts = contacts.filter(state=state_filter)
+        customers = customers.filter(state=state_filter)
     if gender_filter:
-        contacts = contacts.filter(gender=gender_filter)
-    if race_filter:
-        contacts = contacts.filter(race=race_filter)
+        customers = customers.filter(gender=gender_filter)
+    if marital_filter:
+        customers = customers.filter(marital_status=marital_filter)
     
-    # Convert contacts to JSON for safe JavaScript usage
+    # Convert customers to JSON for safe JavaScript usage
     contacts_json = json.dumps([
         {
-            'id': contact.id, 
-            'name': contact.name, 
-            'phone': contact.phone_number,
-            'state': contact.state,
-            'gender': contact.gender,
-            'race': contact.race,
-            'state_display': contact.get_state_display(),
-            'gender_display': contact.get_gender_display(),
-            'race_display': contact.get_race_display(),
+            'id': str(customer.customer_id), 
+            'name': customer.name, 
+            'phone': customer.phone_number,
+            'state': customer.state or '',
+            'gender': customer.gender,
+            'marital_status': customer.marital_status,
+            'age': customer.age,
+            'city': customer.city or '',
         } 
-        for contact in contacts
+        for customer in customers
     ])
     
     context = {
-        'contacts': contacts,
+        'contacts': customers,  # Keep 'contacts' for template compatibility
         'contacts_json': contacts_json,
-        'state_choices': Contact.STATE_CHOICES,
-        'gender_choices': Contact.GENDER_CHOICES,
-        'race_choices': Contact.RACE_CHOICES,
+        'state_choices': [
+            ('SEL', 'Selangor'), ('KUL', 'Kuala Lumpur'), ('JHR', 'Johor'),
+            ('PNG', 'Penang'), ('PRK', 'Perak'), ('SBH', 'Sabah'),
+            ('SWK', 'Sarawak'), ('KDH', 'Kedah'), ('KTN', 'Kelantan'),
+            ('PHG', 'Pahang'), ('TRG', 'Terengganu'), ('MLK', 'Melaka'),
+            ('NSN', 'Negeri Sembilan'), ('PLS', 'Perlis'), ('PJY', 'Putrajaya'),
+            ('LBN', 'Labuan')
+        ],
+        'gender_choices': [
+            ('N/A', 'N/A'), ('M', 'Male'), ('F', 'Female'),
+            ('NB', 'Non-binary'), ('PNS', 'Prefer not to say')
+        ],
+        'marital_choices': [
+            ('N/A', 'N/A'), ('SINGLE', 'Single'), ('MARRIED', 'Married'),
+            ('DIVORCED', 'Divorced'), ('WIDOWED', 'Widowed')
+        ],
         'selected_state': state_filter,
         'selected_gender': gender_filter,
-        'selected_race': race_filter,
+        'selected_marital': marital_filter,
     }
     
     return render(request, 'messaging/recipients_and_preview.html', context)
 
 def manage_customers(request):
-    """Customer management page - add, edit, delete contacts"""
-    contacts = Contact.objects.all()
+    """Customer management page - add, edit, delete customers"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    customers = Customer.objects.filter(tenant=tenant)
     
     # Filter functionality
     state_filter = request.GET.get('state')
     gender_filter = request.GET.get('gender')
-    race_filter = request.GET.get('race')
+    marital_filter = request.GET.get('marital_status')
     
     if state_filter:
-        contacts = contacts.filter(state=state_filter)
+        customers = customers.filter(state=state_filter)
     if gender_filter:
-        contacts = contacts.filter(gender=gender_filter)
-    if race_filter:
-        contacts = contacts.filter(race=race_filter)
+        customers = customers.filter(gender=gender_filter)
+    if marital_filter:
+        customers = customers.filter(marital_status=marital_filter)
+    
+    # Add message counts and consent status for each customer
+    from django.db.models import Count, Q, Max, Subquery, OuterRef
+    from .pdpa_service import PDPAConsentService
+    
+    customers_with_counts = customers.annotate(
+        total_messages=Count('conversations__messages'),
+        inbound_messages=Count('conversations__messages', filter=Q(conversations__messages__direction='inbound')),
+        outbound_messages=Count('conversations__messages', filter=Q(conversations__messages__direction='outbound')),
+        last_message_date=Max('conversations__messages__created_at')
+    ).order_by('-last_message_date', '-created_at')
+    
+    # Add consent status to each customer
+    pdpa_service = PDPAConsentService()
+    for customer in customers_with_counts:
+        customer.consent_status = pdpa_service._get_consent_status(tenant, customer, 'whatsapp')
+        # Get consent granted date
+        latest_consent = Consent.objects.filter(
+            tenant=tenant,
+            customer=customer,
+            type='whatsapp',
+            status='granted'
+        ).order_by('-occurred_at').first()
+        customer.consent_granted_date = latest_consent.occurred_at if latest_consent else None
     
     # Get choices for dropdowns
     context = {
-        'contacts': contacts,
-        'state_choices': Contact.STATE_CHOICES,
-        'gender_choices': Contact.GENDER_CHOICES,
-        'race_choices': Contact.RACE_CHOICES,
+        'customers': customers_with_counts,
+        'state_choices': [
+            ('SEL', 'Selangor'), ('KUL', 'Kuala Lumpur'), ('JHR', 'Johor'),
+            ('PNG', 'Penang'), ('PRK', 'Perak'), ('SBH', 'Sabah'),
+            ('SWK', 'Sarawak'), ('KDH', 'Kedah'), ('KTN', 'Kelantan'),
+            ('PHG', 'Pahang'), ('TRG', 'Terengganu'), ('MLK', 'Melaka'),
+            ('NSN', 'Negeri Sembilan'), ('PLS', 'Perlis'), ('PJY', 'Putrajaya'),
+            ('LBN', 'Labuan')
+        ],
+        'gender_choices': [
+            ('N/A', 'N/A'), ('M', 'Male'), ('F', 'Female'),
+            ('NB', 'Non-binary'), ('PNS', 'Prefer not to say')
+        ],
+        'marital_choices': [
+            ('N/A', 'N/A'), ('SINGLE', 'Single'), ('MARRIED', 'Married'),
+            ('DIVORCED', 'Divorced'), ('WIDOWED', 'Widowed')
+        ],
         'selected_state': state_filter,
         'selected_gender': gender_filter,
-        'selected_race': race_filter,
+        'selected_marital': marital_filter,
     }
     
     return render(request, 'messaging/manage_customers.html', context)
 
 
-def crm_dashboard(request):
-    """Render the CRM dashboard page."""
-    return render(request, 'messaging/crm_dashboard.html')  # Use your new CRM HTML template
+
+
+# =========================
+# Settings: WhatsApp Integration
+# =========================
+@login_required
+def whatsapp_settings(request):
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+
+    # List connections
+    conns = WhatsAppConnection.objects.filter(tenant=tenant).order_by('phone_number')
+
+    if request.method == 'POST':
+        # Add or update a connection
+        phone = (request.POST.get('phone_number') or '').strip()
+        access_token_ref = (request.POST.get('access_token_ref') or '').strip()
+        instance_id = (request.POST.get('instance_id') or '').strip()
+        provider = (request.POST.get('provider') or 'wabot')
+        if phone and access_token_ref and instance_id:
+            WhatsAppConnection.objects.create(
+                tenant=tenant,
+                phone_number=phone,
+                access_token_ref=access_token_ref,
+                instance_id=instance_id,
+                provider=provider
+            )
+            messages.success(request, 'WhatsApp connection added')
+            return redirect('whatsapp_settings')
+
+    # Optional: instance status via API settings
+    status = None
+    try:
+        svc = WhatsAppAPIService()
+        status = svc.get_instance_status()
+    except Exception:
+        status = None
+
+    return render(request, 'messaging/whatsapp_settings.html', {
+        'connections': conns,
+        'status': status,
+    })
+
+
+# =========================
+# Contest: Create & Analytics
+# =========================
+@login_required
+def contest_create(request):
+    """Enhanced contest creation with PDPA integration and custom messages"""
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        try:
+            # Basic contest information
+            name = (request.POST.get('name') or '').strip()
+            description = (request.POST.get('description') or '').strip()
+            starts_at = request.POST.get('starts_at')
+            ends_at = request.POST.get('ends_at')
+            is_active = True if request.POST.get('is_active') == 'on' else False
+            
+            # Contest requirements
+            requires_nric = True if request.POST.get('requires_nric') == 'on' else False
+            requires_receipt = True if request.POST.get('requires_receipt') == 'on' else False
+            min_purchase_amount = request.POST.get('min_purchase_amount')
+            if min_purchase_amount:
+                min_purchase_amount = Decimal(min_purchase_amount)
+            else:
+                min_purchase_amount = None
+            
+            # Custom post-PDPA messages
+            post_pdpa_text = request.POST.get('post_pdpa_text', '').strip()
+            post_pdpa_image_url = request.POST.get('post_pdpa_image_url', '').strip()
+            post_pdpa_gif_url = request.POST.get('post_pdpa_gif_url', '').strip()
+            
+            # Contest instructions
+            contest_instructions = request.POST.get('contest_instructions', '').strip()
+            verification_instructions = request.POST.get('verification_instructions', '').strip()
+            eligibility_message = request.POST.get('eligibility_message', '').strip()
+            
+            from django.utils.dateparse import parse_datetime
+            from decimal import Decimal
+            
+            contest = Contest.objects.create(
+                tenant=tenant,
+                name=name or 'Untitled Contest',
+                description=description or None,
+                starts_at=parse_datetime(starts_at),
+                ends_at=parse_datetime(ends_at),
+                is_active=is_active,
+                
+                # Requirements
+                requires_nric=requires_nric,
+                requires_receipt=requires_receipt,
+                min_purchase_amount=min_purchase_amount,
+                
+                # Custom messages
+                post_pdpa_text=post_pdpa_text or None,
+                post_pdpa_image_url=post_pdpa_image_url or None,
+                post_pdpa_gif_url=post_pdpa_gif_url or None,
+                
+                # Instructions
+                contest_instructions=contest_instructions or None,
+                verification_instructions=verification_instructions or None,
+                eligibility_message=eligibility_message or "Congratulations! You are eligible to participate in this contest. Please follow the instructions to complete your entry.",
+            )
+            
+            messages.success(request, f'Contest "{contest.name}" created successfully!')
+            return redirect('contest_detail', contest_id=contest.contest_id)
+            
+        except Exception as e:
+            messages.error(request, f'Failed to create contest: {e}')
+    
+    return render(request, 'messaging/contest_create.html')
+
+
+@login_required
+def contest_analytics(request):
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    contest = Contest.objects.filter(tenant=tenant, is_active=True).order_by('-starts_at').first()
+    entries = ContestEntry.objects.filter(tenant=tenant, contest=contest)
+    total_entries = entries.count()
+    winners = entries.filter(is_winner=True).count()
+    # Simple per-day submission counts
+    from django.db.models.functions import TruncDate
+    from django.db.models import Count
+    timeline = entries.annotate(day=TruncDate('submitted_at')).values('day').order_by('day').annotate(count=Count('entry_id'))
+    return render(request, 'messaging/contest_analytics.html', {
+        'contest': contest,
+        'total_entries': total_entries,
+        'winners': winners,
+        'timeline': list(timeline),
+    })
+
+
+@login_required
+def contest_detail(request, contest_id):
+    """Contest detail view with entries management"""
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    try:
+        contest = Contest.objects.get(contest_id=contest_id, tenant=tenant)
+    except Contest.DoesNotExist:
+        messages.error(request, 'Contest not found')
+        return redirect('contest_home')
+    
+    # Get contest entries with filtering
+    entries = ContestEntry.objects.filter(contest=contest).order_by('-submitted_at')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        entries = entries.filter(status=status_filter)
+    
+    # Search by customer name
+    search = request.GET.get('search', '').strip()
+    if search:
+        entries = entries.filter(customer__name__icontains=search)
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(entries, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get contest statistics
+    contest_stats = {
+        'total_entries': contest.total_entries,
+        'verified_entries': contest.verified_entries,
+        'pending_entries': contest.entries.filter(status='pending').count(),
+        'winners': contest.entries.filter(is_winner=True).count(),
+    }
+    
+    context = {
+        'contest': contest,
+        'entries': page_obj,
+        'status_filter': status_filter,
+        'search': search,
+        'status_choices': ContestEntry.STATUS_CHOICES,
+        'contest_stats': contest_stats,
+        'now': dj_timezone.now(),
+    }
+    return render(request, 'messaging/contest_detail.html', context)
+
+
+@login_required
+def contest_entries(request, contest_id):
+    """Contest entries management"""
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    try:
+        contest = Contest.objects.get(contest_id=contest_id, tenant=tenant)
+    except Contest.DoesNotExist:
+        messages.error(request, 'Contest not found')
+        return redirect('contest_home')
+    
+    # Get all entries
+    entries = ContestEntry.objects.filter(contest=contest).order_by('-submitted_at')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        entries = entries.filter(status=status_filter)
+    
+    # Search
+    search = request.GET.get('search', '').strip()
+    if search:
+        entries = entries.filter(customer__name__icontains=search)
+    
+    context = {
+        'contest': contest,
+        'entries': entries,
+        'status_filter': status_filter,
+        'search': search,
+        'status_choices': ContestEntry.STATUS_CHOICES,
+    }
+    return render(request, 'messaging/contest_entries.html', context)
+
+
+@login_required
+def contest_verify_entry(request, entry_id):
+    """Verify a contest entry"""
+    tenant = _get_tenant(request)
+    if not _require_plan(tenant, 'contest'):
+        return redirect('dashboard')
+    
+    try:
+        entry = ContestEntry.objects.get(entry_id=entry_id, tenant=tenant)
+    except ContestEntry.DoesNotExist:
+        messages.error(request, 'Entry not found')
+        return redirect('contest_home')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        verification_notes = request.POST.get('verification_notes', '').strip()
+        
+        if action == 'verify':
+            entry.status = 'verified'
+            entry.is_verified = True
+            entry.verified_at = dj_timezone.now()
+            entry.verified_by = request.user.get_full_name() or request.user.username
+            entry.verification_notes = verification_notes
+            entry.save()
+            
+            # Send eligibility message
+            from .whatsapp_service import WhatsAppAPIService
+            wa_service = WhatsAppAPIService()
+            wa_service.send_text_message(entry.customer.phone_number, entry.contest.eligibility_message)
+            
+            messages.success(request, f'Entry verified for {entry.customer.name}')
+            
+        elif action == 'reject':
+            entry.status = 'rejected'
+            entry.verification_notes = verification_notes
+            entry.save()
+            messages.success(request, f'Entry rejected for {entry.customer.name}')
+        
+        return redirect('contest_detail', contest_id=entry.contest.contest_id)
+    
+    context = {
+        'entry': entry,
+        'contest': entry.contest,
+    }
+    return render(request, 'messaging/contest_verify_entry.html', context)
 
 def analytics_dashboard(request):
     """Analytics dashboard with data visualizations"""
@@ -100,38 +807,46 @@ def analytics_dashboard(request):
     import json
     from datetime import datetime, timedelta
     
-    contacts = Contact.objects.all()
+    # Get tenant and filter customers
+    tenant = _get_tenant(request)
+    customers = Customer.objects.filter(tenant=tenant)
     
     # Basic statistics
-    total_contacts = contacts.count()
+    total_customers = customers.count()
+    
+    # State choices (hardcoded since Customer model doesn't have STATE_CHOICES)
+    STATE_CHOICES = [
+        ('SEL', 'Selangor'), ('KUL', 'Kuala Lumpur'), ('JHR', 'Johor'),
+        ('PNG', 'Penang'), ('PRK', 'Perak'), ('SBH', 'Sabah'),
+        ('SWK', 'Sarawak'), ('KDH', 'Kedah'), ('KTN', 'Kelantan'),
+        ('PHG', 'Pahang'), ('TRG', 'Terengganu'), ('MLK', 'Melaka'),
+        ('NSN', 'Negeri Sembilan'), ('PLS', 'Perlis'), ('PJY', 'Putrajaya'),
+        ('LBN', 'Labuan')
+    ]
     
     # Distribution by State
     state_distribution = []
-    for state_code, state_name in Contact.STATE_CHOICES:
+    for state_code, state_name in STATE_CHOICES:
         if state_code != 'N/A':
-            count = contacts.filter(state=state_code).count()
+            count = customers.filter(state=state_code).count()
             if count > 0:
                 state_distribution.append({'name': state_name, 'value': count})
     
-    # Distribution by Race
-    race_distribution = []
-    for race_code, race_name in Contact.RACE_CHOICES:
-        if race_code != 'N/A':
-            count = contacts.filter(race=race_code).count()
-            if count > 0:
-                race_distribution.append({'name': race_name, 'value': count})
-    
     # Distribution by Gender
     gender_distribution = []
-    for gender_code, gender_name in Contact.GENDER_CHOICES:
+    for gender_code, gender_name in Customer.GENDER_CHOICES:
         if gender_code != 'N/A':
-            count = contacts.filter(gender=gender_code).count()
+            count = customers.filter(gender=gender_code).count()
             if count > 0:
                 gender_distribution.append({'name': gender_name, 'value': count})
     
-    # Event Source Distribution
-    event_sources = contacts.exclude(Q(event_source='') | Q(event_source__isnull=True)).values('event_source').annotate(count=Count('id')).order_by('-count')
-    event_distribution = [{'name': item['event_source'] or 'Unknown Event', 'value': item['count']} for item in event_sources]
+    # Distribution by Marital Status
+    marital_distribution = []
+    for marital_code, marital_name in Customer.MARITAL_STATUS_CHOICES:
+        if marital_code != 'N/A':
+            count = customers.filter(marital_status=marital_code).count()
+            if count > 0:
+                marital_distribution.append({'name': marital_name, 'value': count})
     
     # Registration timeline (last 12 months)
     end_date = datetime.now().date()
@@ -146,7 +861,7 @@ def analytics_dashboard(request):
         else:
             month_end = current_date.replace(month=current_date.month + 1, day=1) - timedelta(days=1)
         
-        count = contacts.filter(created_at__date__range=[month_start, month_end]).count()
+        count = customers.filter(created_at__date__range=[month_start, month_end]).count()
         timeline_data.append({
             'date': month_start.strftime('%Y-%m'),
             'count': count,
@@ -158,132 +873,102 @@ def analytics_dashboard(request):
         else:
             current_date = current_date.replace(month=current_date.month + 1)
     
-    # Event timeline (when events were carried out)
-    event_timeline_data = []
-    if contacts.filter(event_date__isnull=False).exists():
-        event_dates = contacts.exclude(event_date__isnull=True).values('event_date').annotate(count=Count('id')).order_by('event_date')
-        for item in event_dates:
-            event_timeline_data.append({
-                'date': item['event_date'].strftime('%Y-%m-%d'),
-                'count': item['count'],
-                'display_date': item['event_date'].strftime('%b %d, %Y')
-            })
-    
-    # Cross-tabulation: State vs Race
-    state_race_matrix = []
-    for state_code, state_name in Contact.STATE_CHOICES:
-        if state_code != 'N/A':
-            state_data = {'state': state_name}
-            for race_code, race_name in Contact.RACE_CHOICES:
-                if race_code != 'N/A':
-                    count = contacts.filter(state=state_code, race=race_code).count()
-                    state_data[race_name.lower()] = count
-            if any(v > 0 for k, v in state_data.items() if k != 'state'):
-                state_race_matrix.append(state_data)
-    
     # Recent registrations (last 30 days)
     recent_date = end_date - timedelta(days=30)
-    recent_contacts = contacts.filter(created_at__date__gte=recent_date).order_by('-created_at')[:10]
+    recent_customers = customers.filter(created_at__date__gte=recent_date).order_by('-created_at')[:10]
     
     # Prepare data for Chart.js (separate labels and data arrays)
     state_labels = [item['name'] for item in state_distribution]
     state_data = [item['value'] for item in state_distribution]
     
-    race_labels = [item['name'] for item in race_distribution]
-    race_data = [item['value'] for item in race_distribution]
-    
     gender_labels = [item['name'] for item in gender_distribution]
     gender_data = [item['value'] for item in gender_distribution]
     
-    event_source_labels = [item['name'] for item in event_distribution]
-    event_source_data = [item['value'] for item in event_distribution]
+    marital_labels = [item['name'] for item in marital_distribution]
+    marital_data = [item['value'] for item in marital_distribution]
     
     timeline_labels = [item['month'] for item in timeline_data]
     timeline_counts = [item['count'] for item in timeline_data]
     
-    event_timeline_labels = [item['display_date'] for item in event_timeline_data]
-    event_timeline_counts = [item['count'] for item in event_timeline_data]
-    
     # Cross-tabulation data for template
-    cross_tab_races = [race_name for race_code, race_name in Contact.RACE_CHOICES if race_code != 'N/A']
     cross_tabulation = {}
     
-    for state_code, state_name in Contact.STATE_CHOICES:
+    for state_code, state_name in STATE_CHOICES:
         if state_code != 'N/A':
-            race_counts = {}
+            gender_counts = {}
             total_for_state = 0
-            for race_code, race_name in Contact.RACE_CHOICES:
-                if race_code != 'N/A':
-                    count = contacts.filter(state=state_code, race=race_code).count()
-                    race_counts[race_name] = count
+            for gender_code, gender_name in Customer.GENDER_CHOICES:
+                if gender_code != 'N/A':
+                    count = customers.filter(state=state_code, gender=gender_code).count()
+                    gender_counts[gender_name] = count
                     total_for_state += count
             
-            if total_for_state > 0:  # Only include states with contacts
-                race_counts['total'] = total_for_state
-                cross_tabulation[state_name] = race_counts
+            if total_for_state > 0:  # Only include states with customers
+                gender_counts['total'] = total_for_state
+                cross_tabulation[state_name] = gender_counts
     
     context = {
-        'total_contacts': total_contacts,
+        'total_customers': total_customers,
         'unique_states': len([s for s in state_distribution if s['value'] > 0]),
-        'unique_events': len([e for e in event_distribution if e['value'] > 0]),
-        'recent_additions': contacts.filter(created_at__date__gte=recent_date).count(),
+        'recent_additions': customers.filter(created_at__date__gte=recent_date).count(),
         
         # Chart.js data
         'state_labels': json.dumps(state_labels),
         'state_data': json.dumps(state_data),
-        'race_labels': json.dumps(race_labels),
-        'race_data': json.dumps(race_data),
         'gender_labels': json.dumps(gender_labels),
         'gender_data': json.dumps(gender_data),
-        'event_source_labels': json.dumps(event_source_labels),
-        'event_source_data': json.dumps(event_source_data),
+        'marital_labels': json.dumps(marital_labels),
+        'marital_data': json.dumps(marital_data),
         'timeline_labels': json.dumps(timeline_labels),
         'timeline_data': json.dumps(timeline_counts),
-        'event_timeline_labels': json.dumps(event_timeline_labels),
-        'event_timeline_data': json.dumps(event_timeline_counts),
         
         # Cross-tabulation data
         'cross_tabulation': cross_tabulation,
-        'cross_tab_races': cross_tab_races,
         
-        # Recent contacts
-        'recent_contacts': recent_contacts,
+        # Recent customers
+        'recent_customers': recent_customers,
     }
     
     return render(request, 'messaging/analytics_dashboard.html', context)
 
 def add_contact(request):
-    """Add a new contact"""
+    """Add a new customer"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
     if request.method == 'POST':
         name = request.POST.get('name')
         phone = request.POST.get('phone')
-        state = request.POST.get('state', 'N/A')
+        ic_number = request.POST.get('ic_number', '')
         gender = request.POST.get('gender', 'N/A')
-        race = request.POST.get('race', 'N/A')
-        event_source = request.POST.get('event_source', 'Manual Entry')
-        date_added = request.POST.get('date_added')
+        marital_status = request.POST.get('marital_status', 'N/A')
+        age = request.POST.get('age')
+        city = request.POST.get('city', '')
+        state = request.POST.get('state', '')
         
         if name and phone:
-            contact_data = {
+            customer_data = {
+                'tenant': tenant,
                 'name': name,
                 'phone_number': phone,
-                'state': state,
+                'ic_number': ic_number if ic_number else None,
                 'gender': gender,
-                'race': race,
-                'event_source': event_source
+                'marital_status': marital_status,
+                'city': city if city else None,
+                'state': state if state else None,
             }
             
-            # Handle date_added - convert to proper format or set to None
-            if date_added:
+            # Handle age - convert to integer or set to None
+            if age:
                 try:
-                    from datetime import datetime
-                    contact_data['date_added'] = datetime.strptime(date_added, '%Y-%m-%d').date()
+                    customer_data['age'] = int(age)
                 except ValueError:
-                    contact_data['date_added'] = None
+                    customer_data['age'] = None
             else:
-                contact_data['date_added'] = None
+                customer_data['age'] = None
                 
-            Contact.objects.create(**contact_data)
+            Customer.objects.create(**customer_data)
             
         # Redirect based on where the form was submitted from
         if request.POST.get('redirect_to') == 'customers':
@@ -294,38 +979,135 @@ def add_contact(request):
     return redirect('main_page')
 
 def edit_contact(request, contact_id):
-    """Edit an existing contact"""
-    contact = get_object_or_404(Contact, id=contact_id)
+    """Edit an existing customer"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    customer = get_object_or_404(Customer, customer_id=contact_id, tenant=tenant)
     
     if request.method == 'POST':
-        contact.name = request.POST.get('name', contact.name)
-        contact.phone_number = request.POST.get('phone', contact.phone_number)
-        contact.state = request.POST.get('state', contact.state)
-        contact.gender = request.POST.get('gender', contact.gender)
-        contact.race = request.POST.get('race', contact.race)
-        contact.event_source = request.POST.get('event_source', contact.event_source)
+        customer.name = request.POST.get('name', customer.name)
+        customer.phone_number = request.POST.get('phone', customer.phone_number)
+        customer.ic_number = request.POST.get('ic_number', '') or None
+        customer.gender = request.POST.get('gender', customer.gender)
+        customer.marital_status = request.POST.get('marital_status', customer.marital_status)
+        customer.city = request.POST.get('city', '') or None
+        customer.state = request.POST.get('state', '') or None
         
-        # Handle date_added
-        date_added = request.POST.get('date_added')
-        if date_added:
+        # Handle age
+        age = request.POST.get('age')
+        if age:
             try:
-                from datetime import datetime
-                contact.date_added = datetime.strptime(date_added, '%Y-%m-%d').date()
+                customer.age = int(age)
             except ValueError:
-                contact.date_added = None
+                customer.age = None
         else:
-            contact.date_added = None
+            customer.age = None
             
-        contact.save()
+        customer.save()
         return redirect('manage_customers')
     
     return redirect('manage_customers')
 
 def delete_contact(request, contact_id):
-    """Delete a contact"""
-    contact = get_object_or_404(Contact, id=contact_id)
-    contact.delete()
-    return redirect('manage_customers')
+    """Delete a customer"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    customer = get_object_or_404(Customer, customer_id=contact_id, tenant=tenant)
+    customer.delete()
+    
+    if request.method == 'POST':
+        # AJAX request for bulk delete
+        return JsonResponse({'success': True})
+    else:
+        # Regular GET request
+        return redirect('manage_customers')
+
+
+@csrf_exempt
+@login_required
+def bulk_delete_customers(request):
+    """Bulk delete customers"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        if request.method != 'POST':
+            logger.error("Bulk delete: Method not allowed")
+            return JsonResponse({'error': 'Method not allowed'}, status=405)
+        
+        tenant = _get_tenant(request)
+        if not tenant:
+            logger.error("Bulk delete: No tenant found")
+            return JsonResponse({'error': 'Unauthorized'}, status=401)
+        
+        # Debug: Log the POST data
+        logger.info(f"Bulk delete POST data: {dict(request.POST)}")
+        logger.info(f"Content type: {request.content_type}")
+        
+        # Try to get customer IDs from form data first
+        customer_ids = request.POST.getlist('customer_ids[]')
+        
+        # If no form data, try JSON
+        if not customer_ids and request.content_type == 'application/json':
+            try:
+                import json
+                data = json.loads(request.body)
+                customer_ids = data.get('customer_ids', [])
+            except:
+                pass
+        
+        logger.info(f"Customer IDs to delete: {customer_ids}")
+        
+        if not customer_ids:
+            logger.warning("Bulk delete: No customers selected")
+            return JsonResponse({'error': 'No customers selected'}, status=400)
+        
+        # Filter out invalid UUIDs (like "NaN")
+        import uuid
+        valid_customer_ids = []
+        for customer_id in customer_ids:
+            try:
+                # Try to validate UUID
+                uuid.UUID(str(customer_id))
+                valid_customer_ids.append(customer_id)
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid customer ID: {customer_id}")
+                continue
+        
+        if not valid_customer_ids:
+            logger.warning("Bulk delete: No valid customer IDs found")
+            return JsonResponse({'error': 'No valid customer IDs found'}, status=400)
+        
+        logger.info(f"Valid customer IDs: {valid_customer_ids}")
+        
+        # Validate customer IDs exist
+        valid_customers = Customer.objects.filter(
+            customer_id__in=valid_customer_ids,
+            tenant=tenant
+        )
+        logger.info(f"Found {valid_customers.count()} valid customers to delete")
+        
+        if valid_customers.count() == 0:
+            logger.warning("Bulk delete: No valid customers found")
+            return JsonResponse({'error': 'No valid customers found'}, status=400)
+        
+        # Delete customers
+        deleted_count = valid_customers.delete()[0]
+        logger.info(f"Successfully deleted {deleted_count} customers")
+        
+        return JsonResponse({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'Successfully deleted {deleted_count} customer(s)'
+        })
+        
+    except Exception as e:
+        logger.error(f"Bulk delete error: {str(e)}", exc_info=True)
+        return JsonResponse({'error': f'Server error: {str(e)}'}, status=500)
 
 @csrf_exempt
 def upload_image(request):
@@ -465,17 +1247,17 @@ def send_bulk_message(request):
         
         for recipient_id in recipient_ids:
             try:
-                contact = Contact.objects.get(id=recipient_id)
-                bulk_message.recipients.add(contact)
+                customer = Customer.objects.get(customer_id=recipient_id, tenant=_get_tenant(request))
+                bulk_message.recipients.add(customer)
                 
-                print(f"DEBUG: Sending to {contact.name} ({contact.phone_number})")  # Debug log
+                print(f"DEBUG: Sending to {customer.name} ({customer.phone_number})")  # Debug log
                 
                 # Send via WhatsApp API
                 if image_url:
                     print(f"DEBUG: Sending media message with URL: {image_url}")  # Debug log
                     # Send media message
                     result = wa_service.send_media_message(
-                        contact.phone_number, 
+                        customer.phone_number, 
                         data.get('message', ''), 
                         image_url
                     )
@@ -483,7 +1265,7 @@ def send_bulk_message(request):
                     print(f"DEBUG: Sending text message: {data.get('message', '')}")  # Debug log
                     # Send text message
                     result = wa_service.send_text_message(
-                        contact.phone_number, 
+                        customer.phone_number, 
                         data.get('message', '')
                     )
                 
@@ -491,14 +1273,14 @@ def send_bulk_message(request):
                 
                 if result['success']:
                     successful_sends += 1
-                    print(f"DEBUG: Successfully sent to {contact.phone_number}")  # Debug log
+                    print(f"DEBUG: Successfully sent to {customer.phone_number}")  # Debug log
                 else:
                     failed_sends += 1
-                    print(f"DEBUG: Failed to send to {contact.phone_number}: {result.get('error', 'Unknown error')}")  # Debug log
+                    print(f"DEBUG: Failed to send to {customer.phone_number}: {result.get('error', 'Unknown error')}")  # Debug log
                     
-            except Contact.DoesNotExist:
+            except Customer.DoesNotExist:
                 failed_sends += 1
-                print(f"DEBUG: Contact with ID {recipient_id} not found")  # Debug log
+                print(f"DEBUG: Customer with ID {recipient_id} not found")  # Debug log
                 continue
         
         if successful_sends > 0:
@@ -1142,19 +1924,26 @@ def process_ocr(request):
     """Process image with OCR"""
     if request.method == 'POST':
         try:
+            # Get tenant
+            tenant = _get_tenant(request)
+            if not tenant:
+                return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
+            
+            phone_number = request.POST.get('phone_number', '')
+            if not phone_number:
+                return JsonResponse({'success': False, 'error': 'Phone number required'}, status=400)
+            
             if request.FILES.get('image'):
                 # Handle file upload
                 image = request.FILES['image']
-                image_type = request.POST.get('image_type', 'OTHER')
                 
                 # Upload to Cloudinary
                 result = cloudinary_service.upload_file(image)
                 
                 if result['success']:
                     # Process with OCR
-                    from .ocr_service import OCRService
                     ocr_service = OCRService()
-                    ocr_result = ocr_service.process_image(result['url'], image_type)
+                    ocr_result = ocr_service.process_image(result['url'], tenant, phone_number)
                     
                     return JsonResponse({
                         'success': True,
@@ -1167,12 +1956,10 @@ def process_ocr(request):
             elif request.POST.get('image_url'):
                 # Handle URL
                 image_url = request.POST.get('image_url')
-                image_type = request.POST.get('image_type', 'OTHER')
                 
                 # Process with OCR
-                from .ocr_service import OCRService
                 ocr_service = OCRService()
-                ocr_result = ocr_service.process_image(image_url, image_type)
+                ocr_result = ocr_service.process_image(image_url, tenant, phone_number)
                 
                 return JsonResponse({
                     'success': True,
@@ -1188,3 +1975,143 @@ def process_ocr(request):
     
     return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
+@login_required
+def incoming_messages(request):
+    """Display incoming messages from customers/contestants"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    # Get incoming messages for this tenant
+    messages = CoreMessage.objects.filter(
+        tenant=tenant,
+        direction='inbound'
+    ).select_related('conversation__customer').order_by('-received_at', '-created_at')[:100]
+    
+    # Get unique customers who have sent messages
+    customers_with_messages = Customer.objects.filter(
+        tenant=tenant,
+        conversations__messages__direction='inbound'
+    ).distinct().order_by('name')
+    
+    # Filter by customer if specified
+    customer_id = request.GET.get('customer_id')
+    if customer_id:
+        messages = messages.filter(conversation__customer__customer_id=customer_id)
+    
+    # Filter by date range if specified
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    if date_from:
+        messages = messages.filter(received_at__gte=date_from)
+    if date_to:
+        messages = messages.filter(received_at__lte=date_to)
+    
+    context = {
+        'messages': messages,
+        'customers': customers_with_messages,
+        'selected_customer_id': customer_id,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    return render(request, 'messaging/incoming_messages.html', context)
+
+
+@login_required
+def customer_detail(request, customer_id):
+    """Display customer detail page with message history"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    try:
+        customer = Customer.objects.get(customer_id=customer_id, tenant=tenant)
+    except Customer.DoesNotExist:
+        return redirect('manage_customers')
+    
+    # Get all conversations for this customer
+    conversations = Conversation.objects.filter(
+        tenant=tenant,
+        customer=customer
+    ).order_by('-last_message_at', '-created_at')
+    
+    # Get all messages for this customer across all conversations
+    messages = CoreMessage.objects.filter(
+        tenant=tenant,
+        conversation__customer=customer
+    ).select_related('conversation').order_by('-created_at')[:100]
+    
+    # Get message statistics
+    total_messages = messages.count()
+    inbound_messages = messages.filter(direction='inbound').count()
+    outbound_messages = messages.filter(direction='outbound').count()
+    
+    # Get recent activity (last 30 days)
+    from datetime import datetime, timedelta
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_messages = messages.filter(created_at__gte=thirty_days_ago).count()
+    
+    # Get consent information
+    from .pdpa_service import PDPAConsentService
+    pdpa_service = PDPAConsentService()
+    consent_status = pdpa_service._get_consent_status(tenant, customer, 'whatsapp')
+    
+    # Get consent history
+    consent_history = Consent.objects.filter(
+        tenant=tenant,
+        customer=customer,
+        type='whatsapp'
+    ).order_by('-occurred_at')[:10]
+    
+    context = {
+        'customer': customer,
+        'conversations': conversations,
+        'messages': messages,
+        'total_messages': total_messages,
+        'inbound_messages': inbound_messages,
+        'outbound_messages': outbound_messages,
+        'recent_messages': recent_messages,
+        'consent_status': consent_status,
+        'consent_history': consent_history,
+    }
+    return render(request, 'messaging/customer_detail.html', context)
+
+
+@login_required
+def pdpa_settings(request):
+    """PDPA consent management settings page"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    # Get consent statistics
+    total_customers = Customer.objects.filter(tenant=tenant).count()
+    granted_consents = Consent.objects.filter(
+        tenant=tenant,
+        type='whatsapp',
+        status='granted'
+    ).values('customer').distinct().count()
+    
+    withdrawn_consents = Consent.objects.filter(
+        tenant=tenant,
+        type='whatsapp',
+        status='withdrawn'
+    ).values('customer').distinct().count()
+    
+    no_consent = total_customers - granted_consents - withdrawn_consents
+    
+    # Get recent consent activities
+    recent_consents = Consent.objects.filter(
+        tenant=tenant,
+        type='whatsapp'
+    ).select_related('customer').order_by('-occurred_at')[:20]
+    
+    context = {
+        'tenant': tenant,
+        'total_customers': total_customers,
+        'granted_consents': granted_consents,
+        'withdrawn_consents': withdrawn_consents,
+        'no_consent': no_consent,
+        'recent_consents': recent_consents,
+    }
+    return render(request, 'messaging/pdpa_settings.html', context)

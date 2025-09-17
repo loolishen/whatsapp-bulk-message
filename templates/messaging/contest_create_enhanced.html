@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Contest - WhatsApp Bulk Message</title>
+
+  <style>
+    /* ===== Modern Contest Creation Design ===== */
+    :root{
+      --primary:#1877f2; --primary-hover:#166fe5; --primary-light:#e7f3ff;
+      --secondary:#42b883; --secondary-hover:#3aa876; --secondary-light:#e8f5e8;
+      --success:#42b883; --warning:#f7b731; --danger:#e74c3c; --info:#17a2b8;
+      --gray:#f0f2f5; --gray-dark:#65676b; --gray-light:#f8f9fa;
+      --white:#ffffff; --black:#1c1e21; --text:#1c1e21;
+      --border:#dadde1; --shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --radius:8px; --radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--gray); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Top Navigation ===== */
+    .topbar{
+      background:var(--white); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--text)}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--radius); text-decoration:none; font-weight:600;
+      color:var(--gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--gray-light); color:var(--text)}
+    .nav-tab.active{color:var(--primary); background:var(--primary-light)}
+
+    .user-menu{
+      display:flex; align-items:center; gap:12px
+    }
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:600
+    }
+
+    /* ===== Main Content ===== */
+    .main-content{
+      max-width:800px; margin:0 auto; padding:24px 16px
+    }
+
+    /* ===== Page Header ===== */
+    .page-header{
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:24px
+    }
+    .page-title{
+      font-size:28px; font-weight:700; color:var(--text)
+    }
+    .btn{
+      padding:10px 20px; border-radius:var(--radius); text-decoration:none; font-weight:600;
+      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px
+    }
+    .btn-secondary{
+      background:var(--gray-dark); color:white
+    }
+    .btn-secondary:hover{background:var(--text); color:white}
+
+    /* ===== Form Styles ===== */
+    .form-container{
+      background:var(--white); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow);
+      border:1px solid var(--border)
+    }
+
+    .form-section{
+      margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border)
+    }
+    .form-section:last-child{
+      border-bottom:none; margin-bottom:0
+    }
+
+    .section-title{
+      font-size:20px; font-weight:700; color:var(--text); margin-bottom:16px;
+      display:flex; align-items:center; gap:8px
+    }
+    .section-icon{
+      width:24px; height:24px; border-radius:50%; background:var(--primary-light);
+      display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--primary)
+    }
+
+    .form-group{
+      margin-bottom:20px
+    }
+    .form-label{
+      display:block; font-weight:600; color:var(--text); margin-bottom:8px
+    }
+    .form-input{
+      width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius);
+      font-size:16px; transition:all 0.2s; background:var(--white)
+    }
+    .form-input:focus{
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light)
+    }
+    .form-textarea{
+      min-height:100px; resize:vertical
+    }
+
+    .form-row{
+      display:grid; grid-template-columns:1fr 1fr; gap:16px
+    }
+
+    .checkbox-group{
+      display:flex; align-items:center; gap:8px; margin-bottom:12px
+    }
+    .checkbox{
+      width:18px; height:18px; accent-color:var(--primary)
+    }
+    .checkbox-label{
+      font-weight:500; color:var(--text)
+    }
+
+    .form-actions{
+      display:flex; gap:12px; justify-content:flex-end; margin-top:32px; padding-top:24px;
+      border-top:1px solid var(--border)
+    }
+    .btn-primary{
+      background:var(--primary); color:white; padding:12px 24px; font-size:16px
+    }
+    .btn-primary:hover{background:var(--primary-hover); color:white}
+
+    .help-text{
+      font-size:14px; color:var(--gray-dark); margin-top:4px
+    }
+
+    .required{
+      color:var(--danger)
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px){
+      .form-row{grid-template-columns:1fr}
+      .page-header{flex-direction:column; align-items:stretch; gap:16px}
+      .form-actions{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navigation -->
+  <div class="topbar">
+    <div class="topbar__inner">
+      <a href="{% url 'contest_home' %}" class="brand">
+        <div class="brand__logo">W</div>
+        <span class="brand__text">WhatsApp Contest</span>
+      </a>
+      
+      <div class="nav-tabs">
+        <a href="{% url 'contest_home' %}" class="nav-tab active">Contest</a>
+        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
+        <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
+      </div>
+      
+      <div class="user-menu">
+        <div class="user-avatar">{{ user.username|first|upper }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1 class="page-title">Create New Contest</h1>
+      <a href="{% url 'contest_home' %}" class="btn btn-secondary">
+        ← Back to Contests
+      </a>
+    </div>
+
+    <!-- Contest Creation Form -->
+    <form method="post" class="form-container">
+      {% csrf_token %}
+      
+      <!-- Basic Information -->
+      <div class="form-section">
+        <h2 class="section-title">
+          <span class="section-icon">📝</span>
+          Basic Information
+        </h2>
+        
+        <div class="form-group">
+          <label for="name" class="form-label">Contest Name <span class="required">*</span></label>
+          <input type="text" id="name" name="name" class="form-input" required 
+                 placeholder="Enter contest name">
+        </div>
+        
+        <div class="form-group">
+          <label for="description" class="form-label">Description</label>
+          <textarea id="description" name="description" class="form-input form-textarea" 
+                    placeholder="Describe your contest..."></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
+            <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
+            <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+          </div>
+        </div>
+        
+        <div class="checkbox-group">
+          <input type="checkbox" id="is_active" name="is_active" class="checkbox" checked>
+          <label for="is_active" class="checkbox-label">Activate contest immediately</label>
+        </div>
+      </div>
+
+      <!-- Contest Requirements -->
+      <div class="form-section">
+        <h2 class="section-title">
+          <span class="section-icon">📋</span>
+          Contest Requirements
+        </h2>
+        
+        <div class="checkbox-group">
+          <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
+          <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
+        </div>
+        
+        <div class="checkbox-group">
+          <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
+          <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
+        </div>
+        
+        <div class="form-group">
+          <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
+          <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
+                 step="0.01" min="0" placeholder="0.00">
+          <div class="help-text">Leave empty for no minimum purchase requirement</div>
+        </div>
+      </div>
+
+      <!-- Post-PDPA Messages -->
+      <div class="form-section">
+        <h2 class="section-title">
+          <span class="section-icon">💬</span>
+          Post-PDPA Messages
+        </h2>
+        <p class="help-text" style="margin-bottom: 20px;">
+          These messages will be sent to customers after they agree to PDPA consent.
+        </p>
+        
+        <div class="form-group">
+          <label for="post_pdpa_text" class="form-label">Welcome Message</label>
+          <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
+                    placeholder="Welcome to our contest! Thank you for your consent..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="post_pdpa_image_url" class="form-label">Image URL</label>
+          <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
+                 placeholder="https://example.com/contest-image.jpg">
+        </div>
+        
+        <div class="form-group">
+          <label for="post_pdpa_gif_url" class="form-label">GIF URL</label>
+          <input type="url" id="post_pdpa_gif_url" name="post_pdpa_gif_url" class="form-input" 
+                 placeholder="https://example.com/contest-animation.gif">
+        </div>
+      </div>
+
+      <!-- Contest Instructions -->
+      <div class="form-section">
+        <h2 class="section-title">
+          <span class="section-icon">📖</span>
+          Instructions & Messages
+        </h2>
+        
+        <div class="form-group">
+          <label for="contest_instructions" class="form-label">Contest Instructions</label>
+          <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
+                    placeholder="Instructions for participants..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="verification_instructions" class="form-label">Verification Instructions</label>
+          <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
+                    placeholder="Instructions for verification process..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="eligibility_message" class="form-label">Eligibility Confirmation Message</label>
+          <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
+                    placeholder="Congratulations! You are eligible to participate..."></textarea>
+          <div class="help-text">Message sent when contestant is verified as eligible</div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <a href="{% url 'contest_home' %}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">Create Contest</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Set default datetime values
+    const now = new Date();
+    const startTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 1 week from now
+    
+    document.getElementById('starts_at').value = startTime.toISOString().slice(0, 16);
+    document.getElementById('ends_at').value = endTime.toISOString().slice(0, 16);
+  </script>
+</body>
+</html>
+

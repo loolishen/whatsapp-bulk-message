@@ -1,141 +1,315 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Bulk Message - Home</title>
-    <style>
-        body {
-            background: #ece5dd;
-            font-family: Arial, sans-serif;
-            min-height: 100vh;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .wa-center-wrap {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100vw;
-            height: 100vh;
-        }
-        .wa-form {
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            width: 350px;
-            padding: 20px;
-            margin-right: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .wa-form label {
-            font-weight: bold;
-            color: #075e54;
-        }
-        .wa-form input, .wa-form textarea {
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            padding: 8px;
-            font-size: 14px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .wa-form textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-        .wa-form button {
-            background: #25d366;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            padding: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 10px;
-        }
-        .wa-form button:hover {
-            background: #128c7e;
-        }
-        .wa-chat-bg {
-            background: #ece5dd;
-            padding: 20px 0;
-            border-radius: 10px;
-            width: 350px;
-            margin-left: 30px;
-        }
-        .wa-bubble {
-            display: flex;
-            align-items: flex-end;
-            margin-bottom: 15px;
-        }
-        .wa-bubble.incoming {
-            flex-direction: row;
-            justify-content: flex-start;
-        }
-        .wa-bubble .wa-bubble-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: #34b7f1;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            margin-right: 8px;
-        }
-        .wa-bubble-content {
-            max-width: 220px;
-        }
-        .wa-bubble-image {
-            width: 180px;
-            border-radius: 7.5px;
-            margin-bottom: 5px;
-            display: none;
-        }
-        .wa-bubble-message {
-            background: #fff;
-            border-radius: 7.5px;
-            padding: 8px 12px;
-            color: #222;
-            margin-bottom: 2px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-        }
-        .wa-bubble-time {
-            text-align: right;
-            color: #999;
-            font-size: 11px;
-        }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WhatsApp Campaign - Home</title>
+
+  <style>
+    /* ===== Facebook CRM Design System ===== */
+    :root{
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1);
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px;
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px;
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800;
+    }
+    .brand__text{color:var(--fb-text);}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center;
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative;
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text);}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light);}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px;
+    }
+
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center;
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark);
+    }
+    .action-btn:hover{background:var(--fb-border);}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px;
+    }
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+    /* ===== Sidebar Navigation ===== */
+    .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
+
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px;
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text);}
+    .card-body{padding:20px;}
+
+    /* ===== Forms ===== */
+    .form-group{margin-bottom:16px;}
+    .form-label{
+      display:block; font-size:14px; font-weight:600; color:var(--fb-text);
+      margin-bottom:6px;
+    }
+    .form-input, .form-textarea{
+      width:100%; padding:12px 16px; border:1px solid var(--fb-border); border-radius:var(--fb-radius);
+      background:var(--fb-white); font-size:14px; transition:border-color 0.2s;
+    }
+    .form-input:focus, .form-textarea:focus{
+      outline:none; border-color:var(--fb-blue); box-shadow:0 0 0 3px rgba(24,119,242,0.1);
+    }
+    .form-textarea{resize:vertical; min-height:80px;}
+
+    /* ===== Buttons ===== */
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; padding:10px 20px;
+      border-radius:var(--fb-radius); font-weight:600; cursor:pointer;
+      transition:all 0.2s; text-decoration:none; border:none; font-size:14px;
+    }
+    .btn-primary{background:var(--fb-blue); color:white;}
+    .btn-primary:hover{background:var(--fb-blue-hover);}
+
+    /* ===== WhatsApp Preview ===== */
+    .preview-container{
+      background:#ece5dd; border-radius:var(--fb-radius-lg); padding:20px;
+      box-shadow:var(--fb-shadow); border:1px solid var(--fb-border);
+    }
+    .wa-bubble{
+      display:flex; align-items:flex-end; margin-bottom:15px;
+    }
+    .wa-bubble.incoming{
+      flex-direction:row; justify-content:flex-start;
+    }
+    .wa-bubble .wa-bubble-avatar{
+      width:32px; height:32px; border-radius:50%; background:#34b7f1;
+      color:#fff; display:flex; align-items:center; justify-content:center;
+      font-size:16px; margin-right:8px;
+    }
+    .wa-bubble-content{max-width:220px;}
+    .wa-bubble-image{
+      width:180px; border-radius:7.5px; margin-bottom:5px; display:none;
+    }
+    .wa-bubble-message{
+      background:#fff; border-radius:7.5px; padding:8px 12px;
+      color:#222; margin-bottom:2px; box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    }
+    .wa-bubble-time{
+      text-align:right; color:#999; font-size:11px;
+    }
+
+    /* ===== Layout Grid ===== */
+    .content-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px;
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px;}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap;}
+      .topbar-actions{order:3;}
+      .main-container{padding:16px 12px; flex-direction:column}
+      .sidebar{width:100%; position:static; margin-bottom:16px}
+      .main-content{flex:1}
+      .page-title{font-size:24px;}
+      .content-grid{grid-template-columns:1fr; gap:16px;}
+    }
+  </style>
 </head>
 <body>
-    <div class="wa-center-wrap">
-        <form class="wa-form" id="messageForm">
-            {% csrf_token %}
-            <label for="waImageFile">Image (local file)</label>
-            <input type="file" id="waImageFile" accept="image/*" onchange="loadLocalImage(event)">
-            <label for="waMessage">Message</label>
-            <textarea id="waMessage" oninput="updatePreview()" placeholder="Enter your message here..."></textarea>
-            <label for="waTime">Time</label>
-            <input type="text" id="waTime" value="10:45 AM" oninput="updatePreview()">
-            <button type="button" onclick="goToRecipientsPage()">Select Recipients & Send</button>
-        </form>
-        <div class="wa-chat-bg">
-            <div class="wa-bubble incoming">
-                <div class="wa-bubble-avatar" id="receiverAvatar">R</div>
-                <div class="wa-bubble-content">
-                    <img class="wa-bubble-image" id="receiverImage" src="" alt="WhatsApp Image Preview">
-                    <div class="wa-bubble-message" id="receiverMessage">Enter your message to see preview...</div>
-                    <div class="wa-bubble-time" id="receiverTime">10:45 AM</div>
-                </div>
-            </div>
-        </div>
+  <!-- ===== Facebook-style Top Navigation ===== -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Brand -->
+      <a href="{% url 'dashboard' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+      <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
+      <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
     </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <button class="action-btn" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </button>
+        <a href="{% url 'auth_logout' %}" class="action-btn" title="Logout">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </a>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">Campaign</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'main_page' %}" class="active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Overview
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'select_recipients' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            Select Recipients
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'recipients_and_preview' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+            Preview & Send
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'manage_customers' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            Manage Customers
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'whatsapp_settings' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            WhatsApp Settings
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">WhatsApp Campaign</h1>
+        <p class="page-subtitle">Create and send bulk WhatsApp messages to your customers</p>
+      </div>
+
+    <!-- Content Grid -->
+    <div class="content-grid">
+      <!-- Message Form -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Create Message</h2>
+        </div>
+        <div class="card-body">
+          <form id="messageForm">
+            {% csrf_token %}
+            <div class="form-group">
+              <label for="waImageFile" class="form-label">Image (Optional)</label>
+              <input type="file" id="waImageFile" accept="image/*" onchange="loadLocalImage(event)" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label for="waMessage" class="form-label">Message</label>
+              <textarea id="waMessage" oninput="updatePreview()" placeholder="Enter your message here..." class="form-textarea"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="waTime" class="form-label">Time</label>
+              <input type="text" id="waTime" value="10:45 AM" oninput="updatePreview()" class="form-input">
+            </div>
+            
+            <button type="button" onclick="goToRecipientsPage()" class="btn btn-primary">Select Recipients & Send</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- WhatsApp Preview -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Preview</h2>
+        </div>
+        <div class="card-body">
+          <div class="preview-container">
+            <div class="wa-bubble incoming">
+              <div class="wa-bubble-avatar" id="receiverAvatar">R</div>
+              <div class="wa-bubble-content">
+                <img class="wa-bubble-image" id="receiverImage" src="" alt="WhatsApp Image Preview">
+                <div class="wa-bubble-message" id="receiverMessage">Enter your message to see preview...</div>
+                <div class="wa-bubble-time" id="receiverTime">10:45 AM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
     <script>
         let currentImageUrl = null;
 

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ customer.name }} - Customer Details - WhatsApp Bulk Message</title>
+
+  <style>
+    /* ===== Facebook CRM Design System ===== */
+    :root{
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
+
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+    /* ===== Sidebar Navigation ===== */
+    .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
+
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .card-body{padding:20px}
+
+    /* ===== Customer Info ===== */
+    .customer-header{
+      display:flex; align-items:center; gap:16px; margin-bottom:24px
+    }
+    .customer-avatar{
+      width:80px; height:80px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-size:32px; font-weight:700
+    }
+    .customer-info h1{font-size:24px; margin-bottom:4px}
+    .customer-info p{color:var(--fb-gray-dark); margin-bottom:8px}
+    .customer-stats{
+      display:flex; gap:24px; margin-top:16px
+    }
+    .stat-item{
+      text-align:center; padding:12px; background:var(--fb-gray-light); border-radius:var(--fb-radius)
+    }
+    .stat-value{font-size:20px; font-weight:700; color:var(--fb-blue)}
+    .stat-label{font-size:12px; color:var(--fb-gray-dark); margin-top:4px}
+
+    /* ===== Message Timeline ===== */
+    .message-timeline{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); overflow:hidden
+    }
+    .timeline-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      background:var(--fb-gray-light)
+    }
+    .message-item{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:flex-start; gap:12px
+    }
+    .message-item:last-child{border-bottom:none}
+    .message-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-size:14px; font-weight:600; flex-shrink:0
+    }
+    .message-content{
+      flex:1; min-width:0
+    }
+    .message-header{
+      display:flex; align-items:center; gap:8px; margin-bottom:4px
+    }
+    .message-sender{
+      font-weight:600; color:var(--fb-text)
+    }
+    .message-time{
+      font-size:12px; color:var(--fb-gray-dark)
+    }
+    .message-direction{
+      padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600;
+      text-transform:uppercase
+    }
+    .message-direction.inbound{
+      background:var(--fb-success); color:white
+    }
+    .message-direction.outbound{
+      background:var(--fb-blue); color:white
+    }
+    .message-text{
+      color:var(--fb-text); line-height:1.4
+    }
+    .message-status{
+      font-size:11px; color:var(--fb-gray-dark); margin-top:4px
+    }
+
+    /* ===== Consent Status ===== */
+    .consent-status{
+      display:inline-block; padding:4px 12px; border-radius:16px; font-size:12px; font-weight:600;
+      text-transform:uppercase
+    }
+    .consent-status.granted{
+      background:var(--fb-success); color:white
+    }
+    .consent-status.withdrawn{
+      background:var(--fb-danger); color:white
+    }
+    .consent-status.no-consent{
+      background:var(--fb-gray-light); color:var(--fb-gray-dark)
+    }
+
+    /* ===== WhatsApp-style Message Bubbles ===== */
+    .wa-message{
+      background:#e7f3ff; border-radius:18px; padding:8px 12px;
+      margin:4px 0; max-width:70%; position:relative
+    }
+    .wa-message.inbound{
+      background:#ffffff; border:1px solid var(--fb-border)
+    }
+    .wa-message.outbound{
+      background:var(--fb-blue); color:white; margin-left:auto
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px; flex-direction:column}
+      .sidebar{width:100%; position:static; margin-bottom:16px}
+      .main-content{flex:1}
+      .page-title{font-size:24px}
+      .customer-header{flex-direction:column; text-align:center}
+      .customer-stats{justify-content:center}
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== Facebook-style Top Navigation ===== -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Brand -->
+      <a href="{% url 'dashboard' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
+        <a href="{% url 'manage_customers' %}" class="nav-tab active">Customers</a>
+      </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <a href="{% url 'manage_customers' %}" class="action-btn" title="Back to Customers">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </a>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">Customer Details</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'manage_customers' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0z"/>
+              <path d="M3 21a7 7 0 0 1 18 0"/>
+            </svg>
+            All Customers
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'incoming_messages' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Incoming Messages
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_home' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            CRM Dashboard
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Customer Header -->
+      <div class="customer-header">
+        <div class="customer-avatar">{{ customer.name|slice:":1"|upper }}</div>
+        <div class="customer-info">
+          <h1>{{ customer.name }}</h1>
+          <p>{{ customer.phone_number }}</p>
+          <p>{{ customer.get_gender_display }} • {{ customer.get_marital_status_display }} • {{ customer.age|default:"N/A" }} years old</p>
+          <p>{{ customer.city|default:"N/A" }}, {{ customer.state|default:"N/A" }}</p>
+        </div>
+      </div>
+
+      <!-- Customer Stats -->
+      <div class="customer-stats">
+        <div class="stat-item">
+          <div class="stat-value">{{ total_messages }}</div>
+          <div class="stat-label">Total Messages</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ inbound_messages }}</div>
+          <div class="stat-label">Inbound</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ outbound_messages }}</div>
+          <div class="stat-label">Outbound</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">{{ recent_messages }}</div>
+          <div class="stat-label">Last 30 Days</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value">
+            <span class="consent-status {{ consent_status|default:'no-consent' }}">
+              {{ consent_status|default:'no-consent'|title }}
+            </span>
+          </div>
+          <div class="stat-label">Consent Status</div>
+        </div>
+      </div>
+
+      <!-- Message Timeline -->
+      <div class="message-timeline">
+        <div class="timeline-header">
+          <h3 class="card-title">Message History</h3>
+        </div>
+        
+        {% if messages %}
+          {% for message in messages %}
+            <div class="message-item">
+              <div class="message-avatar">
+                {% if message.direction == 'inbound' %}
+                  {{ customer.name|slice:":1"|upper }}
+                {% else %}
+                  WA
+                {% endif %}
+              </div>
+              <div class="message-content">
+                <div class="message-header">
+                  <span class="message-sender">
+                    {% if message.direction == 'inbound' %}
+                      {{ customer.name }}
+                    {% else %}
+                      You
+                    {% endif %}
+                  </span>
+                  <span class="message-time">{{ message.created_at|date:"M d, Y H:i" }}</span>
+                  <span class="message-direction {{ message.direction }}">
+                    {{ message.direction }}
+                  </span>
+                </div>
+                <div class="message-text">{{ message.text_body|default:"No text content" }}</div>
+                {% if message.status %}
+                  <div class="message-status">Status: {{ message.get_status_display }}</div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="message-item">
+            <div class="message-content">
+              <p style="color:var(--fb-gray-dark); text-align:center; padding:20px;">
+                No messages found for this customer.
+              </p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Incoming Messages - WhatsApp Bulk Message</title>
+
+  <style>
+    /* ===== Facebook CRM Design System ===== */
+    :root{
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
+
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+    /* ===== Sidebar Navigation ===== */
+    .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
+
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .card-body{padding:20px}
+
+    /* ===== Filters ===== */
+    .filters{
+      display:flex; gap:16px; align-items:center; margin-bottom:20px; flex-wrap:wrap
+    }
+    .filter-group{display:flex; flex-direction:column; gap:4px}
+    .filter-label{font-size:12px; font-weight:600; color:var(--fb-gray-dark); text-transform:uppercase}
+    .filter-input, .filter-select{
+      padding:8px 12px; border:1px solid var(--fb-border); border-radius:var(--fb-radius);
+      font-size:14px; background:var(--fb-white); color:var(--fb-text)
+    }
+    .filter-input:focus, .filter-select:focus{
+      outline:none; border-color:var(--fb-blue); box-shadow:0 0 0 2px var(--fb-blue-light)
+    }
+
+    /* ===== Message List ===== */
+    .message-list{max-height:600px; overflow-y:auto}
+    .message-item{
+      display:flex; gap:12px; padding:16px; border-bottom:1px solid var(--fb-border);
+      transition:background 0.2s
+    }
+    .message-item:last-child{border-bottom:none}
+    .message-item:hover{background:var(--fb-gray-light)}
+    .message-avatar{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:16px; flex-shrink:0
+    }
+    .message-content{flex:1; min-width:0}
+    .message-header{
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:4px
+    }
+    .message-sender{font-weight:600; color:var(--fb-text); font-size:14px}
+    .message-time{font-size:12px; color:var(--fb-gray-dark)}
+    .message-text{color:var(--fb-text); font-size:14px; line-height:1.4; word-wrap:break-word}
+    .message-status{
+      display:inline-flex; align-items:center; gap:4px; padding:2px 8px;
+      border-radius:12px; font-size:11px; font-weight:600; text-transform:uppercase
+    }
+    .status-delivered{background:var(--fb-success); color:white}
+    .status-read{background:var(--fb-blue); color:white}
+    .status-failed{background:var(--fb-danger); color:white}
+
+    /* ===== Empty State ===== */
+    .empty-state{
+      text-align:center; padding:40px 20px; color:var(--fb-gray-dark)
+    }
+    .empty-state svg{width:64px; height:64px; margin-bottom:16px; opacity:0.5}
+    .empty-state h3{font-size:18px; font-weight:600; margin-bottom:8px; color:var(--fb-text)}
+    .empty-state p{font-size:14px; line-height:1.4}
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px; flex-direction:column}
+      .sidebar{width:100%; position:static; margin-bottom:20px}
+      .filters{flex-direction:column; align-items:stretch}
+      .filter-group{width:100%}
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== Top Navigation ===== -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Brand -->
+      <a href="{% url 'dashboard' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
+        <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
+      </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <a href="{% url 'whatsapp_settings' %}" class="action-btn" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l-.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </a>
+        <a href="{% url 'auth_logout' %}" class="action-btn" title="Logout">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <path d="M16 17l5-5-5-5"/>
+            <path d="M21 12H9"/>
+          </svg>
+        </a>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">Messages</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'incoming_messages' %}" class="active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            Incoming Messages
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'contest_home' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Contest
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_home' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            CRM
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'manage_customers' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            Customers
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Incoming Messages</h1>
+        <p class="page-subtitle">View messages received from customers and contestants</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="card">
+        <div class="card-body">
+          <form method="get" class="filters">
+            <div class="filter-group">
+              <label class="filter-label">Customer</label>
+              <select name="customer_id" class="filter-select">
+                <option value="">All Customers</option>
+                {% for customer in customers %}
+                <option value="{{ customer.customer_id }}" {% if customer.customer_id == selected_customer_id %}selected{% endif %}>
+                  {{ customer.name }} ({{ customer.phone_number }})
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            
+            <div class="filter-group">
+              <label class="filter-label">From Date</label>
+              <input type="date" name="date_from" class="filter-input" value="{{ date_from }}">
+            </div>
+            
+            <div class="filter-group">
+              <label class="filter-label">To Date</label>
+              <input type="date" name="date_to" class="filter-input" value="{{ date_to }}">
+            </div>
+            
+            <div class="filter-group">
+              <button type="submit" style="padding: 8px 16px; background: var(--fb-blue); color: white; border: none; border-radius: var(--fb-radius); font-weight: 600; cursor: pointer;">
+                Filter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Messages List -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Messages ({{ messages.count }})</h3>
+        </div>
+        <div class="card-body" style="padding: 0;">
+          {% if messages %}
+          <div class="message-list">
+            {% for message in messages %}
+            <div class="message-item">
+              <div class="message-avatar">
+                {% if message.conversation and message.conversation.customer %}
+                  {{ message.conversation.customer.name|slice:":1"|upper }}
+                {% else %}
+                  ?
+                {% endif %}
+              </div>
+              <div class="message-content">
+                <div class="message-header">
+                  <span class="message-sender">
+                    {% if message.conversation and message.conversation.customer %}
+                      {{ message.conversation.customer.name }}
+                    {% else %}
+                      Unknown Customer
+                    {% endif %}
+                  </span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="message-status status-{{ message.status }}">
+                      {{ message.status|title }}
+                    </span>
+                    <span class="message-time">
+                      {% if message.received_at %}
+                        {{ message.received_at|date:"M d, Y H:i" }}
+                      {% else %}
+                        {{ message.created_at|date:"M d, Y H:i" }}
+                      {% endif %}
+                    </span>
+                  </div>
+                </div>
+                <div class="message-text">{{ message.text_body|linebreaks }}</div>
+                {% if message.conversation and message.conversation.customer %}
+                <div style="margin-top: 8px; font-size: 12px; color: var(--fb-gray-dark);">
+                  Phone: {{ message.conversation.customer.phone_number }}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+            </svg>
+            <h3>No Messages Yet</h3>
+            <p>Incoming messages from customers and contestants will appear here.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-refresh every 30 seconds
+    setInterval(function() {
+      location.reload();
+    }, 30000);
+  </script>
+</body>
+</html>
+

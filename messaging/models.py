@@ -2,45 +2,69 @@ from django.db import models
 from django.core.validators import RegexValidator
 from decimal import Decimal
 import re
+import uuid
 from datetime import datetime, date
+from django.utils import timezone as dj_timezone
 
-class Contact(models.Model):
+# =============================================================================
+# MULTI-TENANT CORE MODELS
+# =============================================================================
+
+class Tenant(models.Model):
+    """Multi-tenant organization model"""
+    tenant_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.TextField()
+    plan = models.TextField()
+    creation_date = models.DateTimeField(default=dj_timezone.now)
+    company_address = models.TextField(blank=True, null=True)
+    company_registration_number = models.TextField(blank=True, null=True)
+    company_email = models.EmailField(blank=True, null=True)
+    company_phone_number = models.TextField(blank=True, null=True)
+    
+    def __str__(self):
+        return self.name
+
+class WhatsAppConnection(models.Model):
+    """WhatsApp connection per tenant"""
+    PROVIDER_CHOICES = [
+        ('wabot', 'WABot'),
+        ('meta', 'Meta Business API'),
+        ('twilio', 'Twilio'),
+    ]
+    
+    whatsapp_connection_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='whatsapp_connections')
+    phone_number = models.TextField()
+    access_token_ref = models.TextField(help_text='Reference to secret manager, not raw token')
+    instance_id = models.TextField()
+    provider = models.TextField(choices=PROVIDER_CHOICES, default='wabot')
+    
+    def __str__(self):
+        return f"{self.tenant.name} - {self.phone_number} ({self.provider})"
+
+# =============================================================================
+# CUSTOMER MANAGEMENT MODELS
+# =============================================================================
+
+class TenantUser(models.Model):
+    """Link Django auth user to a Tenant with a role/plan cache."""
+    from django.contrib.auth import get_user_model
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='tenant_profile')
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='users')
+    role = models.TextField(default='member')  # owner/admin/member
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.user.username} @ {self.tenant.name}"
+
+class Customer(models.Model):
+    """Customer model with multi-tenancy"""
     GENDER_CHOICES = [
         ('N/A', 'N/A'),
         ('M', 'Male'),
         ('F', 'Female'),
         ('NB', 'Non-binary'),
         ('PNS', 'Prefer not to say'),
-    ]
-    
-    RACE_CHOICES = [
-        ('N/A', 'N/A'),
-        ('MAL', 'Malay'),
-        ('CHN', 'Chinese'),
-        ('IND', 'Indian'),
-        ('BUM', 'Bumiputera (Sabah/Sarawak)'),
-        ('OAS', 'Orang Asli'),
-        ('OTH', 'Other'),
-    ]
-    
-    STATE_CHOICES = [
-        ('N/A', 'N/A'),
-        ('JHR', 'Johor'),
-        ('KDH', 'Kedah'),
-        ('KTN', 'Kelantan'),
-        ('KUL', 'Kuala Lumpur'),
-        ('LBN', 'Labuan'),
-        ('MLK', 'Melaka'),
-        ('NSN', 'Negeri Sembilan'),
-        ('PHG', 'Pahang'),
-        ('PNG', 'Penang'),
-        ('PRK', 'Perak'),
-        ('PLS', 'Perlis'),
-        ('PJY', 'Putrajaya'),
-        ('SBH', 'Sabah'),
-        ('SWK', 'Sarawak'),
-        ('SEL', 'Selangor'),
-        ('TRG', 'Terengganu'),
     ]
 
     MARITAL_STATUS_CHOICES = [
@@ -51,401 +75,473 @@ class Contact(models.Model):
         ('WIDOWED', 'Widowed'),
     ]
 
-    name = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=20)
-    ic_number = models.CharField(
-        max_length=12, 
-        blank=True, 
-        null=True,
-        validators=[RegexValidator(
-            regex=r'^\d{12}$',
-            message='IC number must be 12 digits'
-        )],
-        help_text='Malaysian IC number (12 digits)'
-    )
-    state = models.CharField(max_length=20, choices=STATE_CHOICES, default='N/A')
-    gender = models.CharField(max_length=5, choices=GENDER_CHOICES, default='N/A')
-    race = models.CharField(max_length=20, choices=RACE_CHOICES, default='N/A')
-    marital_status = models.CharField(max_length=10, choices=MARITAL_STATUS_CHOICES, default='N/A')
-    age = models.IntegerField(blank=True, null=True, help_text='Calculated from IC number')
-    date_of_birth = models.DateField(blank=True, null=True, help_text='Extracted from IC number')
+    customer_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='customers')
+    name = models.TextField()
+    phone_number = models.TextField()
+    ic_number = models.TextField(blank=True, null=True, help_text='Encrypted IC number')
+    gender = models.TextField(choices=GENDER_CHOICES, default='N/A')
+    marital_status = models.TextField(choices=MARITAL_STATUS_CHOICES, default='N/A')
+    age = models.IntegerField(blank=True, null=True)
+    city = models.TextField(blank=True, null=True)
+    state = models.TextField(blank=True, null=True)
     
-    # Purchase tracking
-    total_spent = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    average_spend = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-    purchase_count = models.IntegerField(default=0)
-    last_purchase_date = models.DateField(blank=True, null=True)
+    # OCR-extracted information
+    nric = models.TextField(blank=True, null=True, help_text='NRIC extracted from OCR')
+    address = models.TextField(blank=True, null=True, help_text='Address extracted from OCR')
+    store_name = models.TextField(blank=True, null=True, help_text='Store name from receipt OCR')
+    store_location = models.TextField(blank=True, null=True, help_text='Store location from receipt OCR')
+    total_spent = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text='Total amount spent from receipt')
+    products_purchased = models.JSONField(default=list, blank=True, help_text='Products purchased from receipt OCR')
+    last_receipt_date = models.DateTimeField(blank=True, null=True, help_text='Date of last receipt processed')
+    ocr_confidence = models.FloatField(blank=True, null=True, help_text='OCR confidence score')
     
-    # Customer segmentation
-    customer_tier = models.CharField(max_length=20, default='BRONZE', choices=[
-        ('BRONZE', 'Bronze'),
-        ('SILVER', 'Silver'),
-        ('GOLD', 'Gold'),
-        ('PLATINUM', 'Platinum'),
-    ])
-    
-    # WhatsApp interaction tracking
-    whatsapp_status = models.CharField(max_length=20, default='ACTIVE', choices=[
-        ('ACTIVE', 'Active'),
-        ('BLOCKED', 'Blocked'),
-        ('UNSUBSCRIBED', 'Unsubscribed'),
-        ('INVALID', 'Invalid Number'),
-    ])
-    last_whatsapp_interaction = models.DateTimeField(blank=True, null=True)
-    message_count = models.IntegerField(default=0)
-    response_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
-    
-    # Original fields
-    event_source = models.CharField(max_length=100, default='N/A', help_text='Source event (e.g., Event A, Event B, Manual Entry)')
-    event_date = models.DateField(blank=True, null=True, help_text='Date when the event was carried out')
-    events_participated = models.TextField(blank=True, default='', help_text='Comma-separated list of events participated')
-    events_count = models.IntegerField(default=1, help_text='Number of different events participated in')
-    date_added = models.DateField(blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
     
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
     
-    def calculate_age_from_ic(self):
-        """Calculate age from Malaysian IC number"""
-        if not self.ic_number or len(self.ic_number) != 12:
-            return None
-        
-        try:
-            # Extract birth year from IC (first 2 digits)
-            birth_year = int(self.ic_number[:2])
-            birth_month = int(self.ic_number[2:4])
-            birth_day = int(self.ic_number[4:6])
-            
-            # Handle year conversion (00-30 = 2000-2030, 31-99 = 1931-1999)
-            if birth_year <= 30:
-                birth_year += 2000
-            else:
-                birth_year += 1900
-            
-            # Create date object
-            birth_date = date(birth_year, birth_month, birth_day)
-            today = date.today()
-            
-            # Calculate age
-            age = today.year - birth_date.year
-            if today.month < birth_month or (today.month == birth_month and today.day < birth_day):
-                age -= 1
-            
-            return age
-        except (ValueError, TypeError):
-            return None
-    
-    def extract_gender_from_ic(self):
-        """Extract gender from Malaysian IC number (last digit)"""
-        if not self.ic_number or len(self.ic_number) != 12:
-            return 'N/A'
-        
-        last_digit = int(self.ic_number[-1])
-        return 'M' if last_digit % 2 == 1 else 'F'
-    
-    def extract_state_from_ic(self):
-        """Extract state from Malaysian IC number (digits 7-8)"""
-        if not self.ic_number or len(self.ic_number) != 12:
-            return 'N/A'
-        
-        state_code = self.ic_number[6:8]
-        state_mapping = {
-            '01': 'JHR', '02': 'KDH', '03': 'KTN', '04': 'MLK', '05': 'NSN',
-            '06': 'PHG', '07': 'PNG', '08': 'PRK', '09': 'PLS', '10': 'SEL',
-            '11': 'TRG', '12': 'SBH', '13': 'SWK', '14': 'KUL', '15': 'LBN',
-            '16': 'PJY'
-        }
-        return state_mapping.get(state_code, 'N/A')
-    
-    def update_customer_tier(self):
-        """Update customer tier based on total spending"""
-        if self.total_spent >= 1000:
-            self.customer_tier = 'PLATINUM'
-        elif self.total_spent >= 500:
-            self.customer_tier = 'GOLD'
-        elif self.total_spent >= 200:
-            self.customer_tier = 'SILVER'
-        else:
-            self.customer_tier = 'BRONZE'
-    
-    def save(self, *args, **kwargs):
-        # Auto-extract information from IC if provided
-        if self.ic_number:
-            if not self.age:
-                self.age = self.calculate_age_from_ic()
-            if self.gender == 'N/A':
-                self.gender = self.extract_gender_from_ic()
-            if self.state == 'N/A':
-                self.state = self.extract_state_from_ic()
-            
-            # Extract date of birth
-            if not self.date_of_birth and self.ic_number:
-                try:
-                    birth_year = int(self.ic_number[:2])
-                    birth_month = int(self.ic_number[2:4])
-                    birth_day = int(self.ic_number[4:6])
-                    
-                    if birth_year <= 30:
-                        birth_year += 2000
-                    else:
-                        birth_year += 1900
-                    
-                    self.date_of_birth = date(birth_year, birth_month, birth_day)
-                except (ValueError, TypeError):
-                    pass
-        
-        # Update customer tier
-        self.update_customer_tier()
-        
-        super().save(*args, **kwargs)
-
-class Message(models.Model):
-    text_content = models.TextField()
-    image = models.ImageField(upload_to='message_images/', blank=True, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"Message created at {self.created_at}"
-
-class BulkMessage(models.Model):
-    message = models.ForeignKey(Message, on_delete=models.CASCADE)
-    recipients = models.ManyToManyField(Contact)
-    sent_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"Bulk message to {self.recipients.count()} recipients"
-
-
-class Purchase(models.Model):
-    """Model to track customer purchases from receipts"""
-    customer = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='purchases')
-    receipt_image = models.ImageField(upload_to='receipts/', blank=True, null=True)
-    receipt_text = models.TextField(blank=True, help_text='OCR extracted text from receipt')
-    
-    # Purchase details
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    purchase_date = models.DateField()
-    items = models.JSONField(default=list, help_text='List of purchased items')
-    
-    # OCR processing status
-    ocr_processed = models.BooleanField(default=False)
-    ocr_confidence = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
-    ocr_errors = models.TextField(blank=True, help_text='Any OCR processing errors')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return f"{self.customer.name} - RM{self.total_amount} on {self.purchase_date}"
-    
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # Update customer's purchase statistics
-        self.customer.purchase_count = self.customer.purchases.count()
-        self.customer.total_spent = sum(p.total_amount for p in self.customer.purchases.all())
-        self.customer.average_spend = (
-            self.customer.total_spent / self.customer.purchase_count 
-            if self.customer.purchase_count > 0 else Decimal('0.00')
-        )
-        self.customer.last_purchase_date = self.purchase_date
-        self.customer.save()
-
-
-class CustomerSegment(models.Model):
-    """Model for customer segmentation"""
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    
-    # Segmentation criteria
-    min_spending = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    max_spending = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    min_age = models.IntegerField(blank=True, null=True)
-    max_age = models.IntegerField(blank=True, null=True)
-    gender_filter = models.CharField(max_length=5, choices=Contact.GENDER_CHOICES, default='N/A')
-    marital_status_filter = models.CharField(max_length=10, choices=Contact.MARITAL_STATUS_CHOICES, default='N/A')
-    state_filter = models.CharField(max_length=20, choices=Contact.STATE_CHOICES, default='N/A')
-    customer_tier_filter = models.CharField(max_length=20, choices=[
-        ('BRONZE', 'Bronze'),
-        ('SILVER', 'Silver'),
-        ('GOLD', 'Gold'),
-        ('PLATINUM', 'Platinum'),
-    ], default='')
-    
-    # Custom filters
-    custom_filters = models.JSONField(default=dict, help_text='Additional custom filtering criteria')
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    def __str__(self):
-        return self.name
-    
-    def get_customers(self):
-        """Get customers matching this segment's criteria"""
-        queryset = Contact.objects.all()
-        
-        if self.min_spending is not None:
-            queryset = queryset.filter(total_spent__gte=self.min_spending)
-        if self.max_spending is not None:
-            queryset = queryset.filter(total_spent__lte=self.max_spending)
-        if self.min_age is not None:
-            queryset = queryset.filter(age__gte=self.min_age)
-        if self.max_age is not None:
-            queryset = queryset.filter(age__lte=self.max_age)
-        if self.gender_filter != 'N/A':
-            queryset = queryset.filter(gender=self.gender_filter)
-        if self.marital_status_filter != 'N/A':
-            queryset = queryset.filter(marital_status=self.marital_status_filter)
-        if self.state_filter != 'N/A':
-            queryset = queryset.filter(state=self.state_filter)
-        if self.customer_tier_filter:
-            queryset = queryset.filter(customer_tier=self.customer_tier_filter)
-        
-        return queryset
-    
-    def get_customer_count(self):
-        """Get count of customers in this segment"""
-        return self.get_customers().count()
-
-
-class Campaign(models.Model):
-    """Model for WhatsApp campaigns"""
-    CAMPAIGN_STATUS_CHOICES = [
-        ('DRAFT', 'Draft'),
-        ('SCHEDULED', 'Scheduled'),
-        ('RUNNING', 'Running'),
-        ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
+class Consent(models.Model):
+    """Customer consent management"""
+    CONSENT_TYPE_CHOICES = [
+        ('pdpa', 'PDPA'),
+        ('marketing', 'Marketing'),
+        ('whatsapp', 'WhatsApp'),
+        ('email', 'Email'),
     ]
     
-    CAMPAIGN_OBJECTIVE_CHOICES = [
-        ('RETENTION', 'Customer Retention'),
-        ('ACQUISITION', 'New Customer Acquisition'),
-        ('ANNOUNCEMENT', 'Announcement'),
-        ('RE_ENGAGEMENT', 'Re-engagement'),
-        ('PROMOTION', 'Promotion'),
+    STATUS_CHOICES = [
+        ('granted', 'Granted'),
+        ('withdrawn', 'Withdrawn'),
     ]
     
-    name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    objective = models.CharField(max_length=20, choices=CAMPAIGN_OBJECTIVE_CHOICES)
-    
-    # Targeting
-    segments = models.ManyToManyField(CustomerSegment, blank=True)
-    custom_recipients = models.ManyToManyField(Contact, blank=True, related_name='custom_campaigns')
-    
-    # Content
-    message_text = models.TextField()
-    media_image = models.ImageField(upload_to='campaign_media/', blank=True, null=True)
-    media_video = models.FileField(upload_to='campaign_media/', blank=True, null=True)
-    
-    # Scheduling
-    scheduled_start = models.DateTimeField(blank=True, null=True)
-    scheduled_end = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=CAMPAIGN_STATUS_CHOICES, default='DRAFT')
-    
-    # Tracking
-    landing_url = models.URLField(blank=True, null=True)
-    tracking_pixel = models.CharField(max_length=100, blank=True, null=True)
-    
-    # Results
-    total_sent = models.IntegerField(default=0)
-    total_delivered = models.IntegerField(default=0)
-    total_read = models.IntegerField(default=0)
-    total_clicked = models.IntegerField(default=0)
-    total_converted = models.IntegerField(default=0)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    sent_at = models.DateTimeField(blank=True, null=True)
+    consent_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='consents')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='consents')
+    type = models.TextField(choices=CONSENT_TYPE_CHOICES)
+    status = models.TextField(choices=STATUS_CHOICES)
+    occurred_at = models.DateTimeField(default=dj_timezone.now)
     
     def __str__(self):
-        return self.name
+        return f"{self.customer.name} - {self.type} - {self.status}"
+
+# =============================================================================
+# CONVERSATION AND MESSAGING MODELS
+# =============================================================================
+
+class Conversation(models.Model):
+    """Conversation between customer and WhatsApp connection"""
+    conversation_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='conversations')
+    whatsapp_connection = models.ForeignKey(WhatsAppConnection, on_delete=models.CASCADE, related_name='conversations')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='conversations')
+    channel = models.TextField(default='whatsapp')
+    # Optional contest linkage to scope conversations to a contest
+    # (defined below; forward reference via string)
+    contest = models.ForeignKey('Contest', on_delete=models.SET_NULL, blank=True, null=True, related_name='conversations')
+    last_message_at = models.DateTimeField(blank=True, null=True)
+    is_archived = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=dj_timezone.now)
     
-    def get_total_recipients(self):
-        """Get total number of recipients for this campaign"""
-        total = 0
-        for segment in self.segments.all():
-            total += segment.get_customer_count()
-        total += self.custom_recipients.count()
-        return total
+    def __str__(self):
+        return f"{self.customer.name} - {self.whatsapp_connection.phone_number}"
 
-
-class WhatsAppMessage(models.Model):
-    """Model to track individual WhatsApp messages"""
-    MESSAGE_TYPE_CHOICES = [
-        ('SENT', 'Sent'),
-        ('RECEIVED', 'Received'),
+class CoreMessage(models.Model):
+    """Individual message in a conversation"""
+    DIRECTION_CHOICES = [
+        ('inbound', 'Inbound'),
+        ('outbound', 'Outbound'),
     ]
     
-    MESSAGE_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('SENT', 'Sent'),
-        ('DELIVERED', 'Delivered'),
-        ('READ', 'Read'),
-        ('FAILED', 'Failed'),
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
+        ('failed', 'Failed'),
     ]
     
-    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, blank=True, null=True, related_name='messages')
-    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='whatsapp_messages')
-    
-    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPE_CHOICES)
-    message_text = models.TextField()
-    media_url = models.URLField(blank=True, null=True)
-    media_type = models.CharField(max_length=20, blank=True, null=True)  # image, video, document
-    
-    # WhatsApp API tracking
-    whatsapp_message_id = models.CharField(max_length=100, blank=True, null=True)
-    status = models.CharField(max_length=20, choices=MESSAGE_STATUS_CHOICES, default='PENDING')
-    
-    # Timestamps
+    message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='messages', blank=True, null=True)
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages', blank=True, null=True)
+    direction = models.TextField(choices=DIRECTION_CHOICES, blank=True, null=True)
+    status = models.TextField(choices=STATUS_CHOICES, default='queued')
+    text_body = models.TextField(blank=True, null=True)
+    provider_msg_id = models.TextField(blank=True, null=True)
     sent_at = models.DateTimeField(blank=True, null=True)
     delivered_at = models.DateTimeField(blank=True, null=True)
     read_at = models.DateTimeField(blank=True, null=True)
-    
-    # Interaction tracking
-    clicked_links = models.JSONField(default=list, help_text='List of clicked links')
-    viewed_media = models.BooleanField(default=False)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
     
     def __str__(self):
-        return f"{self.contact.name} - {self.message_type} - {self.status}"
+        return f"{self.direction} - {self.status} - {self.created_at}"
 
+    class Meta:
+        db_table = 'messages'
 
-class OCRProcessingLog(models.Model):
-    """Model to track OCR processing of images"""
-    PROCESSING_STATUS_CHOICES = [
-        ('PENDING', 'Pending'),
-        ('PROCESSING', 'Processing'),
-        ('COMPLETED', 'Completed'),
-        ('FAILED', 'Failed'),
+class MessageAttachment(models.Model):
+    """Attachments for messages"""
+    KIND_CHOICES = [
+        ('image', 'Image'),
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+        ('document', 'Document'),
     ]
     
-    image_url = models.URLField()
-    image_type = models.CharField(max_length=20, choices=[
-        ('IC', 'IC Card'),
-        ('RECEIPT', 'Receipt'),
-        ('OTHER', 'Other'),
-    ])
-    
-    # Processing details
-    status = models.CharField(max_length=20, choices=PROCESSING_STATUS_CHOICES, default='PENDING')
-    extracted_text = models.TextField(blank=True)
-    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
-    processing_errors = models.TextField(blank=True)
-    
-    # Extracted data
-    extracted_data = models.JSONField(default=dict, help_text='Structured data extracted from image')
-    
-    # Related objects
-    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True)
-    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, blank=True, null=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    processed_at = models.DateTimeField(blank=True, null=True)
+    attachment_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='attachments')
+    message = models.ForeignKey(CoreMessage, on_delete=models.CASCADE, related_name='attachments')
+    kind = models.TextField(choices=KIND_CHOICES)
+    storage_path = models.TextField()
+    mime_type = models.TextField()
+    bytes_size = models.BigIntegerField()
+    created_at = models.DateTimeField(default=dj_timezone.now)
     
     def __str__(self):
-        return f"OCR {self.image_type} - {self.status} - {self.created_at}"
+        return f"{self.kind} - {self.message.message_id}"
+
+# =============================================================================
+# RECEIPT AND OCR MODELS
+# =============================================================================
+
+class Receipt(models.Model):
+    """Receipt tracking with OCR data"""
+    receipt_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='receipts')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='receipts')
+    purchase_date = models.DateTimeField()
+    subtotal = models.IntegerField()  # Store in cents
+    discount = models.IntegerField(default=0)  # Store in cents
+    tax = models.IntegerField(default=0)  # Store in cents
+    total = models.IntegerField()  # Store in cents
+    ocr_confidence = models.FloatField(blank=True, null=True)
+    source_image_path = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.customer.name} - RM{self.total/100:.2f} - {self.purchase_date}"
+
+class ReceiptItem(models.Model):
+    """Individual items in a receipt"""
+    item_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='receipt_items')
+    receipt = models.ForeignKey(Receipt, on_delete=models.CASCADE, related_name='items')
+    description = models.TextField()
+    qty = models.IntegerField()
+    unit_price = models.IntegerField()  # Store in cents
+    
+    def __str__(self):
+        return f"{self.description} x{self.qty} - RM{self.unit_price/100:.2f}"
+
+# =============================================================================
+# TEMPLATE AND CAMPAIGN MODELS
+# =============================================================================
+
+class TemplateMessage(models.Model):
+    """WhatsApp template messages"""
+    CATEGORY_CHOICES = [
+        ('marketing', 'Marketing'),
+        ('utility', 'Utility'),
+        ('authentication', 'Authentication'),
+        ('transactional', 'Transactional'),
+    ]
+    
+    template_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='templates')
+    whatsapp_connection = models.ForeignKey(WhatsAppConnection, on_delete=models.CASCADE, related_name='templates')
+    category = models.TextField(choices=CATEGORY_CHOICES)
+    body = models.TextField(help_text='Template body with placeholders like {{name}}')
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.category} - {self.body[:50]}..."
+
+class Segment(models.Model):
+    """Customer segmentation"""
+    segment_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='segments')
+    name = models.TextField()
+    description = models.TextField(blank=True, null=True)
+    definition_json = models.JSONField(default=dict, help_text='JSON definition of segment criteria')
+    is_dynamic = models.BooleanField(default=True)
+    last_materialized_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.tenant.name} - {self.name}"
+
+class Campaign(models.Model):
+    """Marketing campaigns"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('scheduled', 'Scheduled'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+    
+    campaign_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='campaigns')
+    name = models.TextField()
+    segment = models.ForeignKey(Segment, on_delete=models.CASCADE, related_name='campaigns')
+    status = models.TextField(choices=STATUS_CHOICES, default='draft')
+    send_start_at = models.DateTimeField(blank=True, null=True)
+    send_end_at = models.DateTimeField(blank=True, null=True)
+    time_zone = models.TextField(default='UTC')
+    throttle_per_min = models.IntegerField(default=60)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.tenant.name} - {self.name}"
+
+class CampaignVariant(models.Model):
+    """A/B test variants for campaigns"""
+    variant_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='campaign_variants')
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='variants')
+    name = models.TextField()
+    split_pct = models.IntegerField(help_text='Percentage of recipients for this variant')
+    template = models.ForeignKey(TemplateMessage, on_delete=models.CASCADE, related_name='variants')
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.campaign.name} - {self.name}"
+
+class CampaignRun(models.Model):
+    """Individual campaign execution runs"""
+    STATUS_CHOICES = [
+        ('initializing', 'Initializing'),
+        ('sending', 'Sending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+    
+    run_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='campaign_runs')
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='runs')
+    segment_version_json = models.JSONField(default=dict, help_text='Snapshot of segment definition at run time')
+    started_at = models.DateTimeField(blank=True, null=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    status = models.TextField(choices=STATUS_CHOICES, default='initializing')
+    
+    def __str__(self):
+        return f"{self.campaign.name} - Run {self.run_id}"
+
+class CampaignRecipient(models.Model):
+    """Recipients for a campaign run"""
+    recipient_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='campaign_recipients')
+    run = models.ForeignKey(CampaignRun, on_delete=models.CASCADE, related_name='recipients')
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='recipients')
+    variant = models.ForeignKey(CampaignVariant, on_delete=models.CASCADE, related_name='recipients')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='campaign_recipients')
+    whatsapp_connection = models.ForeignKey(WhatsAppConnection, on_delete=models.CASCADE, related_name='campaign_recipients')
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='campaign_recipients', blank=True, null=True)
+    skip_reason = models.TextField(blank=True, null=True)
+    selected = models.BooleanField(default=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.customer.name} - {self.campaign.name}"
+
+class CampaignMessage(models.Model):
+    """Individual messages sent as part of a campaign"""
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('read', 'Read'),
+        ('failed', 'Failed'),
+    ]
+    
+    campaign_message_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='campaign_messages')
+    recipient = models.ForeignKey(CampaignRecipient, on_delete=models.CASCADE, related_name='messages')
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='messages')
+    variant = models.ForeignKey(CampaignVariant, on_delete=models.CASCADE, related_name='messages')
+    template = models.ForeignKey(TemplateMessage, on_delete=models.CASCADE, related_name='campaign_messages')
+    status = models.TextField(choices=STATUS_CHOICES, default='queued')
+    error_code = models.TextField(blank=True, null=True)
+    scheduled_at = models.DateTimeField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+    delivered_at = models.DateTimeField(blank=True, null=True)
+    read_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return f"{self.recipient.customer.name} - {self.status}"
+
+# =============================================================================
+# SEND QUEUE MODEL (for scheduled messages)
+# =============================================================================
+
+class SendQueue(models.Model):
+    """Operational queue for scheduled message sending"""
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('processing', 'Processing'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+    ]
+    
+    queue_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='send_queue')
+    campaign_message = models.ForeignKey(CampaignMessage, on_delete=models.CASCADE, related_name='queue_entries')
+    scheduled_at = models.DateTimeField()
+    status = models.TextField(choices=STATUS_CHOICES, default='queued')
+    retry_count = models.IntegerField(default=0)
+    max_retries = models.IntegerField(default=3)
+    error_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    processed_at = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['scheduled_at']
+        indexes = [
+            models.Index(fields=['status', 'scheduled_at']),
+            models.Index(fields=['tenant', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"Queue {self.queue_id} - {self.status} - {self.scheduled_at}"
+
+# =============================================================================
+# CONTEST AND PROMPT REPLIES
+# =============================================================================
+
+class Contest(models.Model):
+    """Enhanced contest management with PDPA integration and custom messages."""
+    contest_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='contests')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    
+    # Contest requirements
+    requires_nric = models.BooleanField(default=True, help_text='Require NRIC for participation')
+    requires_receipt = models.BooleanField(default=True, help_text='Require proof of purchase')
+    min_purchase_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text='Minimum purchase amount required')
+    
+    # Custom post-PDPA messages
+    post_pdpa_text = models.TextField(blank=True, null=True, help_text='Text message sent after PDPA consent')
+    post_pdpa_image_url = models.URLField(blank=True, null=True, help_text='Image URL for post-PDPA message')
+    post_pdpa_gif_url = models.URLField(blank=True, null=True, help_text='GIF URL for post-PDPA message')
+    
+    # Contest instructions
+    contest_instructions = models.TextField(blank=True, null=True, help_text='Instructions for contestants')
+    verification_instructions = models.TextField(blank=True, null=True, help_text='Instructions for verification process')
+    
+    # Eligibility message
+    eligibility_message = models.TextField(default="Congratulations! You are eligible to participate in this contest. Please follow the instructions to complete your entry.", help_text='Message sent when contestant is verified as eligible')
+    
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({'active' if self.is_active else 'inactive'})"
+    
+    @property
+    def is_currently_active(self):
+        """Check if contest is currently active"""
+        now = dj_timezone.now()
+        return self.is_active and self.starts_at <= now <= self.ends_at
+    
+    @property
+    def total_entries(self):
+        """Get total number of entries"""
+        return self.entries.count()
+    
+    @property
+    def verified_entries(self):
+        """Get number of verified entries"""
+        return self.entries.filter(is_verified=True).count()
+
+class ContestEntry(models.Model):
+    """Enhanced contest entry with verification and document collection."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('submitted', 'Submitted'),
+        ('under_review', 'Under Review'),
+        ('verified', 'Verified'),
+        ('rejected', 'Rejected'),
+        ('winner', 'Winner'),
+    ]
+    
+    entry_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='contest_entries')
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='entries')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='contest_entries')
+    conversation = models.ForeignKey(Conversation, on_delete=models.SET_NULL, blank=True, null=True, related_name='contest_entries')
+    
+    # Entry status and verification
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    is_verified = models.BooleanField(default=False)
+    is_winner = models.BooleanField(default=False)
+    
+    # Contestant information
+    contestant_name = models.CharField(max_length=200, blank=True, null=True)
+    contestant_nric = models.CharField(max_length=20, blank=True, null=True, help_text='NRIC number for verification')
+    contestant_phone = models.CharField(max_length=20, blank=True, null=True)
+    contestant_email = models.EmailField(blank=True, null=True)
+    
+    # Receipt/proof of purchase
+    receipt_image_url = models.URLField(blank=True, null=True, help_text='Receipt image URL')
+    receipt_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, help_text='Receipt amount')
+    receipt_date = models.DateTimeField(blank=True, null=True, help_text='Receipt date')
+    receipt_store = models.CharField(max_length=200, blank=True, null=True, help_text='Store name from receipt')
+    
+    # Additional documents
+    additional_documents = models.JSONField(default=list, blank=True, help_text='Additional document URLs')
+    
+    # Verification details
+    verified_at = models.DateTimeField(blank=True, null=True)
+    verified_by = models.CharField(max_length=200, blank=True, null=True, help_text='Who verified this entry')
+    verification_notes = models.TextField(blank=True, null=True, help_text='Verification notes')
+    
+    # Timestamps
+    submitted_at = models.DateTimeField(default=dj_timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-submitted_at']
+        unique_together = ['contest', 'customer']
+    
+    def __str__(self):
+        return f"{self.customer.name} @ {self.contest.name} ({self.status})"
+    
+    @property
+    def is_eligible(self):
+        """Check if entry meets contest requirements"""
+        if not self.contest.is_currently_active:
+            return False
+        
+        # Check NRIC requirement
+        if self.contest.requires_nric and not self.contestant_nric:
+            return False
+        
+        # Check receipt requirement
+        if self.contest.requires_receipt and not self.receipt_image_url:
+            return False
+        
+        # Check minimum purchase amount
+        if self.contest.min_purchase_amount and self.receipt_amount:
+            if self.receipt_amount < self.contest.min_purchase_amount:
+                return False
+        
+        return True
+
+class PromptReply(models.Model):
+    """Saved quick replies for CRM agents."""
+    prompt_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='prompt_replies')
+    name = models.CharField(max_length=120)
+    body = models.TextField()
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    def __str__(self):
+        return self.name

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDPA Consent Management - WhatsApp Bulk Message</title>
+
+  <style>
+    /* ===== Facebook CRM Design System ===== */
+    :root{
+      --fb-blue:#1877f2; --fb-blue-hover:#166fe5; --fb-blue-light:#e7f3ff;
+      --fb-gray:#f0f2f5; --fb-gray-dark:#65676b; --fb-gray-light:#f8f9fa;
+      --fb-white:#ffffff; --fb-black:#1c1e21; --fb-text:#1c1e21;
+      --fb-success:#42b883; --fb-warning:#f7b731; --fb-danger:#e74c3c;
+      --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--fb-gray); color:var(--fb-text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Facebook-style Top Navigation ===== */
+    .topbar{
+      background:var(--fb-white); border-bottom:1px solid var(--fb-border);
+      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
+    }
+    .topbar__inner{
+      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; height:56px
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
+    }
+    .brand__logo{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
+    }
+    .brand__text{color:var(--fb-text)}
+
+    .nav-tabs{
+      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
+    }
+    .nav-tab{
+      padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600;
+      color:var(--fb-gray-dark); transition:all 0.2s; position:relative
+    }
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{
+      content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+      width:100%; height:3px; background:var(--fb-blue); border-radius:2px
+    }
+
+    .topbar-actions{
+      display:flex; gap:8px; align-items:center
+    }
+    .action-btn{
+      width:40px; height:40px; border-radius:50%; background:var(--fb-gray-light);
+      border:none; display:flex; align-items:center; justify-content:center;
+      cursor:pointer; transition:background 0.2s; color:var(--fb-gray-dark)
+    }
+    .action-btn:hover{background:var(--fb-border)}
+    .user-avatar{
+      width:32px; height:32px; border-radius:50%; background:var(--fb-blue);
+      display:flex; align-items:center; justify-content:center; color:white;
+      font-weight:600; font-size:14px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+
+    /* ===== Facebook-style Cards ===== */
+    .card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); margin-bottom:16px
+    }
+    .card-header{
+      padding:16px 20px; border-bottom:1px solid var(--fb-border);
+      display:flex; align-items:center; justify-content:space-between
+    }
+    .card-title{font-size:18px; font-weight:600; color:var(--fb-text)}
+    .card-body{padding:20px}
+
+    /* ===== Stats Grid ===== */
+    .stats-grid{
+      display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+      gap:16px; margin-bottom:24px
+    }
+    .stat-card{
+      background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow);
+      border:1px solid var(--fb-border); padding:20px; text-align:center
+    }
+    .stat-value{font-size:32px; font-weight:700; color:var(--fb-blue); margin-bottom:8px}
+    .stat-label{color:var(--fb-gray-dark); font-size:14px}
+
+    /* ===== Consent Status ===== */
+    .consent-status{
+      display:inline-block; padding:4px 12px; border-radius:16px; font-size:12px; font-weight:600;
+      text-transform:uppercase
+    }
+    .consent-status.granted{
+      background:var(--fb-success); color:white
+    }
+    .consent-status.withdrawn{
+      background:var(--fb-danger); color:white
+    }
+    .consent-status.no-consent{
+      background:var(--fb-gray-light); color:var(--fb-gray-dark)
+    }
+
+    /* ===== Template Preview ===== */
+    .template-preview{
+      background:#e7f3ff; border-radius:18px; padding:12px 16px; margin:8px 0;
+      border:1px solid var(--fb-border); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto
+    }
+    .template-preview.bm{
+      background:#e7f3ff
+    }
+    .template-preview.en{
+      background:#ffffff; border:1px solid var(--fb-border)
+    }
+
+    /* ===== Data Table ===== */
+    .data-table{
+      width:100%; border-collapse:collapse; background:var(--fb-white);
+      border-radius:var(--fb-radius-lg); overflow:hidden; box-shadow:var(--fb-shadow)
+    }
+    .data-table th{
+      background:var(--fb-gray-light); padding:12px 16px; text-align:left;
+      font-weight:600; color:var(--fb-text); border-bottom:1px solid var(--fb-border)
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--fb-border); vertical-align:middle
+    }
+    .data-table tbody tr:hover{background:var(--fb-gray-light)}
+
+    /* ===== Responsive Design ===== */
+    @media (max-width:768px){
+      .topbar__inner{flex-direction:column; height:auto; padding:12px 16px; gap:12px}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:16px 12px}
+      .page-title{font-size:24px}
+      .stats-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== Facebook-style Top Navigation ===== -->
+  <nav class="topbar">
+    <div class="topbar__inner">
+      <!-- Brand -->
+      <a href="{% url 'dashboard' %}" class="brand">
+        <div class="brand__logo">WA</div>
+        <div class="brand__text">Campaign</div>
+      </a>
+
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
+        <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
+      </div>
+
+      <!-- Actions -->
+      <div class="topbar-actions">
+        <a href="{% url 'whatsapp_settings' %}" class="action-btn" title="WhatsApp Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </a>
+        <div class="user-avatar" title="You">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <div class="main-container">
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1 class="page-title">PDPA Consent Management</h1>
+      <p class="page-subtitle">Manage customer consent for WhatsApp messaging compliance</p>
+    </div>
+
+    <!-- Consent Statistics -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ total_customers }}</div>
+        <div class="stat-label">Total Customers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ granted_consents }}</div>
+        <div class="stat-label">Consent Granted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ withdrawn_consents }}</div>
+        <div class="stat-label">Consent Withdrawn</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ no_consent }}</div>
+        <div class="stat-label">No Consent</div>
+      </div>
+    </div>
+
+    <!-- PDPA Templates -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">PDPA Message Templates</h3>
+      </div>
+      <div class="card-body">
+        <h4>First Contact Template (Bahasa Malaysia)</h4>
+        <div class="template-preview bm">
+          Hi {{name}}! Anda dihubungi oleh {{brand}} berkaitan pembelian/promosi produk kami.<br>
+          Dengan membalas YA, anda memberi kebenaran untuk kami menghantar mesej WhatsApp tentang resit, sokongan & promosi. Balas TIDAK untuk menolak.<br>
+          Anda boleh berhenti pada bila-bila masa dengan taip STOP.
+        </div>
+
+        <h4>First Contact Template (English)</h4>
+        <div class="template-preview en">
+          Hi {{name}}! This is {{brand}} about your purchase/promotions.<br>
+          Reply YES to consent to receive WhatsApp messages for receipts, support & promos. Reply NO to decline.<br>
+          You can opt out anytime by typing STOP.
+        </div>
+
+        <h4>Consent Confirmed Template (Bahasa Malaysia)</h4>
+        <div class="template-preview bm">
+          Terima kasih! Kebenaran anda telah direkodkan. Anda boleh taip STOP untuk berhenti pada bila-bila masa.
+        </div>
+
+        <h4>Consent Confirmed Template (English)</h4>
+        <div class="template-preview en">
+          Thank you! Your consent has been recorded. You can type STOP anytime to opt out.
+        </div>
+
+        <h4>Consent Declined Template (Bahasa Malaysia)</h4>
+        <div class="template-preview bm">
+          Baik, kami tidak akan menghantar mesej promosi. Anda masih boleh hubungi kami untuk sokongan.
+        </div>
+
+        <h4>Consent Declined Template (English)</h4>
+        <div class="template-preview en">
+          Understood. We won't send promotional messages. You can still contact us for support.
+        </div>
+
+        <h4>Opt-out Template (Bahasa Malaysia)</h4>
+        <div class="template-preview bm">
+          Notis diterima. Anda telah berhenti langganan. Taip START untuk melanggan semula.
+        </div>
+
+        <h4>Opt-out Template (English)</h4>
+        <div class="template-preview en">
+          Noted. You've been unsubscribed. Type START to opt in again.
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Consent Activities -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Recent Consent Activities</h3>
+      </div>
+      <div class="card-body">
+        {% if recent_consents %}
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for consent in recent_consents %}
+                <tr>
+                  <td>{{ consent.customer.name }}</td>
+                  <td>{{ consent.customer.phone_number }}</td>
+                  <td>
+                    <span class="consent-status {{ consent.status }}">
+                      {{ consent.status }}
+                    </span>
+                  </td>
+                  <td>{{ consent.occurred_at|date:"M d, Y H:i" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p style="color:var(--fb-gray-dark); text-align:center; padding:20px;">
+            No consent activities found.
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Testing Tools -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Testing Tools</h3>
+      </div>
+      <div class="card-body">
+        <p style="margin-bottom:16px; color:var(--fb-gray-dark);">
+          Use these commands to test the PDPA consent flow:
+        </p>
+        <div style="background:var(--fb-gray-light); padding:16px; border-radius:var(--fb-radius); font-family:monospace; font-size:14px;">
+          <div style="margin-bottom:8px;"><strong>Test consent flow:</strong></div>
+          <div style="margin-bottom:4px;">python manage.py test_pdpa --customer-phone 60123456789 --message "hello"</div>
+          <div style="margin-bottom:4px;">python manage.py test_pdpa --customer-phone 60123456789 --message "yes"</div>
+          <div style="margin-bottom:4px;">python manage.py test_pdpa --customer-phone 60123456789 --message "stop"</div>
+          <div style="margin-bottom:8px;">python manage.py test_pdpa --customer-phone 60123456789 --message "start"</div>
+          
+          <div style="margin-bottom:8px;"><strong>Clear consent:</strong></div>
+          <div style="margin-bottom:4px;">python manage.py test_pdpa --action clear-consent --customer-phone 60123456789</div>
+          
+          <div style="margin-bottom:8px;"><strong>Show consent history:</strong></div>
+          <div>python manage.py test_pdpa --action show-consent --customer-phone 60123456789</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Add Prompt Reply - CRM</title>
+  <style>
+    :root{
+      --fb-blue:#1877f2; --fb-blue-light:#e7f3ff; --fb-green:#42b883; --fb-red:#f02849;
+      --fb-gray:#65676b; --fb-gray-light:#f0f2f5; --fb-gray-dark:#1c1e21; --fb-text:#1c1e21;
+      --fb-white:#ffffff; --fb-border:#dadde1; --fb-shadow:0 2px 4px rgba(0,0,0,0.1);
+      --fb-radius:8px; --fb-radius-lg:12px; --fb-spacing:16px; --fb-spacing-sm:8px; --fb-spacing-lg:24px
+    }
+    *{margin:0; padding:0; box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:var(--fb-gray-light); color:var(--fb-text); line-height:1.5}
+    .main-container{max-width:1200px; margin:0 auto; padding:var(--fb-spacing)}
+    .topbar{background:var(--fb-white); border-bottom:1px solid var(--fb-border); padding:var(--fb-spacing) var(--fb-spacing-lg); display:flex; align-items:center; gap:var(--fb-spacing-lg); position:sticky; top:0; z-index:100}
+    .brand{display:flex; align-items:center; gap:var(--fb-spacing-sm); text-decoration:none; color:var(--fb-text)}
+    .brand__logo{width:40px; height:40px; background:var(--fb-blue); color:var(--fb-white); border-radius:var(--fb-radius); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px}
+    .brand__text{font-size:20px; font-weight:700; color:var(--fb-text)}
+    .nav-tabs{display:flex; gap:8px; align-items:center; flex:1; justify-content:center}
+    .nav-tab{padding:8px 16px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600; color:var(--fb-gray); transition:all 0.2s; position:relative}
+    .nav-tab:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .nav-tab.active{color:var(--fb-blue); background:var(--fb-blue-light)}
+    .nav-tab.active::after{content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:20px; height:3px; background:var(--fb-blue); border-radius:2px}
+    .topbar-actions{display:flex; gap:8px; align-items:center}
+    .action-btn{width:40px; height:40px; border:none; background:none; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background 0.2s; color:var(--fb-gray)}
+    .action-btn:hover{background:var(--fb-gray-light)}
+    .page-header{margin-bottom:var(--fb-spacing-lg)}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray); font-size:16px}
+    .card{background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:var(--fb-spacing-lg); margin-bottom:var(--fb-spacing-lg)}
+    .card-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--fb-spacing-lg); padding-bottom:var(--fb-spacing); border-bottom:1px solid var(--fb-border)}
+    .card-title{font-size:20px; font-weight:600; color:var(--fb-text)}
+    .form-group{margin-bottom:var(--fb-spacing-lg)}
+    .form-label{display:block; margin-bottom:8px; font-weight:600; color:var(--fb-text); font-size:14px}
+    .form-input{width:100%; padding:12px 16px; border:1px solid var(--fb-border); border-radius:var(--fb-radius); font-size:14px; transition:border-color 0.2s; background:var(--fb-white); color:var(--fb-text)}
+    .form-input:focus{outline:none; border-color:var(--fb-blue); box-shadow:0 0 0 3px var(--fb-blue-light)}
+    .form-textarea{resize:vertical; min-height:150px}
+    .btn{display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:var(--fb-radius); text-decoration:none; font-weight:600; font-size:14px; transition:all 0.2s; border:none; cursor:pointer}
+    .btn-primary{background:var(--fb-blue); color:var(--fb-white)}
+    .btn-primary:hover{background:#166fe5; transform:translateY(-1px)}
+    .btn-ghost{background:var(--fb-gray-light); color:var(--fb-text); border:1px solid var(--fb-border)}
+    .btn-ghost:hover{background:var(--fb-border)}
+    .form-actions{display:flex; gap:12px; justify-content:flex-end; margin-top:var(--fb-spacing-lg); padding-top:var(--fb-spacing); border-top:1px solid var(--fb-border)}
+    .info-box{background:var(--fb-blue-light); border:1px solid var(--fb-blue); border-radius:var(--fb-radius); padding:var(--fb-spacing); margin-bottom:var(--fb-spacing-lg)}
+    .info-box-title{font-weight:600; color:var(--fb-blue); margin-bottom:4px}
+    .info-box-text{color:var(--fb-text); font-size:14px}
+    .char-count{text-align:right; font-size:12px; color:var(--fb-gray); margin-top:4px}
+
+    /* ===== Main Layout ===== */
+    .main-container{max-width:1200px; margin:0 auto; padding:20px 16px; display:flex; gap:24px}
+    .sidebar{width:240px; background:var(--fb-white); border-radius:var(--fb-radius-lg); box-shadow:var(--fb-shadow); padding:20px; height:fit-content; position:sticky; top:80px}
+    .main-content{flex:1; min-width:0}
+    .page-header{margin-bottom:24px}
+    .page-title{font-size:28px; font-weight:700; color:var(--fb-text); margin-bottom:8px}
+    .page-subtitle{color:var(--fb-gray-dark); font-size:16px}
+    
+        /* ===== Sidebar Navigation ===== */
+        .sidebar-title{font-size:16px; font-weight:600; color:var(--fb-text); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--fb-border)}
+    .sidebar-nav{list-style:none; padding:0; margin:0}
+    .sidebar-nav li{margin-bottom:4px}
+    .sidebar-nav a{display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:var(--fb-radius); text-decoration:none; color:var(--fb-gray-dark); font-weight:500; transition:all 0.2s}
+    .sidebar-nav a:hover{background:var(--fb-gray-light); color:var(--fb-text)}
+    .sidebar-nav a.active{background:var(--fb-blue-light); color:var(--fb-blue); font-weight:600}
+    .sidebar-nav a svg{width:18px; height:18px; flex-shrink:0}
+    @media (max-width:768px){
+      .topbar{padding:var(--fb-spacing); flex-direction:column; gap:var(--fb-spacing)}
+      .nav-tabs{order:2; width:100%; justify-content:center; flex-wrap:wrap}
+      .topbar-actions{order:3}
+      .main-container{padding:var(--fb-spacing)}
+      .page-title{font-size:24px}
+      .card{padding:var(--fb-spacing)}
+      .form-actions{flex-direction:column}
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navigation -->
+  <nav class="topbar">
+    <!-- Brand -->
+    <a href="{% url 'crm_home' %}" class="brand">
+      <div class="brand__logo">WA</div>
+      <div class="brand__text">Campaign</div>
+    </a>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <a href="{% url 'contest_home' %}" class="nav-tab">Contest</a>
+      <a href="{% url 'crm_home' %}" class="nav-tab active">CRM</a>
+      <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
+    </div>
+
+    <!-- Actions -->
+    <div class="topbar-actions">
+      <a href="{% url 'crm_prompt_replies' %}" class="action-btn" title="Back to Prompts">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 12H5m7-7l-7 7 7 7"/>
+        </svg>
+      </a>
+      <a href="{% url 'auth_logout' %}" class="action-btn" title="Logout">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14l5-5-5-5m5 5H9"/>
+        </svg>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+      <h3 class="sidebar-title">CRM</h3>
+      <ul class="sidebar-nav">
+        <li>
+          <a href="{% url 'crm_home' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Dashboard
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'manage_customers' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 8H16c-.8 0-1.54.37-2.01.99L12 11l-1.99-2.01A2.5 2.5 0 0 0 8 8H5.46c-.8 0-1.54.37-2.01.99L1 14.37V22h2v-6h2.5l2.5 7.5h2L10 16h4l1.5 7.5h2L19 16h2v6z"/>
+            </svg>
+            Manage Customers
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'main_page' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+            Send Messages
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_prompt_replies' %}" class="active">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+            </svg>
+            Prompt Replies
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_schedule_message' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+            </svg>
+            Schedule Message
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_campaigns' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            Campaigns
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'crm_analytics' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+            </svg>
+            Analytics
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'whatsapp_settings' %}">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            Settings
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Add Prompt Reply</h1>
+        <p class="page-subtitle">Create automated responses for customer interactions</p>
+      </div>
+
+    <!-- Info Box -->
+    <div class="info-box">
+      <div class="info-box-title">🤖 Automated Responses</div>
+      <div class="info-box-text">Create prompt replies that will be automatically sent to customers based on their messages or actions.</div>
+    </div>
+
+    <!-- Add Prompt Form Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">New Prompt Reply</h2>
+      </div>
+
+    <form method="post">
+      {% csrf_token %}
+        
+        <div class="form-group">
+          <label for="name" class="form-label">Prompt Name</label>
+          <input type="text" name="name" id="name" class="form-input" placeholder="e.g., Welcome Message, Order Confirmation" required />
+        </div>
+
+        <div class="form-group">
+          <label for="body" class="form-label">Response Content</label>
+          <textarea name="body" id="body" rows="6" class="form-input form-textarea" placeholder="Enter the automated response message here..." required></textarea>
+          <div class="char-count">Characters: <span id="charCount">0</span></div>
+        </div>
+
+        <div class="form-actions">
+          <a href="{% url 'crm_prompt_replies' %}" class="btn btn-ghost">Cancel</a>
+          <button type="submit" class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            Save Prompt
+          </button>
+        </div>
+    </form>
+    </div>
+    </div>
+  </div>
+
+  <script>
+    // Character counter for textarea
+    const textarea = document.getElementById('body');
+    const charCount = document.getElementById('charCount');
+    
+    textarea.addEventListener('input', function() {
+      charCount.textContent = this.value.length;
+    });
+  </script>
+</body>
+</html>

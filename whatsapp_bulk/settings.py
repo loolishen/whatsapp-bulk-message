@@ -158,6 +158,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # --------------------------------------------------------------------------------------
+# Auth redirects
+# --------------------------------------------------------------------------------------
+LOGIN_URL = "/login"
+LOGIN_REDIRECT_URL = "/dashboard"
+LOGOUT_REDIRECT_URL = "/login"
+
+# --------------------------------------------------------------------------------------
 # WhatsApp / Cloudinary – read from env (no secrets in code)
 # --------------------------------------------------------------------------------------
 WHATSAPP_API = {
