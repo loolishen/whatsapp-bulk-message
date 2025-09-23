@@ -1,32 +1,47 @@
 """
-Debug webhook to see what WABOT is sending
+Debug Webhook Handler for testing webhook functionality
 """
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 import json
 import logging
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
-@require_http_methods(["POST", "GET"])
+@require_http_methods(["GET", "POST"])
 def debug_webhook(request):
-    """Debug webhook to see what WABOT sends"""
-    print("=" * 50)
-    print("DEBUG WEBHOOK REQUEST")
-    print("=" * 50)
-    print(f"Method: {request.method}")
-    print(f"Content-Type: {request.META.get('CONTENT_TYPE', 'Not set')}")
-    print(f"User-Agent: {request.META.get('HTTP_USER_AGENT', 'Not set')}")
-    print(f"Body: {request.body}")
-    print("=" * 50)
-    
+    """
+    Debug webhook endpoint for testing webhook functionality
+    """
     try:
-        data = json.loads(request.body)
-        print(f"Parsed JSON: {json.dumps(data, indent=2)}")
-    except Exception as e:
-        print(f"Could not parse as JSON: {e}")
+        if request.method == 'GET':
+            # Handle webhook verification
+            verify_token = request.GET.get('hub.verify_token')
+            challenge = request.GET.get('hub.challenge')
+            
+            if verify_token == 'debug_token':
+                return HttpResponse(challenge)
+            else:
+                return HttpResponse('Verification failed', status=403)
+        
+        elif request.method == 'POST':
+            # Log incoming webhook data
+            try:
+                data = json.loads(request.body)
+                logger.info(f"Debug webhook received data: {json.dumps(data, indent=2)}")
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON in debug webhook request: {request.body}")
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+            
+            # Return success response
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Debug webhook processed successfully',
+                'received_data': data
+            })
     
-    return JsonResponse({'status': 'received', 'message': 'Debug webhook received'})
-
+    except Exception as e:
+        logger.error(f"Debug webhook error: {str(e)}")
+        return JsonResponse({'error': 'Debug webhook processing failed'}, status=500)

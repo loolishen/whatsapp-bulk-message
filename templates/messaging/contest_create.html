@@ -16,73 +16,91 @@
       --white:#ffffff; --black:#1c1e21; --text:#1c1e21;
       --border:#dadde1; --shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
       --radius:8px; --radius-lg:12px;
+      --text-muted:#595959;
     }
     *{box-sizing:border-box; margin:0; padding:0}
-    body{background:var(--gray); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+    body{background:var(--white); color:var(--text); font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
 
-    /* ===== Top Navigation ===== */
-    .topbar{
-      background:var(--white); border-bottom:1px solid var(--border);
-      position:sticky; top:0; z-index:1000; box-shadow:0 1px 2px rgba(0,0,0,0.1)
-    }
-    .topbar__inner{
-      max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between;
-      padding:8px 16px; height:56px
-    }
-    .brand{
-      display:flex; align-items:center; gap:8px; text-decoration:none; font-weight:700; font-size:20px
-    }
-    .brand__logo{
-      width:40px; height:40px; border-radius:50%; background:var(--primary);
-      display:flex; align-items:center; justify-content:center; color:white; font-weight:800
-    }
-    .brand__text{color:var(--text)}
-
-    .nav-tabs{
-      display:flex; gap:8px; align-items:center; flex:1; justify-content:center
-    }
-    .nav-tab{
-      padding:8px 16px; border-radius:var(--radius); text-decoration:none; font-weight:600;
-      color:var(--gray-dark); transition:all 0.2s; position:relative
-    }
-    .nav-tab:hover{background:var(--gray-light); color:var(--text)}
-    .nav-tab.active{color:var(--primary); background:var(--primary-light)}
-
-    .user-menu{
-      display:flex; align-items:center; gap:12px
-    }
-    .user-avatar{
-      width:32px; height:32px; border-radius:50%; background:var(--primary);
-      display:flex; align-items:center; justify-content:center; color:white; font-weight:600
+    /* ===== Side Navigation ===== */
+    .sidebar{
+      position:fixed; top:0; left:0; width:280px; height:100vh;
+      background:var(--white); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)
     }
 
-    /* ===== Main Content ===== */
-    .main-content{
-      max-width:800px; margin:0 auto; padding:24px 16px
+    .sidebar-header{
+      padding:24px; border-bottom:1px solid var(--border); text-align:center
     }
 
-    /* ===== Page Header ===== */
+    .profile-section{
+      display:flex; flex-direction:column; align-items:center; gap:12px
+    }
+
+    .profile-avatar{
+      width:60px; height:60px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px
+    }
+
+    .profile-name{
+      font-size:18px; font-weight:500; color:var(--text); margin:0
+    }
+
+    .profile-role{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+
+    .sidebar-nav{
+      flex:1; padding:24px 0; overflow-y:auto
+    }
+
+    .nav-item{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:300;
+      color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px
+    }
+
+    .nav-item:hover{
+      background:var(--gray-light); color:var(--text); border-left-color:var(--primary)
+    }
+
+    .nav-item.active{
+      background:var(--primary-light); color:var(--primary); border-left-color:var(--primary);
+      font-weight:500
+    }
+
+    .nav-item-icon{
+      margin-right:12px; font-size:16px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-layout{
+      margin-left:280px; padding:24px 32px; display:grid; grid-template-columns:550px 400px; gap:170px; min-height:100vh
+    }
+
+    /* ===== Left Column - Form ===== */
+    .form-column{
+      background:var(--white); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow);
+      border:1px solid var(--border); height:fit-content
+    }
+
     .page-header{
-      display:flex; justify-content:space-between; align-items:center; margin-bottom:24px
+      margin-bottom:32px; text-align:center
     }
     .page-title{
-      font-size:28px; font-weight:700; color:var(--text)
+      font-size:24px; font-weight:500; color:var(--text); margin-bottom:8px
     }
-    .btn{
-      padding:10px 20px; border-radius:var(--radius); text-decoration:none; font-weight:600;
-      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px
-    }
-    .btn-secondary{
-      background:var(--gray-dark); color:white
-    }
-    .btn-secondary:hover{background:var(--text); color:white}
-
-    /* ===== Form Styles ===== */
-    .form-container{
-      background:var(--white); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow);
-      border:1px solid var(--border)
+    .page-subtitle{
+      font-size:18px; font-weight:300; color:var(--text-muted)
     }
 
+    .back-btn{
+      position:absolute; top:32px; left:32px; padding:8px 16px; border-radius:var(--radius);
+      text-decoration:none; font-weight:300; color:var(--text-muted); transition:all 0.2s;
+      background:var(--gray-light); border:1px solid var(--border)
+    }
+    .back-btn:hover{background:var(--gray); color:var(--text)}
+
+    /* ===== Form Sections ===== */
     .form-section{
       margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border)
     }
@@ -90,30 +108,33 @@
       border-bottom:none; margin-bottom:0
     }
 
-    .section-title{
-      font-size:20px; font-weight:700; color:var(--text); margin-bottom:16px;
-      display:flex; align-items:center; gap:8px
+    .section-header{
+      display:flex; align-items:center; gap:12px; margin-bottom:20px
     }
     .section-icon{
-      width:24px; height:24px; border-radius:50%; background:var(--primary-light);
-      display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--primary)
+      width:24px; height:24px; border-radius:50%; background:var(--gray-light);
+      display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-muted)
+    }
+    .section-title{
+      font-size:11px; font-weight:300; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px
     }
 
     .form-group{
-      margin-bottom:20px
+      margin-bottom:16px
     }
     .form-label{
-      display:block; font-weight:600; color:var(--text); margin-bottom:8px
+      display:block; font-weight:300; color:var(--text-muted); margin-bottom:8px; font-size:11px
     }
     .form-input{
       width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius);
-      font-size:16px; transition:all 0.2s; background:var(--white)
+      font-size:11px; font-weight:200; transition:all 0.2s; background:var(--white);
+      font-family:"Inter",sans-serif
     }
     .form-input:focus{
-      outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-light)
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light)
     }
     .form-textarea{
-      min-height:100px; resize:vertical
+      min-height:80px; resize:vertical; font-family:"Inter",sans-serif
     }
 
     .form-row{
@@ -124,195 +145,403 @@
       display:flex; align-items:center; gap:8px; margin-bottom:12px
     }
     .checkbox{
-      width:18px; height:18px; accent-color:var(--primary)
+      width:16px; height:16px; accent-color:var(--primary)
     }
     .checkbox-label{
-      font-weight:500; color:var(--text)
+      font-weight:200; color:var(--text); font-size:11px
     }
 
     .form-actions{
-      display:flex; gap:12px; justify-content:flex-end; margin-top:32px; padding-top:24px;
+      display:flex; gap:12px; justify-content:center; margin-top:32px; padding-top:24px;
       border-top:1px solid var(--border)
     }
+    .btn{
+      padding:12px 24px; border-radius:var(--radius); text-decoration:none; font-weight:500;
+      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      font-size:11px; font-family:"Inter",sans-serif
+    }
+    .btn-secondary{
+      background:var(--gray-dark); color:white
+    }
+    .btn-secondary:hover{background:var(--text); color:white}
     .btn-primary{
-      background:var(--primary); color:white; padding:12px 24px; font-size:16px
+      background:var(--primary); color:white
     }
     .btn-primary:hover{background:var(--primary-hover); color:white}
 
     .help-text{
-      font-size:14px; color:var(--gray-dark); margin-top:4px
+      font-size:11px; color:var(--text-muted); margin-top:4px; font-weight:200
     }
 
     .required{
       color:var(--danger)
     }
 
+    /* ===== Right Column - WhatsApp Preview ===== */
+    .preview-column{
+      background:var(--gray-light); border-radius:var(--radius-lg); padding:24px;
+      border:1px solid var(--border); height:fit-content; position:sticky; top:80px
+    }
+
+    .preview-header{
+      text-align:center; margin-bottom:24px
+    }
+    .preview-title{
+      font-size:18px; font-weight:500; color:var(--text); margin-bottom:8px
+    }
+    .preview-subtitle{
+      font-size:11px; font-weight:300; color:var(--text-muted)
+    }
+
+    .whatsapp-preview{
+      background:var(--white); border-radius:var(--radius); padding:16px; margin-bottom:16px;
+      box-shadow:0 1px 3px rgba(0,0,0,0.1)
+    }
+
+    .message-bubble{
+      background:#e7f3ff; border-radius:12px; padding:12px; margin-bottom:8px; position:relative;
+      max-width:85%; margin-left:0; margin-right:auto
+    }
+    .message-bubble.user{
+      background:#dcf8c6; margin-left:auto; margin-right:0
+    }
+    .message-bubble.system{
+      background:#f0f0f0; text-align:center; font-style:italic; font-size:10px;
+      color:var(--text-muted); margin:8px auto
+    }
+
+    .message-text{
+      font-size:11px; font-weight:200; line-height:1.4; margin:0
+    }
+
+    .message-time{
+      font-size:9px; color:var(--text-muted); text-align:right; margin-top:4px
+    }
+
+    .preview-section{
+      margin-bottom:20px
+    }
+    .preview-section-title{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin-bottom:8px;
+      text-transform:uppercase; letter-spacing:0.5px
+    }
+
+    .example-receipt{
+      background:var(--white); border:2px dashed var(--border); border-radius:var(--radius);
+      padding:20px; text-align:center; margin:8px 0
+    }
+    .receipt-icon{
+      font-size:24px; margin-bottom:8px
+    }
+    .receipt-text{
+      font-size:10px; color:var(--text-muted); font-weight:200
+    }
+
     /* ===== Responsive ===== */
+    @media (max-width: 1024px){
+      .main-layout{grid-template-columns:1fr; gap:24px; margin-left:0; padding:24px 16px}
+      .preview-column{position:static}
+      .sidebar{transform:translateX(-100%); transition:transform 0.3s ease}
+      .sidebar.open{transform:translateX(0)}
+    }
     @media (max-width: 768px){
       .form-row{grid-template-columns:1fr}
-      .page-header{flex-direction:column; align-items:stretch; gap:16px}
       .form-actions{flex-direction:column}
+      .back-btn{position:static; margin-bottom:16px; display:inline-block}
+      .main-layout{padding:16px}
     }
   </style>
 </head>
 <body>
-  <!-- Top Navigation -->
-  <div class="topbar">
-    <div class="topbar__inner">
-      <a href="{% url 'contest_home' %}" class="brand">
-        <div class="brand__logo">W</div>
-        <span class="brand__text">WhatsApp Contest</span>
-      </a>
-      
-      <div class="nav-tabs">
-        <a href="{% url 'contest_home' %}" class="nav-tab active">Contest</a>
-        <a href="{% url 'crm_home' %}" class="nav-tab">CRM</a>
-        <a href="{% url 'manage_customers' %}" class="nav-tab">Customers</a>
-      </div>
-      
-      <div class="user-menu">
-        <div class="user-avatar">{{ user.username|first|upper }}</div>
+  <!-- Side Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">K</div>
+        <h3 class="profile-name">Khind</h3>
+        <p class="profile-role">Admin</p>
       </div>
     </div>
+    
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{% url 'contest_create' %}" class="nav-item active">
+        <span class="nav-item-icon">➕</span>
+        Contest Creation
+      </a>
+      <a href="{% url 'contest_home' %}" class="nav-item">
+        <span class="nav-item-icon">🎯</span>
+        Contest Manager
+      </a>
+      <a href="{% url 'manage_customers' %}" class="nav-item">
+        <span class="nav-item-icon">👥</span>
+        Participants Manager
+      </a>
+    </nav>
   </div>
 
-  <!-- Main Content -->
-  <div class="main-content">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h1 class="page-title">Create New Contest</h1>
-      <a href="{% url 'contest_home' %}" class="btn btn-secondary">
-        ← Back to Contests
-      </a>
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Left Column - Form -->
+    <div class="form-column">
+      <a href="{% url 'contest_home' %}" class="back-btn">← Back to Contests</a>
+      
+      <div class="page-header">
+        <h1 class="page-title">Contest Creation</h1>
+        <p class="page-subtitle">Create your contest and manage participant interactions</p>
+      </div>
+
+      <form method="post" id="contestForm">
+        {% csrf_token %}
+        
+        <!-- Contest Name -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">📝</div>
+            <div class="section-title">Contest Name</div>
+          </div>
+          
+          <div class="form-group">
+            <input type="text" id="name" name="name" class="form-input" required 
+                   placeholder="Enter your contest name">
+          </div>
+        </div>
+
+        <!-- Contest Introduction -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">📖</div>
+            <div class="section-title">Contest Introduction</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="description" class="form-label">Description</label>
+            <textarea id="description" name="description" class="form-input form-textarea" 
+                      placeholder="Describe your contest..."></textarea>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
+              <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
+              <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submission Requirements -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">📋</div>
+            <div class="section-title">Submission Requirements</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="contest_instructions" class="form-label">Instructions</label>
+            <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
+                      placeholder="Instructions for participants..."></textarea>
+          </div>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
+            <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
+          </div>
+          
+          <div class="checkbox-group">
+            <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
+            <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
+          </div>
+          
+          <div class="form-group">
+            <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
+            <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
+                   step="0.01" min="0" placeholder="0.00">
+            <div class="help-text">Leave empty for no minimum purchase requirement</div>
+          </div>
+        </div>
+
+        <!-- Welcome Message -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">👋</div>
+            <div class="section-title">Welcome Message</div>
+          </div>
+          
+          <div class="form-group">
+            <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
+                      placeholder="Welcome to our contest! Thank you for your consent..."></textarea>
+          </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">📸</div>
+            <div class="section-title">Instructions</div>
+          </div>
+          
+          <div class="form-group">
+            <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
+                      placeholder="Instructions for verification process..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="post_pdpa_image_url" class="form-label">Instructions GIF/Image URL</label>
+            <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
+                   placeholder="https://example.com/contest-animation.gif">
+            <div class="help-text">URL to show example on how to take picture</div>
+          </div>
+        </div>
+
+        <!-- Success/Failure Messages -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">✅</div>
+            <div class="section-title">Success/Failure</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="eligibility_message" class="form-label">Success Message</label>
+            <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
+                      placeholder="Congratulations! You are eligible to participate..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="failure_message" class="form-label">Failure Message</label>
+            <textarea id="failure_message" name="failure_message" class="form-input form-textarea" 
+                      placeholder="Sorry, we couldn't detect a valid receipt..."></textarea>
+          </div>
+        </div>
+
+        <!-- PDPA -->
+        <div class="form-section">
+          <div class="section-header">
+            <div class="section-icon">🔒</div>
+            <div class="section-title">PDPA</div>
+          </div>
+          
+          <div class="form-group">
+            <label for="pdpa_url" class="form-label">PDPA Link</label>
+            <input type="url" id="pdpa_url" name="pdpa_url" class="form-input" 
+                   placeholder="https://example.com/privacy-policy">
+          </div>
+          
+          <div class="form-group">
+            <label for="participant_agreement" class="form-label">Participant's Agreement Message</label>
+            <textarea id="participant_agreement" name="participant_agreement" class="form-input form-textarea" 
+                      placeholder="Thank you for agreeing! Please follow the following steps..."></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label for="participant_rejection" class="form-label">Participant's Rejection Message</label>
+            <textarea id="participant_rejection" name="participant_rejection" class="form-input form-textarea" 
+                      placeholder="We respect your choice, you won't receive contest messages."></textarea>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <a href="{% url 'contest_home' %}" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Create Contest</button>
+        </div>
+      </form>
     </div>
 
-    <!-- Contest Creation Form -->
-    <form method="post" class="form-container">
-      {% csrf_token %}
-      
-      <!-- Basic Information -->
-      <div class="form-section">
-        <h2 class="section-title">
-          <span class="section-icon">📝</span>
-          Basic Information
-        </h2>
-        
-        <div class="form-group">
-          <label for="name" class="form-label">Contest Name <span class="required">*</span></label>
-          <input type="text" id="name" name="name" class="form-input" required 
-                 placeholder="Enter contest name">
-        </div>
-        
-        <div class="form-group">
-          <label for="description" class="form-label">Description</label>
-          <textarea id="description" name="description" class="form-input form-textarea" 
-                    placeholder="Describe your contest..."></textarea>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
-            <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
-          </div>
-          <div class="form-group">
-            <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
-            <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+    <!-- Right Column - WhatsApp Preview -->
+    <div class="preview-column">
+      <div class="preview-header">
+        <h2 class="preview-title">WhatsApp Preview</h2>
+        <p class="preview-subtitle">Live preview of participant interactions</p>
+      </div>
+
+      <!-- Welcome Message Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">Welcome Message</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble">
+            <p class="message-text">👋 Hi there! Welcome to the <strong>Khind Merdeka Lucky Draw Contest</strong>.</p>
+            <div class="message-time">10:30 AM</div>
           </div>
         </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="is_active" name="is_active" class="checkbox" checked>
-          <label for="is_active" class="checkbox-label">Activate contest immediately</label>
+      </div>
+
+      <!-- Contest Introduction Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">Contest Introduction</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble">
+            <p class="message-text">🎉 Here's how it works: Submit a photo of your purchase receipt worth RM50 or above, and you'll qualify for the lucky draw. Multiple entries allowed!</p>
+            <div class="message-time">10:31 AM</div>
+          </div>
         </div>
       </div>
 
-      <!-- Contest Requirements -->
-      <div class="form-section">
-        <h2 class="section-title">
-          <span class="section-icon">📋</span>
-          Contest Requirements
-        </h2>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
-          <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
-        </div>
-        
-        <div class="checkbox-group">
-          <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
-          <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
-        </div>
-        
-        <div class="form-group">
-          <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
-          <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
-                 step="0.01" min="0" placeholder="0.00">
-          <div class="help-text">Leave empty for no minimum purchase requirement</div>
+      <!-- Instructions Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">Instructions</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble">
+            <p class="message-text">📸 Please upload your purchase receipt photo now. Make sure the store name, date, and amount are clear.</p>
+            <div class="message-time">10:32 AM</div>
+          </div>
+          <div class="example-receipt">
+            <div class="receipt-icon">📷</div>
+            <div class="receipt-text">Example receipt image</div>
+          </div>
         </div>
       </div>
 
-      <!-- Post-PDPA Messages -->
-      <div class="form-section">
-        <h2 class="section-title">
-          <span class="section-icon">💬</span>
-          Post-PDPA Messages
-        </h2>
-        <p class="help-text" style="margin-bottom: 20px;">
-          These messages will be sent to customers after they agree to PDPA consent.
-        </p>
-        
-        <div class="form-group">
-          <label for="post_pdpa_text" class="form-label">Welcome Message</label>
-          <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
-                    placeholder="Welcome to our contest! Thank you for your consent..."></textarea>
-        </div>
-        
-        <div class="form-group">
-          <label for="post_pdpa_image_url" class="form-label">Image URL</label>
-          <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
-                 placeholder="https://example.com/contest-image.jpg">
-        </div>
-        
-        <div class="form-group">
-          <label for="post_pdpa_gif_url" class="form-label">GIF URL</label>
-          <input type="url" id="post_pdpa_gif_url" name="post_pdpa_gif_url" class="form-input" 
-                 placeholder="https://example.com/contest-animation.gif">
+      <!-- Participant Response Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">Participant Response</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble user">
+            <p class="message-text">Here's my receipt! 🧾</p>
+            <div class="message-time">10:35 AM</div>
+          </div>
+          <div class="example-receipt">
+            <div class="receipt-icon">🧾</div>
+            <div class="receipt-text">Receipt uploaded by participant</div>
+          </div>
         </div>
       </div>
 
-      <!-- Contest Instructions -->
-      <div class="form-section">
-        <h2 class="section-title">
-          <span class="section-icon">📖</span>
-          Instructions & Messages
-        </h2>
-        
-        <div class="form-group">
-          <label for="contest_instructions" class="form-label">Contest Instructions</label>
-          <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
-                    placeholder="Instructions for participants..."></textarea>
-        </div>
-        
-        <div class="form-group">
-          <label for="verification_instructions" class="form-label">Verification Instructions</label>
-          <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
-                    placeholder="Instructions for verification process..."></textarea>
-        </div>
-        
-        <div class="form-group">
-          <label for="eligibility_message" class="form-label">Eligibility Confirmation Message</label>
-          <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
-                    placeholder="Congratulations! You are eligible to participate..."></textarea>
-          <div class="help-text">Message sent when contestant is verified as eligible</div>
+      <!-- Success Response Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">Success Response</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble">
+            <p class="message-text">✅ Your entry has been received! Good luck 🍀<br>Winners will be announced on [date].</p>
+            <div class="message-time">10:36 AM</div>
+          </div>
         </div>
       </div>
 
-      <!-- Form Actions -->
-      <div class="form-actions">
-        <a href="{% url 'contest_home' %}" class="btn btn-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary">Create Contest</button>
+      <!-- PDPA Preview -->
+      <div class="preview-section">
+        <div class="preview-section-title">PDPA Agreement</div>
+        <div class="whatsapp-preview">
+          <div class="message-bubble">
+            <p class="message-text">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></p>
+            <div class="message-time">10:37 AM</div>
+          </div>
+          <div class="message-bubble user">
+            <p class="message-text">I agree to the terms</p>
+            <div class="message-time">10:38 AM</div>
+          </div>
+          <div class="message-bubble">
+            <p class="message-text">Thank you for agreeing! Please follow the following steps to enter the contest.</p>
+            <div class="message-time">10:38 AM</div>
+          </div>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
 
   <script>
@@ -323,6 +552,47 @@
     
     document.getElementById('starts_at').value = startTime.toISOString().slice(0, 16);
     document.getElementById('ends_at').value = endTime.toISOString().slice(0, 16);
+
+    // Update preview in real-time
+    function updatePreview() {
+      const contestName = document.getElementById('name').value || 'Khind Contest';
+      const welcomeMessage = document.getElementById('post_pdpa_text').value || '👋 Hi there! Welcome to the Khind Merdeka Lucky Draw Contest.';
+      const instructions = document.getElementById('verification_instructions').value || '📸 Please upload your purchase receipt photo now. Make sure the store name, date, and amount are clear.';
+      const successMessage = document.getElementById('eligibility_message').value || '✅ Your entry has been received! Good luck 🍀\nWinners will be announced on [date].';
+      const pdpaUrl = document.getElementById('pdpa_url').value || 'https://khind.com.my/pages/privacy-policy';
+      
+      // Update preview messages
+      const welcomeBubble = document.querySelector('.preview-section:nth-child(2) .message-text');
+      if (welcomeBubble) {
+        welcomeBubble.innerHTML = welcomeMessage.replace(/\n/g, '<br>');
+      }
+      
+      const instructionBubble = document.querySelector('.preview-section:nth-child(4) .message-text');
+      if (instructionBubble) {
+        instructionBubble.innerHTML = instructions.replace(/\n/g, '<br>');
+      }
+      
+      const successBubble = document.querySelector('.preview-section:nth-child(6) .message-text');
+      if (successBubble) {
+        successBubble.innerHTML = successMessage.replace(/\n/g, '<br>');
+      }
+      
+      const pdpaBubble = document.querySelector('.preview-section:nth-child(7) .message-text a');
+      if (pdpaBubble) {
+        pdpaBubble.href = pdpaUrl;
+        pdpaBubble.textContent = pdpaUrl;
+      }
+    }
+
+    // Add event listeners for real-time preview updates
+    document.getElementById('name').addEventListener('input', updatePreview);
+    document.getElementById('post_pdpa_text').addEventListener('input', updatePreview);
+    document.getElementById('verification_instructions').addEventListener('input', updatePreview);
+    document.getElementById('eligibility_message').addEventListener('input', updatePreview);
+    document.getElementById('pdpa_url').addEventListener('input', updatePreview);
+
+    // Initialize preview
+    updatePreview();
   </script>
 </body>
 </html>
