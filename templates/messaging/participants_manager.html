@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Participants Manager</title>
+
+  <style>
+    /* ===== Google Material Design Variables ===== */
+    :root{
+      --primary:#1a73e8; --primary-hover:#1557b0; --primary-light:#e8f0fe;
+      --secondary:#34a853; --secondary-hover:#2d8f47; --secondary-light:#e6f4ea;
+      --success:#34a853; --warning:#fbbc04; --danger:#ea4335; --info:#4285f4;
+      --gray:#f8f9fa; --gray-dark:#5f6368; --gray-light:#f1f3f4;
+      --white:#ffffff; --black:#202124; --text:#202124; --text-muted:#5f6368;
+      --border:#dadce0; --shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --shadow-hover:0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+      --radius:8px; --radius-lg:12px; --radius-xl:16px;
+      --font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{
+      background:var(--gray); color:var(--text); font-family:var(--font-family);
+      line-height:1.5; font-size:14px; overflow-x:hidden
+    }
+
+    /* ===== Sidebar Navigation ===== */
+    .sidebar{
+      position:fixed; top:0; left:0; width:280px; height:100vh;
+      background:var(--white); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)
+    }
+    .sidebar-header{
+      padding:24px; border-bottom:1px solid var(--border); text-align:center
+    }
+    .profile-section{
+      display:flex; flex-direction:column; align-items:center; gap:12px
+    }
+    .profile-avatar{
+      width:60px; height:60px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px
+    }
+    .profile-name{
+      font-size:18px; font-weight:500; color:var(--text); margin:0
+    }
+    .profile-role{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+    .sidebar-nav{
+      flex:1; padding:24px 0; overflow-y:auto
+    }
+    .nav-item{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:300;
+      color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px
+    }
+    .nav-item:hover{
+      background:var(--gray-light); color:var(--text); border-left-color:var(--primary)
+    }
+    .nav-item.active{
+      background:var(--primary-light); color:var(--primary); border-left-color:var(--primary);
+      font-weight:500
+    }
+    .nav-item-icon{
+      margin-right:12px; font-size:16px
+    }
+
+    /* ===== Main Content ===== */
+    .main-content{
+      margin-left:280px; padding:24px 32px; min-height:100vh
+    }
+
+    /* ===== Page Header ===== */
+    .page-header{
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;
+      padding-bottom:16px; border-bottom:1px solid var(--border)
+    }
+    .page-title{
+      font-size:24px; font-weight:400; color:var(--text); margin:0
+    }
+    .page-subtitle{
+      font-size:14px; color:var(--text-muted); margin:4px 0 0 0
+    }
+
+    /* ===== Filter Bar ===== */
+    .filter-bar{
+      background:var(--white); border-radius:var(--radius); padding:16px 20px;
+      box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:20px;
+      display:flex; gap:16px; align-items:center; flex-wrap:wrap
+    }
+    .filter-group{
+      display:flex; flex-direction:column; gap:4px; min-width:150px
+    }
+    .filter-label{
+      font-size:12px; font-weight:500; color:var(--text-muted); text-transform:uppercase
+    }
+    .filter-select{
+      padding:8px 12px; border:1px solid var(--border); border-radius:4px;
+      background:var(--white); font-size:14px; color:var(--text)
+    }
+    .filter-select:focus{
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light)
+    }
+    .search-box{
+      flex:1; min-width:300px; position:relative
+    }
+    .search-input{
+      width:100%; padding:12px 16px 12px 40px; border:1px solid var(--border);
+      border-radius:24px; font-size:14px; background:var(--gray-light);
+      transition:all 0.2s
+    }
+    .search-input:focus{
+      outline:none; border-color:var(--primary); background:var(--white);
+      box-shadow:0 0 0 2px var(--primary-light)
+    }
+    .search-icon{
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      color:var(--text-muted); font-size:16px
+    }
+
+    /* ===== Data Table ===== */
+    .table-container{
+      background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow);
+      border:1px solid var(--border); overflow:hidden
+    }
+    .table-header{
+      padding:16px 20px; border-bottom:1px solid var(--border); background:var(--gray-light)
+    }
+    .table-title{
+      font-size:16px; font-weight:500; color:var(--text); margin:0
+    }
+    .table-subtitle{
+      font-size:12px; color:var(--text-muted); margin:4px 0 0 0
+    }
+    .data-table{
+      width:100%; border-collapse:collapse; font-size:13px
+    }
+    .data-table th{
+      background:var(--gray-light); color:var(--text); font-weight:500; padding:12px 16px;
+      text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
+      font-size:12px; text-transform:uppercase; letter-spacing:0.5px
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--border); vertical-align:top;
+      color:var(--text); font-size:13px
+    }
+    .data-table tr:hover{
+      background:var(--gray-light); cursor:pointer
+    }
+    .data-table tr:last-child td{
+      border-bottom:none
+    }
+
+    /* ===== Table Cell Styles ===== */
+    .cell-name{
+      font-weight:500; color:var(--text)
+    }
+    .cell-contact{
+      color:var(--text-muted); font-size:12px
+    }
+    .cell-contest{
+      color:var(--primary); font-weight:500
+    }
+    .cell-status{
+      display:inline-block; padding:4px 8px; border-radius:12px; font-size:11px;
+      font-weight:600; text-transform:uppercase
+    }
+    .cell-status.valid{
+      background:var(--secondary-light); color:var(--secondary)
+    }
+    .cell-status.flagged{
+      background:#fce8e6; color:var(--danger)
+    }
+    .cell-errors{
+      color:var(--danger); font-size:12px; max-width:150px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap
+    }
+
+    /* ===== Slide-in Detail Panel ===== */
+    .detail-panel{
+      position:fixed; top:0; right:-600px; width:600px; height:100vh;
+      background:var(--white); box-shadow:-2px 0 8px rgba(0,0,0,0.1);
+      z-index:2000; transition:right 0.3s ease; overflow-y:auto
+    }
+    .detail-panel.open{
+      right:0
+    }
+    .detail-panel-header{
+      padding:24px; border-bottom:1px solid var(--border); background:var(--gray-light)
+    }
+    .detail-panel-title{
+      font-size:24px; font-weight:600; color:var(--text); margin:0
+    }
+    .detail-panel-close{
+      position:absolute; top:20px; right:20px; width:32px; height:32px;
+      border:none; background:var(--gray-light); border-radius:50%;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+      font-size:18px; color:var(--text-muted)
+    }
+    .detail-panel-close:hover{
+      background:var(--border); color:var(--text)
+    }
+    .detail-panel-content{
+      padding:24px
+    }
+    .detail-section{
+      margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border)
+    }
+    .detail-section:last-child{
+      border-bottom:none; margin-bottom:0
+    }
+    .detail-section-title{
+      font-size:14px; font-weight:500; color:var(--text); margin-bottom:12px
+    }
+    .detail-info{
+      display:flex; flex-direction:column; gap:8px
+    }
+    .detail-item{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 0
+    }
+    .detail-label{
+      font-size:12px; color:var(--text-muted); font-weight:500
+    }
+    .detail-value{
+      font-size:12px; color:var(--text); font-weight:400
+    }
+    .detail-checklist{
+      display:flex; flex-direction:column; gap:4px
+    }
+    .checklist-item{
+      display:flex; align-items:center; gap:8px; font-size:10px; color:var(--text)
+    }
+    .checklist-check{
+      color:var(--secondary); font-weight:bold
+    }
+    .detail-actions{
+      display:flex; flex-direction:column; gap:12px
+    }
+    .action-button{
+      padding:8px 16px; border:1px solid var(--border); border-radius:4px;
+      background:var(--white); color:var(--text); text-decoration:none;
+      font-size:12px; text-align:center; transition:all 0.2s
+    }
+    .action-button:hover{
+      background:var(--gray-light); border-color:var(--primary)
+    }
+    .action-button.primary{
+      background:var(--primary); color:white; border-color:var(--primary)
+    }
+    .action-button.primary:hover{
+      background:var(--primary-hover)
+    }
+
+    /* ===== Overlay ===== */
+    .overlay{
+      position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.5); z-index:1500; opacity:0; visibility:hidden;
+      transition:all 0.3s ease
+    }
+    .overlay.open{
+      opacity:1; visibility:visible
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width: 1024px){
+      .main-content{margin-left:0; padding:16px}
+      .sidebar{transform:translateX(-100%); transition:transform 0.3s ease}
+      .sidebar.open{transform:translateX(0)}
+      .detail-panel{width:100%; right:-100%}
+      .filter-bar{flex-direction:column; align-items:stretch}
+      .search-box{min-width:auto}
+    }
+    @media (max-width: 768px){
+      .data-table{font-size:11px}
+      .data-table th, .data-table td{padding:8px 12px}
+      .detail-panel{width:100%}
+    }
+    @media (max-width: 1200px){
+      .detail-panel{width:500px; right:-500px}
+    }
+  </style>
+</head>
+<body>
+  <!-- Side Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">K</div>
+        <h3 class="profile-name">Khind</h3>
+        <p class="profile-role">Admin</p>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{% url 'contest_create' %}" class="nav-item">
+        <span class="nav-item-icon">➕</span>
+        Contest Creation
+      </a>
+      <a href="{% url 'contest_manager' %}" class="nav-item">
+        <span class="nav-item-icon">🎯</span>
+        Contest Manager
+      </a>
+      <a href="{% url 'participants_manager' %}" class="nav-item active">
+        <span class="nav-item-icon">👥</span>
+        Participants Manager
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Participants Manager</h1>
+        <p class="page-subtitle">Manage and review all contest participants across all contests</p>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label class="filter-label">Contest</label>
+        <select class="filter-select" onchange="handleContestFilter(this.value)">
+          <option value="">All Contests</option>
+          <option value="merdeka">Khind Merdeka Lucky Draw</option>
+          <option value="backtoschool">Khind Back to School</option>
+          <option value="holiday">Khind Holiday Special</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select class="filter-select" onchange="handleStatusFilter(this.value)">
+          <option value="">All Participants</option>
+          <option value="valid">Valid Only</option>
+          <option value="flagged">Flagged Only</option>
+        </select>
+      </div>
+      
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search participants by name, phone, or email..." 
+               onkeyup="handleSearch(this.value)">
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3 class="table-title">All Participants ({{ total_participants }} total)</h3>
+        <p class="table-subtitle">Click on any participant to view detailed information</p>
+      </div>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Contact Info</th>
+            <th>Contest</th>
+            <th>Status</th>
+            <th>Errors</th>
+            <th>Submission Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Sample participants data -->
+          <tr onclick="showParticipantDetails('participant1')">
+            <td class="cell-name">Loo Li Shen</td>
+            <td class="cell-contact">0162107682 · loolishen016@gmail.com · 041030 10 1963</td>
+            <td class="cell-contest">Merdeka W1</td>
+            <td><span class="cell-status flagged">FLAGGED</span></td>
+            <td class="cell-errors">Invalid Receipt, Unreadable</td>
+            <td>Sep 15, 2024</td>
+          </tr>
+          <tr onclick="showParticipantDetails('participant2')">
+            <td class="cell-name">Muhammad Dzulfadhlie</td>
+            <td class="cell-contact">+601127052763 · fadhlie2402.md@gmail.com · 950815-10-1234</td>
+            <td class="cell-contest">Merdeka W1</td>
+            <td><span class="cell-status valid">VALID</span></td>
+            <td class="cell-errors">-</td>
+            <td>Sep 14, 2024</td>
+          </tr>
+          <tr onclick="showParticipantDetails('participant3')">
+            <td class="cell-name">Sarah Binti Rahman</td>
+            <td class="cell-contact">+60198765432 · sarah.rahman@email.com · 920315-08-5678</td>
+            <td class="cell-contest">Back to School</td>
+            <td><span class="cell-status valid">VALID</span></td>
+            <td class="cell-errors">-</td>
+            <td>Aug 25, 2024</td>
+          </tr>
+          <tr onclick="showParticipantDetails('participant4')">
+            <td class="cell-name">Ahmad Bin Abdullah</td>
+            <td class="cell-contact">+60123456789 · ahmad@email.com · 880210-05-9012</td>
+            <td class="cell-contest">Merdeka W1</td>
+            <td><span class="cell-status flagged">FLAGGED</span></td>
+            <td class="cell-errors">Receipt not clear, Missing store info</td>
+            <td>Sep 16, 2024</td>
+          </tr>
+          <tr onclick="showParticipantDetails('participant5')">
+            <td class="cell-name">Lim Wei Ming</td>
+            <td class="cell-contact">+60155512345 · lim.weiming@email.com · 930512-12-3456</td>
+            <td class="cell-contest">Back to School</td>
+            <td><span class="cell-status valid">VALID</span></td>
+            <td class="cell-errors">-</td>
+            <td>Aug 20, 2024</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay" onclick="closeParticipantDetails()"></div>
+
+  <!-- Slide-in Detail Panel -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-panel-header">
+      <h2 class="detail-panel-title" id="participantName">Loo Li Shen</h2>
+      <button class="detail-panel-close" onclick="closeParticipantDetails()">×</button>
+    </div>
+    
+    <div class="detail-panel-content">
+      <!-- Participant Info -->
+      <div class="detail-section">
+        <h3 class="detail-section-title">Participant Information</h3>
+        <div class="detail-info">
+          <div class="detail-item">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value">Loo Li Shen</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Phone</span>
+            <span class="detail-value">0162107682</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Email</span>
+            <span class="detail-value">loolishen016@gmail.com</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">IC Number</span>
+            <span class="detail-value">041030 10 1963</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Contest</span>
+            <span class="detail-value">Merdeka W1</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Status</span>
+            <span class="detail-value" style="color: var(--danger); font-weight: 600;">FLAGGED</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Errors</span>
+            <span class="detail-value" style="color: var(--danger);">Invalid Receipt, Unreadable</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submission Checklist -->
+      <div class="detail-section">
+        <h3 class="detail-section-title">Submission Checklist</h3>
+        <div class="detail-checklist">
+          <div class="checklist-item">
+            <span class="checklist-check">✓</span>
+            <span>Receipt</span>
+          </div>
+          <div class="checklist-item">
+            <span class="checklist-check">✓</span>
+            <span>Name</span>
+          </div>
+          <div class="checklist-item">
+            <span class="checklist-check">✓</span>
+            <span>IC</span>
+          </div>
+          <div class="checklist-item">
+            <span class="checklist-check">✓</span>
+            <span>Phone</span>
+          </div>
+          <div class="checklist-item">
+            <span class="checklist-check">✓</span>
+            <span>Email</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flagged Actions (Only for flagged participants) -->
+      <div class="detail-section" id="flaggedActions" style="display: none;">
+        <h3 class="detail-section-title">Flagged Actions</h3>
+        
+        <!-- Custom Prompt Input -->
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px;">Custom Prompt Message</label>
+          <textarea id="customPrompt" placeholder="Type your custom prompt message here..." 
+                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 4px; 
+                           font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+        </div>
+        
+        <div class="detail-actions">
+          <button class="action-button primary" onclick="sendCustomPrompt()">Send Custom Prompt</button>
+          <button class="action-button" onclick="toggleManualEntry()">Manually Enter Receipt Info</button>
+        </div>
+      </div>
+
+      <!-- Manual Receipt Entry (Hidden by default) -->
+      <div class="detail-section" id="manualReceiptEntry" style="display: none;">
+        <h3 class="detail-section-title">Manual Receipt Entry</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Store Name</label>
+            <input type="text" id="manualStore" placeholder="Enter store name" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Company Number</label>
+            <input type="text" id="manualCompanyNo" placeholder="Enter company number" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Store Location</label>
+            <input type="text" id="manualLocation" placeholder="Enter store location" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Product Purchased</label>
+            <input type="text" id="manualProduct" placeholder="Enter product name" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Quantity</label>
+            <input type="number" id="manualQuantity" placeholder="Enter quantity" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Amount Spent</label>
+            <input type="text" id="manualAmount" placeholder="Enter amount (e.g., RM123)" 
+                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+          </div>
+        </div>
+        <div style="margin-top: 16px;">
+          <button class="action-button primary" onclick="saveManualEntry()">Save Manual Entry</button>
+          <button class="action-button" onclick="cancelManualEntry()">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Receipt Information -->
+      <div class="detail-section">
+        <h3 class="detail-section-title">Receipt Information</h3>
+        <div class="detail-info">
+          <div class="detail-item">
+            <span class="detail-label">Store</span>
+            <span class="detail-value">Jaya Grocer</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Company No.</span>
+            <span class="detail-value">123123123</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Store Location</span>
+            <span class="detail-value">Subang Jaya, Selangor</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Product Purchased</span>
+            <span class="detail-value">BLDC Fan</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Amount Purchased</span>
+            <span class="detail-value">1</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Amount Spent</span>
+            <span class="detail-value">RM123</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Participant Conversation -->
+      <div class="detail-section">
+        <h3 class="detail-section-title">Participant Conversation</h3>
+        <div style="background: var(--gray-light); padding: 16px; border-radius: var(--radius); min-height: 200px; max-height: 300px; overflow-y: auto;">
+          <div style="margin-bottom: 12px;">
+            <div style="background: var(--white); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%;">
+              <p style="margin: 0; font-size: 12px; color: var(--text);">Hi! I've submitted my contest entry. Can you please check if my receipt is clear enough?</p>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 15, 2024 at 2:30 PM</p>
+            </div>
+            <div style="background: var(--primary-light); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; margin-left: auto;">
+              <p style="margin: 0; font-size: 12px; color: var(--text);">Thank you for your submission! We're reviewing your receipt and will get back to you soon.</p>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 15, 2024 at 2:32 PM</p>
+            </div>
+            <div style="background: var(--white); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%;">
+              <p style="margin: 0; font-size: 12px; color: var(--text);">I received a notification that my receipt is not clear. What should I do?</p>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 16, 2024 at 10:15 AM</p>
+            </div>
+            <div style="background: var(--primary-light); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; margin-left: auto;">
+              <p style="margin: 0; font-size: 12px; color: var(--text);">Please upload a clearer photo of your receipt. Make sure the store name, date, and amount are clearly visible.</p>
+              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 16, 2024 at 10:17 AM</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Show participant details
+    function showParticipantDetails(participantId) {
+      const overlay = document.getElementById('overlay');
+      const detailPanel = document.getElementById('detailPanel');
+      
+      overlay.classList.add('open');
+      detailPanel.classList.add('open');
+      
+      // Update participant data based on ID
+      updateParticipantData(participantId);
+    }
+
+    // Close participant details
+    function closeParticipantDetails() {
+      const overlay = document.getElementById('overlay');
+      const detailPanel = document.getElementById('detailPanel');
+      
+      overlay.classList.remove('open');
+      detailPanel.classList.remove('open');
+    }
+
+    // Update participant data
+    function updateParticipantData(participantId) {
+      const participantData = {
+        'participant1': {
+          name: 'Loo Li Shen',
+          phone: '0162107682',
+          email: 'loolishen016@gmail.com',
+          ic: '041030 10 1963',
+          contest: 'Merdeka W1',
+          status: 'FLAGGED',
+          errors: 'Invalid Receipt, Unreadable',
+          store: 'Jaya Grocer',
+          companyNo: '123123123',
+          location: 'Subang Jaya, Selangor',
+          product: 'BLDC Fan',
+          amount: '1',
+          spent: 'RM123'
+        },
+        'participant2': {
+          name: 'Muhammad Dzulfadhlie',
+          phone: '+601127052763',
+          email: 'fadhlie2402.md@gmail.com',
+          ic: '950815-10-1234',
+          contest: 'Merdeka W1',
+          status: 'VALID',
+          errors: '-',
+          store: 'ED FEST',
+          companyNo: '456789012',
+          location: 'Sepang, Selangor',
+          product: 'Khind Rice Cooker',
+          amount: '1',
+          spent: 'RM59.00'
+        },
+        'participant3': {
+          name: 'Sarah Binti Rahman',
+          phone: '+60198765432',
+          email: 'sarah.rahman@email.com',
+          ic: '920315-08-5678',
+          contest: 'Back to School',
+          status: 'VALID',
+          errors: '-',
+          store: 'COURTS',
+          companyNo: '789012345',
+          location: 'Kuala Lumpur, KL',
+          product: 'Khind Blender',
+          amount: '1',
+          spent: 'RM299.00'
+        },
+        'participant4': {
+          name: 'Ahmad Bin Abdullah',
+          phone: '+60123456789',
+          email: 'ahmad@email.com',
+          ic: '880210-05-9012',
+          contest: 'Merdeka W1',
+          status: 'FLAGGED',
+          errors: 'Receipt not clear, Missing store info',
+          store: 'HARVEY NORMAN',
+          companyNo: '012345678',
+          location: 'Johor Bahru, Johor',
+          product: 'Khind Toaster',
+          amount: '1',
+          spent: 'RM89.50'
+        },
+        'participant5': {
+          name: 'Lim Wei Ming',
+          phone: '+60155512345',
+          email: 'lim.weiming@email.com',
+          ic: '930512-12-3456',
+          contest: 'Back to School',
+          status: 'VALID',
+          errors: '-',
+          store: 'SENHENG',
+          companyNo: '345678901',
+          location: 'Penang, Penang',
+          product: 'Khind Fan',
+          amount: '1',
+          spent: 'RM159.00'
+        }
+      };
+      
+      const participant = participantData[participantId];
+      if (participant) {
+        // Update participant name
+        document.getElementById('participantName').textContent = participant.name;
+        
+        // Show/hide flagged actions based on status
+        const flaggedActions = document.getElementById('flaggedActions');
+        if (participant.status === 'FLAGGED') {
+          flaggedActions.style.display = 'block';
+        } else {
+          flaggedActions.style.display = 'none';
+        }
+        
+        // Hide manual entry by default
+        document.getElementById('manualReceiptEntry').style.display = 'none';
+      }
+    }
+
+    // Toggle manual entry form
+    function toggleManualEntry() {
+      const manualEntry = document.getElementById('manualReceiptEntry');
+      if (manualEntry.style.display === 'none') {
+        manualEntry.style.display = 'block';
+      } else {
+        manualEntry.style.display = 'none';
+      }
+    }
+
+    // Send custom prompt
+    function sendCustomPrompt() {
+      const promptText = document.getElementById('customPrompt').value;
+      if (promptText.trim()) {
+        alert(`Sending custom prompt: "${promptText}"\n\nIn a real implementation, this would:\n1. Send the message to the participant\n2. Log the interaction\n3. Update the conversation history`);
+        // Clear the prompt
+        document.getElementById('customPrompt').value = '';
+      } else {
+        alert('Please enter a custom prompt message.');
+      }
+    }
+
+    // Save manual entry
+    function saveManualEntry() {
+      const store = document.getElementById('manualStore').value;
+      const companyNo = document.getElementById('manualCompanyNo').value;
+      const location = document.getElementById('manualLocation').value;
+      const product = document.getElementById('manualProduct').value;
+      const quantity = document.getElementById('manualQuantity').value;
+      const amount = document.getElementById('manualAmount').value;
+      
+      if (store && companyNo && location && product && quantity && amount) {
+        alert(`Manual entry saved:\nStore: ${store}\nCompany No: ${companyNo}\nLocation: ${location}\nProduct: ${product}\nQuantity: ${quantity}\nAmount: ${amount}\n\nIn a real implementation, this would update the participant's receipt information.`);
+        cancelManualEntry();
+      } else {
+        alert('Please fill in all fields.');
+      }
+    }
+
+    // Cancel manual entry
+    function cancelManualEntry() {
+      document.getElementById('manualReceiptEntry').style.display = 'none';
+      // Clear form
+      document.getElementById('manualStore').value = '';
+      document.getElementById('manualCompanyNo').value = '';
+      document.getElementById('manualLocation').value = '';
+      document.getElementById('manualProduct').value = '';
+      document.getElementById('manualQuantity').value = '';
+      document.getElementById('manualAmount').value = '';
+    }
+
+    // Filter functions
+    function handleContestFilter(contestId) {
+      console.log('Filtering by contest:', contestId);
+      // Implement contest filtering logic
+    }
+
+    function handleStatusFilter(status) {
+      console.log('Filtering by status:', status);
+      // Implement status filtering logic
+    }
+
+    function handleSearch(query) {
+      console.log('Searching for:', query);
+      // Implement search logic
+    }
+
+    // Close panel when clicking outside
+    document.addEventListener('click', function(event) {
+      const detailPanel = document.getElementById('detailPanel');
+      const overlay = document.getElementById('overlay');
+      
+      if (event.target === overlay) {
+        closeParticipantDetails();
+      }
+    });
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('open');
+    }
+
+    // Add mobile menu button if needed
+    if (window.innerWidth <= 1024) {
+      const header = document.querySelector('.page-header');
+      const menuBtn = document.createElement('button');
+      menuBtn.innerHTML = '☰';
+      menuBtn.style.marginRight = '12px';
+      menuBtn.onclick = toggleSidebar;
+      header.insertBefore(menuBtn, header.firstChild);
+    }
+  </script>
+</body>
+</html>

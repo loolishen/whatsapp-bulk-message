@@ -9,6 +9,7 @@ import re
 import logging
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 try:
     from .models import Contact, Message, BulkMessage, Campaign, CustomerSegment, Purchase, WhatsAppMessage, OCRProcessingLog
 except Exception:  # during migrations or model refactors
@@ -800,6 +801,261 @@ def contest_verify_entry(request, entry_id):
         'contest': entry.contest,
     }
     return render(request, 'messaging/contest_verify_entry.html', context)
+
+
+@login_required
+def contest_manager(request):
+    """Contest manager page with detailed entries table"""
+    try:
+        tenant = _get_tenant(request)
+        if not _require_plan(tenant, 'contest'):
+            return redirect('dashboard')
+    except Exception as e:
+        print(f"Error in contest_manager: {e}")
+        return redirect('dashboard')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '')
+    store_filter = request.GET.get('store', '')
+    location_filter = request.GET.get('location', '')
+    
+    # Sample data for demonstration (replace with actual data)
+    sample_entries = [
+        {
+            'submission_no': 'MLP_784',
+            'amount_spent': 'RM59.00',
+            'validity': 'valid',
+            'reason': '-',
+            'store': 'ED FEST',
+            'store_location': 'Sepang, Selangor',
+            'full_name': 'Muhammad Dzulfadhlie Bin Djunaidie',
+            'phone_number': '+601127052763',
+            'email': 'fadhlie2402.md@gmail.com',
+            'address': 'MA-14-13, Mira at shorea park, jalan meranti jaya 13, 47120',
+            'postcode': '47100',
+            'city': 'Sepang',
+            'state': 'Selangor',
+            'receipt_url': '#'
+        },
+        {
+            'submission_no': 'MLP_785',
+            'amount_spent': 'RM549.00',
+            'validity': 'valid',
+            'reason': '-',
+            'store': 'SK HARDWARE (KUCHING) SON.BHD',
+            'store_location': 'Kuching, Sarawak',
+            'full_name': 'Bong Kar Chun',
+            'phone_number': '+60168922696',
+            'email': 'bongkarchun@gmail.com',
+            'address': 'No 406,Lorong 7 Jalan Semaba',
+            'postcode': '93250',
+            'city': 'Kuching',
+            'state': 'Sarawak',
+            'receipt_url': '#'
+        },
+        {
+            'submission_no': 'MLP_786',
+            'amount_spent': 'RM89.50',
+            'validity': 'invalid',
+            'reason': 'Receipt not clear',
+            'store': 'HARVEY NORMAN',
+            'store_location': 'Johor Bahru, Johor',
+            'full_name': 'Ahmad Bin Abdullah',
+            'phone_number': '+60123456789',
+            'email': 'ahmad@email.com',
+            'address': '123 Jalan Tebrau, Taman Century',
+            'postcode': '80250',
+            'city': 'Johor Bahru',
+            'state': 'Johor',
+            'receipt_url': '#'
+        },
+        {
+            'submission_no': 'MLP_787',
+            'amount_spent': 'RM299.00',
+            'validity': 'valid',
+            'reason': '-',
+            'store': 'COURTS',
+            'store_location': 'Kuala Lumpur, KL',
+            'full_name': 'Sarah Binti Rahman',
+            'phone_number': '+60198765432',
+            'email': 'sarah.rahman@email.com',
+            'address': '456 Jalan Ampang, Taman U-Thant',
+            'postcode': '50450',
+            'city': 'Kuala Lumpur',
+            'state': 'Kuala Lumpur',
+            'receipt_url': '#'
+        },
+        {
+            'submission_no': 'MLP_788',
+            'amount_spent': 'RM159.00',
+            'validity': 'valid',
+            'reason': '-',
+            'store': 'SENHENG',
+            'store_location': 'Penang, Penang',
+            'full_name': 'Lim Wei Ming',
+            'phone_number': '+60155512345',
+            'email': 'lim.weiming@email.com',
+            'address': '789 Jalan Burma, George Town',
+            'postcode': '10050',
+            'city': 'George Town',
+            'state': 'Penang',
+            'receipt_url': '#'
+        }
+    ]
+    
+    # Apply store and location filters to sample data
+    if store_filter:
+        sample_entries = [entry for entry in sample_entries if store_filter.lower() in entry['store'].lower()]
+    
+    if location_filter:
+        sample_entries = [entry for entry in sample_entries if location_filter.lower() in entry['store_location'].lower()]
+    
+    context = {
+        'entries': sample_entries,
+        'total_entries': len(sample_entries),
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'store_filter': store_filter,
+        'location_filter': location_filter,
+    }
+    return render(request, 'messaging/contest_manager.html', context)
+
+
+@login_required
+def participants_manager(request):
+    """Participants manager page with filtering and detailed view"""
+    try:
+        tenant = _get_tenant(request)
+        if not _require_plan(tenant, 'contest'):
+            return redirect('dashboard')
+    except Exception as e:
+        print(f"Error in participants_manager: {e}")
+        return redirect('dashboard')
+    
+    # Get filter parameters
+    contest_filter = request.GET.get('contest', '')
+    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()
+    
+    # Sample participants data
+    participants = [
+        {
+            'id': 'participant1',
+            'name': 'Loo Li Shen',
+            'phone': '0162107682',
+            'email': 'loolishen016@gmail.com',
+            'ic': '041030 10 1963',
+            'contest': 'Merdeka W1',
+            'status': 'flagged',
+            'errors': 'Invalid Receipt, Unreadable',
+            'submission_date': 'Sep 15, 2024',
+            'store': 'Jaya Grocer',
+            'company_no': '123123123',
+            'location': 'Subang Jaya, Selangor',
+            'product': 'BLDC Fan',
+            'amount': '1',
+            'spent': 'RM123'
+        },
+        {
+            'id': 'participant2',
+            'name': 'Muhammad Dzulfadhlie',
+            'phone': '+601127052763',
+            'email': 'fadhlie2402.md@gmail.com',
+            'ic': '950815-10-1234',
+            'contest': 'Merdeka W1',
+            'status': 'valid',
+            'errors': '-',
+            'submission_date': 'Sep 14, 2024',
+            'store': 'ED FEST',
+            'company_no': '456789012',
+            'location': 'Sepang, Selangor',
+            'product': 'Khind Rice Cooker',
+            'amount': '1',
+            'spent': 'RM59.00'
+        },
+        {
+            'id': 'participant3',
+            'name': 'Sarah Binti Rahman',
+            'phone': '+60198765432',
+            'email': 'sarah.rahman@email.com',
+            'ic': '920315-08-5678',
+            'contest': 'Back to School',
+            'status': 'valid',
+            'errors': '-',
+            'submission_date': 'Aug 25, 2024',
+            'store': 'COURTS',
+            'company_no': '789012345',
+            'location': 'Kuala Lumpur, KL',
+            'product': 'Khind Blender',
+            'amount': '1',
+            'spent': 'RM299.00'
+        },
+        {
+            'id': 'participant4',
+            'name': 'Ahmad Bin Abdullah',
+            'phone': '+60123456789',
+            'email': 'ahmad@email.com',
+            'ic': '880210-05-9012',
+            'contest': 'Merdeka W1',
+            'status': 'flagged',
+            'errors': 'Receipt not clear, Missing store info',
+            'submission_date': 'Sep 16, 2024',
+            'store': 'HARVEY NORMAN',
+            'company_no': '012345678',
+            'location': 'Johor Bahru, Johor',
+            'product': 'Khind Toaster',
+            'amount': '1',
+            'spent': 'RM89.50'
+        },
+        {
+            'id': 'participant5',
+            'name': 'Lim Wei Ming',
+            'phone': '+60155512345',
+            'email': 'lim.weiming@email.com',
+            'ic': '930512-12-3456',
+            'contest': 'Back to School',
+            'status': 'valid',
+            'errors': '-',
+            'submission_date': 'Aug 20, 2024',
+            'store': 'SENHENG',
+            'company_no': '345678901',
+            'location': 'Penang, Penang',
+            'product': 'Khind Fan',
+            'amount': '1',
+            'spent': 'RM159.00'
+        }
+    ]
+    
+    # Apply filters
+    if contest_filter:
+        if contest_filter == 'merdeka':
+            participants = [p for p in participants if p['contest'] == 'Merdeka W1']
+        elif contest_filter == 'backtoschool':
+            participants = [p for p in participants if p['contest'] == 'Back to School']
+        elif contest_filter == 'holiday':
+            participants = [p for p in participants if p['contest'] == 'Holiday Special']
+    
+    if status_filter:
+        if status_filter == 'valid':
+            participants = [p for p in participants if p['status'] == 'valid']
+        elif status_filter == 'flagged':
+            participants = [p for p in participants if p['status'] == 'flagged']
+    
+    if search_query:
+        participants = [p for p in participants if 
+                      search_query.lower() in p['name'].lower() or
+                      search_query.lower() in p['phone'].lower() or
+                      search_query.lower() in p['email'].lower()]
+    
+    context = {
+        'participants': participants,
+        'total_participants': len(participants),
+        'contest_filter': contest_filter,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    return render(request, 'messaging/participants_manager.html', context)
 
 def analytics_dashboard(request):
     """Analytics dashboard with data visualizations"""

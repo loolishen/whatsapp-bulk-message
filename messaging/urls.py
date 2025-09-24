@@ -25,6 +25,8 @@ urlpatterns = [
     # Contest management
     path('contest/', views.contest_home, name='contest_home'),
     path('contest/create/', views.contest_create, name='contest_create'),
+    path('contest/manager/', views.contest_manager, name='contest_manager'),
+    path('participants/', views.participants_manager, name='participants_manager'),
     path('contest/<str:contest_id>/', views.contest_detail, name='contest_detail'),
     path('contest/<str:contest_id>/entries/', views.contest_entries, name='contest_entries'),
     path('contest/entry/<str:entry_id>/verify/', views.contest_verify_entry, name='contest_verify_entry'),

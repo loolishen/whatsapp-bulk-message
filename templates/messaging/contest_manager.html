@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Contest Manager - Detailed Entries</title>
+
+  <style>
+    /* ===== Google Material Design Variables ===== */
+    :root{
+      --primary:#1a73e8; --primary-hover:#1557b0; --primary-light:#e8f0fe;
+      --secondary:#34a853; --secondary-hover:#2d8f47; --secondary-light:#e6f4ea;
+      --success:#34a853; --warning:#fbbc04; --danger:#ea4335; --info:#4285f4;
+      --gray:#f8f9fa; --gray-dark:#5f6368; --gray-light:#f1f3f4;
+      --white:#ffffff; --black:#202124; --text:#202124; --text-muted:#5f6368;
+      --border:#dadce0; --shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --shadow-hover:0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+      --radius:8px; --radius-lg:12px; --radius-xl:16px;
+      --font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{
+      background:var(--gray); color:var(--text); font-family:var(--font-family);
+      line-height:1.5; font-size:14px
+    }
+
+    /* ===== Sidebar Navigation ===== */
+    .sidebar{
+      position:fixed; top:0; left:0; width:280px; height:100vh;
+      background:var(--white); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)
+    }
+    .sidebar-header{
+      padding:24px; border-bottom:1px solid var(--border); text-align:center
+    }
+    .profile-section{
+      display:flex; flex-direction:column; align-items:center; gap:12px
+    }
+    .profile-avatar{
+      width:60px; height:60px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px
+    }
+    .profile-name{
+      font-size:18px; font-weight:500; color:var(--text); margin:0
+    }
+    .profile-role{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+    .sidebar-nav{
+      flex:1; padding:24px 0; overflow-y:auto
+    }
+    .nav-item{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:300;
+      color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px
+    }
+    .nav-item:hover{
+      background:var(--gray-light); color:var(--text); border-left-color:var(--primary)
+    }
+    .nav-item.active{
+      background:var(--primary-light); color:var(--primary); border-left-color:var(--primary);
+      font-weight:500
+    }
+    .nav-item-icon{
+      margin-right:12px; font-size:16px
+    }
+
+    /* ===== Main Content ===== */
+    .main-content{
+      margin-left:280px; padding:24px 32px; min-height:100vh
+    }
+
+    /* ===== Page Header ===== */
+    .page-header{
+      display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;
+      padding-bottom:16px; border-bottom:1px solid var(--border)
+    }
+    .page-title{
+      font-size:24px; font-weight:400; color:var(--text); margin:0
+    }
+    .page-subtitle{
+      font-size:14px; color:var(--text-muted); margin:4px 0 0 0
+    }
+    .header-actions{
+      display:flex; gap:12px; align-items:center
+    }
+
+    /* ===== Google Material Buttons ===== */
+    .btn{
+      padding:8px 16px; border-radius:4px; text-decoration:none; font-weight:500;
+      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      font-size:14px; text-transform:none; box-shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15)
+    }
+    .btn:hover{box-shadow:var(--shadow-hover)}
+    .btn-primary{
+      background:var(--primary); color:white
+    }
+    .btn-primary:hover{background:var(--primary-hover); color:white}
+    .btn-secondary{
+      background:var(--white); color:var(--text); border:1px solid var(--border)
+    }
+    .btn-secondary:hover{background:var(--gray-light); color:var(--text)}
+    .btn-icon{
+      padding:8px; border-radius:50%; background:var(--white); color:var(--text-muted);
+      border:1px solid var(--border); box-shadow:var(--shadow)
+    }
+    .btn-icon:hover{background:var(--gray-light); color:var(--text)}
+    .btn-sm{
+      padding:4px 8px; font-size:10px; border-radius:4px
+    }
+
+    /* ===== Contest Table Styles ===== */
+    .contest-row{
+      cursor:pointer; transition:all 0.2s
+    }
+    .contest-row:hover{
+      background:var(--gray-light)
+    }
+    .contest-row.active{
+      background:var(--primary-light); border-left:4px solid var(--primary)
+    }
+    .contest-details-row{
+      background:var(--gray-light)
+    }
+    .contest-details-row td{
+      padding:0; border-top:none; border-bottom:1px solid var(--border)
+    }
+
+    /* ===== Search and Filter Bar ===== */
+    .search-filter-bar{
+      background:var(--white); border-radius:var(--radius); padding:16px 20px;
+      box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:20px;
+      display:flex; gap:16px; align-items:center; flex-wrap:wrap
+    }
+    .search-box{
+      flex:1; min-width:300px; position:relative
+    }
+    .search-input{
+      width:100%; padding:12px 16px 12px 40px; border:1px solid var(--border);
+      border-radius:24px; font-size:14px; background:var(--gray-light);
+      transition:all 0.2s
+    }
+    .search-input:focus{
+      outline:none; border-color:var(--primary); background:var(--white);
+      box-shadow:0 0 0 2px var(--primary-light)
+    }
+    .search-icon{
+      position:absolute; left:12px; top:50%; transform:translateY(-50%);
+      color:var(--text-muted); font-size:16px
+    }
+    .filter-group{
+      display:flex; flex-direction:column; gap:4px; min-width:120px
+    }
+    .filter-label{
+      font-size:12px; font-weight:500; color:var(--text-muted); text-transform:uppercase
+    }
+    .filter-select{
+      padding:8px 12px; border:1px solid var(--border); border-radius:4px;
+      background:var(--white); font-size:14px; color:var(--text)
+    }
+    .filter-select:focus{
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light)
+    }
+
+    /* ===== Data Table Container ===== */
+    .table-container{
+      background:var(--white); border-radius:var(--radius); box-shadow:var(--shadow);
+      border:1px solid var(--border); overflow:hidden
+    }
+    .table-header{
+      padding:16px 20px; border-bottom:1px solid var(--border); background:var(--gray-light)
+    }
+    .table-title{
+      font-size:16px; font-weight:500; color:var(--text); margin:0
+    }
+    .table-subtitle{
+      font-size:12px; color:var(--text-muted); margin:4px 0 0 0
+    }
+
+    /* ===== Google Material Table ===== */
+    .data-table{
+      width:100%; border-collapse:collapse; font-size:13px
+    }
+    .data-table th{
+      background:var(--gray-light); color:var(--text); font-weight:500; padding:12px 16px;
+      text-align:left; border-bottom:1px solid var(--border); white-space:nowrap;
+      font-size:12px; text-transform:uppercase; letter-spacing:0.5px
+    }
+    .data-table td{
+      padding:12px 16px; border-bottom:1px solid var(--border); vertical-align:top;
+      color:var(--text); font-size:13px
+    }
+    .data-table tr:hover{
+      background:var(--gray-light)
+    }
+    .data-table tr:last-child td{
+      border-bottom:none
+    }
+
+    /* ===== Table Cell Styles ===== */
+    .cell-submission{
+      font-family:'Roboto Mono', monospace; font-weight:500; color:var(--primary)
+    }
+    .cell-amount{
+      font-weight:500; color:var(--text)
+    }
+    .cell-validity{
+      display:inline-block; padding:4px 8px; border-radius:12px; font-size:11px;
+      font-weight:600; text-transform:uppercase
+    }
+    .cell-validity.valid{
+      background:var(--secondary-light); color:var(--secondary)
+    }
+    .cell-validity.invalid{
+      background:#fce8e6; color:var(--danger)
+    }
+    .cell-reason{
+      color:var(--text-muted); font-style:italic; max-width:150px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap
+    }
+    .cell-store{
+      font-weight:500; color:var(--text)
+    }
+    .cell-location{
+      color:var(--text-muted); font-size:12px
+    }
+    .cell-name{
+      font-weight:500; color:var(--text)
+    }
+    .cell-phone{
+      font-family:'Roboto Mono', monospace; color:var(--text-muted)
+    }
+    .cell-email{
+      color:var(--primary); text-decoration:none
+    }
+    .cell-email:hover{
+      text-decoration:underline
+    }
+    .cell-address{
+      color:var(--text-muted); font-size:12px; max-width:200px;
+      overflow:hidden; text-overflow:ellipsis; white-space:nowrap
+    }
+    .cell-postcode{
+      font-family:'Roboto Mono', monospace; color:var(--text-muted)
+    }
+    .cell-city{
+      color:var(--text)
+    }
+    .cell-state{
+      color:var(--text-muted); font-weight:500
+    }
+    .cell-receipt{
+      color:var(--primary); text-decoration:none; font-weight:500
+    }
+    .cell-receipt:hover{
+      text-decoration:underline
+    }
+
+    /* ===== Pagination ===== */
+    .pagination{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 20px; border-top:1px solid var(--border); background:var(--white)
+    }
+    .pagination-info{
+      font-size:12px; color:var(--text-muted)
+    }
+    .pagination-controls{
+      display:flex; gap:8px; align-items:center
+    }
+    .page-btn{
+      padding:8px 12px; border:1px solid var(--border); border-radius:4px;
+      text-decoration:none; color:var(--text); background:var(--white);
+      font-size:12px; transition:all 0.2s
+    }
+    .page-btn:hover{
+      background:var(--gray-light); border-color:var(--primary)
+    }
+    .page-btn.current{
+      background:var(--primary); color:white; border-color:var(--primary)
+    }
+    .page-btn:disabled{
+      opacity:0.5; cursor:not-allowed; background:var(--gray-light)
+    }
+
+    /* ===== Empty State ===== */
+    .empty-state{
+      text-align:center; padding:60px 20px; color:var(--text-muted)
+    }
+    .empty-state-icon{
+      font-size:48px; margin-bottom:16px; opacity:0.5
+    }
+    .empty-state-title{
+      font-size:18px; font-weight:400; margin-bottom:8px; color:var(--text)
+    }
+    .empty-state-text{
+      font-size:14px; color:var(--text-muted); margin-bottom:24px
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width: 1024px){
+      .main-content{margin-left:0; padding:16px}
+      .sidebar{transform:translateX(-100%); transition:transform 0.3s ease}
+      .sidebar.open{transform:translateX(0)}
+      .search-filter-bar{flex-direction:column; align-items:stretch}
+      .search-box{min-width:auto}
+    }
+    @media (max-width: 768px){
+      .data-table{font-size:11px}
+      .data-table th, .data-table td{padding:8px 12px}
+      .pagination{flex-direction:column; gap:12px; align-items:stretch}
+      .pagination-controls{justify-content:center}
+    }
+  </style>
+</head>
+<body>
+  <!-- Side Navigation -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">K</div>
+        <h3 class="profile-name">Khind</h3>
+        <p class="profile-role">Admin</p>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{% url 'contest_create' %}" class="nav-item">
+        <span class="nav-item-icon">➕</span>
+        Contest Creation
+      </a>
+      <a href="{% url 'contest_manager' %}" class="nav-item active">
+        <span class="nav-item-icon">🎯</span>
+        Contest Manager
+      </a>
+      <a href="{% url 'participants_manager' %}" class="nav-item">
+        <span class="nav-item-icon">👥</span>
+        Participants Manager
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Khind Merdeka Lucky Draw - Contest Management</h1>
+        <p class="page-subtitle">Detailed view of contest submissions and participant data</p>
+        <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+          <span>📅 Aug 15 - Sep 15, 2024</span>
+          <span>👥 156 total entries</span>
+          <span>✅ 142 verified</span>
+          <span style="color: var(--danger);">⚠️ 14 flagged</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="{% url 'contest_create' %}" class="btn btn-primary">
+          ➕ Create New Contest
+        </a>
+        <button class="btn btn-secondary" onclick="editContest()">
+          ✏️ Edit Contest
+        </button>
+        <button class="btn btn-icon" title="Export Data">📊</button>
+        <button class="btn btn-icon" title="Refresh">🔄</button>
+        <a href="{% url 'contest_home' %}" class="btn btn-secondary">
+          ← Back to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- All Contests Table -->
+    <div class="table-container" style="margin-bottom: 20px;">
+      <div class="table-header">
+        <h3 class="table-title">All Contests</h3>
+        <p class="table-subtitle">Click on any contest to view detailed entries and download data</p>
+      </div>
+      
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Contest Name</th>
+            <th>Status</th>
+            <th>Date Range</th>
+            <th>Total Entries</th>
+            <th>Verified</th>
+            <th>Flagged</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Current Contest (Active) -->
+          <tr class="contest-row active" onclick="toggleContestDetails('current')">
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <strong>Khind Merdeka Lucky Draw</strong>
+                <span style="background: var(--primary-light); color: var(--primary); padding: 2px 6px; border-radius: 8px; font-size: 10px;">CURRENT</span>
+              </div>
+            </td>
+            <td><span class="status-badge active">ACTIVE</span></td>
+            <td>Aug 15 - Sep 15, 2024</td>
+            <td><strong>156</strong></td>
+            <td><span style="color: var(--secondary);">142</span></td>
+            <td><span style="color: var(--danger);">14</span></td>
+            <td>
+              <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('current', 'csv')">📊 CSV</button>
+              <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('current', 'xlsx')">📈 XLSX</button>
+            </td>
+          </tr>
+          
+          <!-- Contest Details Row (Hidden by default) -->
+          <tr id="contest-details-current" class="contest-details-row" style="display: none;">
+            <td colspan="7">
+              <div style="padding: 20px; background: var(--gray-light); border-radius: var(--radius); margin: 8px 0;">
+                <h4 style="margin: 0 0 16px 0; color: var(--text);">Contest Details & Download Options</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Contest Information</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Description:</strong> Merdeka celebration contest with amazing prizes</div>
+                      <div><strong>Prize:</strong> RM10,000 cash + Khind products</div>
+                      <div><strong>Eligibility:</strong> Min RM50 purchase</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Statistics</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Total Entries:</strong> 156</div>
+                      <div><strong>Verified:</strong> 142 (91%)</div>
+                      <div><strong>Flagged:</strong> 14 (9%)</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Download Options</strong>
+                    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                      <button class="btn btn-primary btn-sm" onclick="downloadContestData('current', 'csv')">📊 Download CSV</button>
+                      <button class="btn btn-secondary btn-sm" onclick="downloadContestData('current', 'xlsx')">📈 Download XLSX</button>
+                      <button class="btn btn-secondary btn-sm" onclick="downloadContestData('current', 'pdf')">📄 Download PDF Report</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Other Contest 1 -->
+          <tr class="contest-row" onclick="toggleContestDetails('contest1')">
+            <td><strong>Khind Back to School</strong></td>
+            <td><span class="status-badge ended">ENDED</span></td>
+            <td>Jul 1 - Aug 31, 2024</td>
+            <td><strong>89</strong></td>
+            <td><span style="color: var(--secondary);">78</span></td>
+            <td><span style="color: var(--gray-dark);">0</span></td>
+            <td>
+              <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('contest1', 'csv')">📊 CSV</button>
+              <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('contest1', 'xlsx')">📈 XLSX</button>
+            </td>
+          </tr>
+          
+          <!-- Contest Details Row 1 -->
+          <tr id="contest-details-contest1" class="contest-details-row" style="display: none;">
+            <td colspan="7">
+              <div style="padding: 20px; background: var(--gray-light); border-radius: var(--radius); margin: 8px 0;">
+                <h4 style="margin: 0 0 16px 0; color: var(--text);">Contest Details & Download Options</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Contest Information</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Description:</strong> Back to school promotion contest</div>
+                      <div><strong>Prize:</strong> RM5,000 cash + school supplies</div>
+                      <div><strong>Eligibility:</strong> Min RM30 purchase</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Statistics</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Total Entries:</strong> 89</div>
+                      <div><strong>Verified:</strong> 78 (88%)</div>
+                      <div><strong>Flagged:</strong> 0 (0%)</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Download Options</strong>
+                    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                      <button class="btn btn-primary btn-sm" onclick="downloadContestData('contest1', 'csv')">📊 Download CSV</button>
+                      <button class="btn btn-secondary btn-sm" onclick="downloadContestData('contest1', 'xlsx')">📈 Download XLSX</button>
+                      <button class="btn btn-secondary btn-sm" onclick="downloadContestData('contest1', 'pdf')">📄 Download PDF Report</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Other Contest 2 -->
+          <tr class="contest-row" onclick="toggleContestDetails('contest2')">
+            <td><strong>Khind Holiday Special</strong></td>
+            <td><span class="status-badge upcoming">UPCOMING</span></td>
+            <td>Dec 1 - Dec 31, 2024</td>
+            <td><strong>0</strong></td>
+            <td><span style="color: var(--gray-dark);">0</span></td>
+            <td><span style="color: var(--gray-dark);">0</span></td>
+            <td>
+              <button class="btn btn-sm" disabled onclick="event.stopPropagation()">📊 CSV</button>
+              <button class="btn btn-sm" disabled onclick="event.stopPropagation()">📈 XLSX</button>
+            </td>
+          </tr>
+          
+          <!-- Contest Details Row 2 -->
+          <tr id="contest-details-contest2" class="contest-details-row" style="display: none;">
+            <td colspan="7">
+              <div style="padding: 20px; background: var(--gray-light); border-radius: var(--radius); margin: 8px 0;">
+                <h4 style="margin: 0 0 16px 0; color: var(--text);">Contest Details & Download Options</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Contest Information</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Description:</strong> Holiday season special contest</div>
+                      <div><strong>Prize:</strong> RM15,000 cash + premium Khind products</div>
+                      <div><strong>Eligibility:</strong> Min RM100 purchase</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Statistics</strong>
+                    <div style="margin-top: 8px; font-size: 14px;">
+                      <div><strong>Total Entries:</strong> 0 (Not started)</div>
+                      <div><strong>Verified:</strong> 0</div>
+                      <div><strong>Flagged:</strong> 0</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Download Options</strong>
+                    <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+                      <button class="btn btn-sm" disabled>📊 Download CSV (No data)</button>
+                      <button class="btn btn-sm" disabled>📈 Download XLSX (No data)</button>
+                      <button class="btn btn-sm" disabled>📄 Download PDF Report (No data)</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Contest Selection and Search Bar -->
+    <div class="search-filter-bar">
+      <div class="filter-group" style="min-width: 200px;">
+        <label class="filter-label">Select Contest</label>
+        <select class="filter-select" onchange="handleContestChange(this.value)" id="contestSelector">
+          <option value="current" selected>Khind Merdeka Lucky Draw (Current)</option>
+          <option value="contest1">Khind Back to School (Ended)</option>
+          <option value="contest2">Khind Holiday Special (Upcoming)</option>
+        </select>
+      </div>
+      
+      <div class="search-box" style="flex: 1; min-width: 300px;">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search entries by name, phone, email, or submission number..." 
+               value="{{ search_query }}" onkeyup="handleSearch(this.value)" id="entrySearch">
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select class="filter-select" onchange="handleFilter('status', this.value)">
+          <option value="">All Status</option>
+          <option value="valid" {% if status_filter == 'valid' %}selected{% endif %}>Valid</option>
+          <option value="invalid" {% if status_filter == 'invalid' %}selected{% endif %}>Invalid</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Store</label>
+        <select class="filter-select" onchange="handleFilter('store', this.value)">
+          <option value="">All Stores</option>
+          <option value="ED FEST" {% if store_filter == 'ED FEST' %}selected{% endif %}>ED FEST</option>
+          <option value="SK HARDWARE" {% if store_filter == 'SK HARDWARE' %}selected{% endif %}>SK HARDWARE</option>
+          <option value="HARVEY NORMAN" {% if store_filter == 'HARVEY NORMAN' %}selected{% endif %}>HARVEY NORMAN</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label class="filter-label">Location</label>
+        <select class="filter-select" onchange="handleFilter('location', this.value)">
+          <option value="">All Locations</option>
+          <option value="Selangor" {% if location_filter == 'Selangor' %}selected{% endif %}>Selangor</option>
+          <option value="Sarawak" {% if location_filter == 'Sarawak' %}selected{% endif %}>Sarawak</option>
+          <option value="Johor" {% if location_filter == 'Johor' %}selected{% endif %}>Johor</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3 class="table-title" id="entriesTitle">Contest Entries (156 total)</h3>
+        <p class="table-subtitle">Click on any row to view detailed information</p>
+      </div>
+      
+      {% if entries %}
+      
+      <!-- Current Contest Entries (Default) -->
+      <div id="entries-current" class="contest-entries">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submission No</th>
+              <th>Amount Spent</th>
+              <th>Validity</th>
+              <th>Reason for Invalidity</th>
+              <th>Store</th>
+              <th>Store Location</th>
+              <th>Full Name</th>
+              <th>Phone Number</th>
+              <th>Email Address</th>
+              <th>Address</th>
+              <th>Postcode</th>
+              <th>City</th>
+              <th>State</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Current Contest Entries -->
+            <tr onclick="viewEntryDetails('MLP_784')">
+              <td class="cell-submission">MLP_784</td>
+              <td class="cell-amount">RM59.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">ED FEST</td>
+              <td class="cell-location">Sepang, Selangor</td>
+              <td class="cell-name">Muhammad Dzulfadhlie Bin Djunaidie</td>
+              <td class="cell-phone">+601127052763</td>
+              <td><a href="mailto:fadhlie2402.md@gmail.com" class="cell-email">fadhlie2402.md@gmail.com</a></td>
+              <td class="cell-address">MA-14-13, Mira at shorea park, jalan meranti jaya 13, 47120</td>
+              <td class="cell-postcode">47100</td>
+              <td class="cell-city">Sepang</td>
+              <td class="cell-state">Selangor</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('MLP_785')">
+              <td class="cell-submission">MLP_785</td>
+              <td class="cell-amount">RM549.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">SK HARDWARE (KUCHING) SON.BHD</td>
+              <td class="cell-location">Kuching, Sarawak</td>
+              <td class="cell-name">Bong Kar Chun</td>
+              <td class="cell-phone">+60168922696</td>
+              <td><a href="mailto:bongkarchun@gmail.com" class="cell-email">bongkarchun@gmail.com</a></td>
+              <td class="cell-address">No 406,Lorong 7 Jalan Semaba</td>
+              <td class="cell-postcode">93250</td>
+              <td class="cell-city">Kuching</td>
+              <td class="cell-state">Sarawak</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('MLP_786')">
+              <td class="cell-submission">MLP_786</td>
+              <td class="cell-amount">RM89.50</td>
+              <td><span class="cell-validity invalid">INVALID</span></td>
+              <td class="cell-reason">Receipt not clear</td>
+              <td class="cell-store">HARVEY NORMAN</td>
+              <td class="cell-location">Johor Bahru, Johor</td>
+              <td class="cell-name">Ahmad Bin Abdullah</td>
+              <td class="cell-phone">+60123456789</td>
+              <td><a href="mailto:ahmad@email.com" class="cell-email">ahmad@email.com</a></td>
+              <td class="cell-address">123 Jalan Tebrau, Taman Century</td>
+              <td class="cell-postcode">80250</td>
+              <td class="cell-city">Johor Bahru</td>
+              <td class="cell-state">Johor</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('MLP_787')">
+              <td class="cell-submission">MLP_787</td>
+              <td class="cell-amount">RM299.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">COURTS</td>
+              <td class="cell-location">Kuala Lumpur, KL</td>
+              <td class="cell-name">Sarah Binti Rahman</td>
+              <td class="cell-phone">+60198765432</td>
+              <td><a href="mailto:sarah.rahman@email.com" class="cell-email">sarah.rahman@email.com</a></td>
+              <td class="cell-address">456 Jalan Ampang, Taman U-Thant</td>
+              <td class="cell-postcode">50450</td>
+              <td class="cell-city">Kuala Lumpur</td>
+              <td class="cell-state">Kuala Lumpur</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('MLP_788')">
+              <td class="cell-submission">MLP_788</td>
+              <td class="cell-amount">RM159.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">SENHENG</td>
+              <td class="cell-location">Penang, Penang</td>
+              <td class="cell-name">Lim Wei Ming</td>
+              <td class="cell-phone">+60155512345</td>
+              <td><a href="mailto:lim.weiming@email.com" class="cell-email">lim.weiming@email.com</a></td>
+              <td class="cell-address">789 Jalan Burma, George Town</td>
+              <td class="cell-postcode">10050</td>
+              <td class="cell-city">George Town</td>
+              <td class="cell-state">Penang</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Contest 1 Entries (Hidden by default) -->
+      <div id="entries-contest1" class="contest-entries" style="display: none;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Submission No</th>
+              <th>Amount Spent</th>
+              <th>Validity</th>
+              <th>Reason for Invalidity</th>
+              <th>Store</th>
+              <th>Store Location</th>
+              <th>Full Name</th>
+              <th>Phone Number</th>
+              <th>Email Address</th>
+              <th>Address</th>
+              <th>Postcode</th>
+              <th>City</th>
+              <th>State</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Back to School Contest Entries -->
+            <tr onclick="viewEntryDetails('BTS_001')">
+              <td class="cell-submission">BTS_001</td>
+              <td class="cell-amount">RM45.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">HARVEY NORMAN</td>
+              <td class="cell-location">Johor Bahru, Johor</td>
+              <td class="cell-name">Fatimah Binti Ali</td>
+              <td class="cell-phone">+60123456789</td>
+              <td><a href="mailto:fatimah.ali@email.com" class="cell-email">fatimah.ali@email.com</a></td>
+              <td class="cell-address">123 Jalan Tebrau, Taman Century</td>
+              <td class="cell-postcode">80250</td>
+              <td class="cell-city">Johor Bahru</td>
+              <td class="cell-state">Johor</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('BTS_002')">
+              <td class="cell-submission">BTS_002</td>
+              <td class="cell-amount">RM78.50</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">COURTS</td>
+              <td class="cell-location">Kuala Lumpur, KL</td>
+              <td class="cell-name">Raj Kumar</td>
+              <td class="cell-phone">+60198765432</td>
+              <td><a href="mailto:raj.kumar@email.com" class="cell-email">raj.kumar@email.com</a></td>
+              <td class="cell-address">456 Jalan Ampang, Taman U-Thant</td>
+              <td class="cell-postcode">50450</td>
+              <td class="cell-city">Kuala Lumpur</td>
+              <td class="cell-state">Kuala Lumpur</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+            <tr onclick="viewEntryDetails('BTS_003')">
+              <td class="cell-submission">BTS_003</td>
+              <td class="cell-amount">RM32.00</td>
+              <td><span class="cell-validity valid">VALID</span></td>
+              <td class="cell-reason">-</td>
+              <td class="cell-store">SENHENG</td>
+              <td class="cell-location">Penang, Penang</td>
+              <td class="cell-name">Tan Mei Ling</td>
+              <td class="cell-phone">+60155512345</td>
+              <td><a href="mailto:tan.meiling@email.com" class="cell-email">tan.meiling@email.com</a></td>
+              <td class="cell-address">789 Jalan Burma, George Town</td>
+              <td class="cell-postcode">10050</td>
+              <td class="cell-city">George Town</td>
+              <td class="cell-state">Penang</td>
+              <td><a href="#" class="cell-receipt" onclick="event.stopPropagation()">View Receipt</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Contest 2 Entries (Hidden by default) -->
+      <div id="entries-contest2" class="contest-entries" style="display: none;">
+        <div class="empty-state">
+          <div class="empty-state-icon">📅</div>
+          <h3 class="empty-state-title">Contest Not Started</h3>
+          <p class="empty-state-text">
+            This contest hasn't started yet. Entries will appear here once the contest begins on December 1, 2024.
+          </p>
+        </div>
+      </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+          <div class="pagination-info">
+            Showing 1-5 of {{ total_entries }} entries
+          </div>
+          <div class="pagination-controls">
+            <a href="#" class="page-btn" disabled>Previous</a>
+            <a href="#" class="page-btn current">1</a>
+            <a href="#" class="page-btn">2</a>
+            <a href="#" class="page-btn">3</a>
+            <a href="#" class="page-btn">Next</a>
+          </div>
+        </div>
+      {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+          <div class="empty-state-icon">📋</div>
+          <h3 class="empty-state-title">No Contest Entries Found</h3>
+          <p class="empty-state-text">
+            No contest entries match your current search criteria. Try adjusting your filters or search terms.
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Contest change functionality
+    function handleContestChange(contestId) {
+      // Hide all contest entries
+      document.querySelectorAll('.contest-entries').forEach(entries => {
+        entries.style.display = 'none';
+      });
+      
+      // Show selected contest entries
+      const selectedEntries = document.getElementById(`entries-${contestId}`);
+      if (selectedEntries) {
+        selectedEntries.style.display = 'block';
+      }
+      
+      // Update title and stats
+      const contestData = {
+        'current': { name: 'Khind Merdeka Lucky Draw', total: 156, verified: 142, flagged: 14 },
+        'contest1': { name: 'Khind Back to School', total: 89, verified: 78, flagged: 0 },
+        'contest2': { name: 'Khind Holiday Special', total: 0, verified: 0, flagged: 0 }
+      };
+      
+      const contest = contestData[contestId];
+      if (contest) {
+        document.getElementById('entriesTitle').textContent = `Contest Entries (${contest.total} total)`;
+        
+        // Update page header with contest info
+        const pageTitle = document.querySelector('.page-title');
+        const pageSubtitle = document.querySelector('.page-subtitle');
+        if (pageTitle) pageTitle.textContent = `${contest.name} - Contest Management`;
+        if (pageSubtitle) pageSubtitle.textContent = `Detailed view of contest submissions and participant data`;
+        
+        // Update header stats
+        const headerStats = document.querySelector('.page-header div div');
+        if (headerStats && contestId !== 'contest2') {
+          headerStats.innerHTML = `
+            <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+              <span>👥 ${contest.total} total entries</span>
+              <span>✅ ${contest.verified} verified</span>
+              <span style="color: var(--danger);">⚠️ ${contest.flagged} flagged</span>
+            </div>
+          `;
+        } else if (headerStats && contestId === 'contest2') {
+          headerStats.innerHTML = `
+            <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-muted);">
+              <span>📅 Dec 1 - Dec 31, 2024</span>
+              <span>👥 0 total entries</span>
+              <span>✅ 0 verified</span>
+              <span>⚠️ 0 flagged</span>
+            </div>
+          `;
+        }
+      }
+      
+      // Clear search when switching contests
+      const searchInput = document.getElementById('entrySearch');
+      if (searchInput) {
+        searchInput.value = '';
+      }
+    }
+
+    // Search functionality with debouncing
+    let searchTimeout;
+    function handleSearch(query) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        // Get current contest
+        const contestSelector = document.getElementById('contestSelector');
+        const currentContest = contestSelector ? contestSelector.value : 'current';
+        
+        // Filter entries in the current contest
+        const currentEntries = document.getElementById(`entries-${currentContest}`);
+        if (currentEntries) {
+          const rows = currentEntries.querySelectorAll('tbody tr');
+          rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const matches = query.toLowerCase().split(' ').every(term => text.includes(term));
+            row.style.display = matches ? '' : 'none';
+          });
+        }
+      }, 300);
+    }
+
+    // Filter functionality
+    function handleFilter(type, value) {
+      const url = new URL(window.location);
+      if (value) {
+        url.searchParams.set(type, value);
+      } else {
+        url.searchParams.delete(type);
+      }
+      window.location.href = url.toString();
+    }
+
+    // View entry details
+    function viewEntryDetails(submissionNo) {
+      // This would typically open a modal or navigate to a detail page
+      alert(`Viewing details for submission: ${submissionNo}`);
+    }
+
+    // Edit contest functionality
+    function editContest() {
+      // This would typically open a modal or navigate to edit page
+      if (confirm('Edit contest settings? This will open the contest creation form with current values.')) {
+        // In a real implementation, this would navigate to edit page or open modal
+        window.location.href = '{% url "contest_create" %}?edit=true';
+      }
+    }
+
+    // Toggle contest details
+    function toggleContestDetails(contestId) {
+      const detailsRow = document.getElementById(`contest-details-${contestId}`);
+      if (detailsRow) {
+        if (detailsRow.style.display === 'none') {
+          // Close all other details rows
+          document.querySelectorAll('.contest-details-row').forEach(row => {
+            row.style.display = 'none';
+          });
+          // Show this details row
+          detailsRow.style.display = 'table-row';
+        } else {
+          // Hide this details row
+          detailsRow.style.display = 'none';
+        }
+      }
+    }
+
+    // Download contest data
+    function downloadContestData(contestId, format) {
+      // This would typically make an API call to download the data
+      const contestNames = {
+        'current': 'Khind Merdeka Lucky Draw',
+        'contest1': 'Khind Back to School',
+        'contest2': 'Khind Holiday Special'
+      };
+      
+      const contestName = contestNames[contestId] || 'Contest';
+      const fileName = `${contestName.replace(/\s+/g, '_')}_entries.${format}`;
+      
+      // Simulate download (in real implementation, this would be an actual download)
+      alert(`Downloading ${contestName} data as ${format.toUpperCase()}...\n\nFile: ${fileName}\n\nIn a real implementation, this would:\n1. Generate the file with contest data\n2. Include all participant information\n3. Format according to the selected type\n4. Trigger browser download`);
+      
+      // In a real implementation, you might do something like:
+      // window.location.href = `/api/contest/${contestId}/download?format=${format}`;
+    }
+
+    // Mobile sidebar toggle
+    function toggleSidebar() {
+      document.querySelector('.sidebar').classList.toggle('open');
+    }
+
+    // Add mobile menu button if needed
+    if (window.innerWidth <= 1024) {
+      const header = document.querySelector('.page-header');
+      const menuBtn = document.createElement('button');
+      menuBtn.innerHTML = '☰';
+      menuBtn.className = 'btn btn-icon';
+      menuBtn.style.marginRight = '12px';
+      menuBtn.onclick = toggleSidebar;
+      header.insertBefore(menuBtn, header.firstChild);
+    }
+  </script>
+</body>
+</html>
