@@ -1,12 +1,19 @@
 from pathlib import Path
 from typing import List, Optional, Any
-from paddleocr import PaddleOCR
 from PIL import Image, ImageOps
 import numpy as np
 import json
 import math
 from typing import Any, Iterable, Tuple
 import numpy as np
+
+# Try to import PaddleOCR, but don't fail if it's not available
+try:
+    from paddleocr import PaddleOCR
+    PADDLEOCR_AVAILABLE = True
+except ImportError:
+    PaddleOCR = None
+    PADDLEOCR_AVAILABLE = False
 
 
 # Config
@@ -15,8 +22,10 @@ JPEG_QUALITY = 85
 
 _ocr_instance: Optional[PaddleOCR] = None
 
-def _get_ocr() -> PaddleOCR:
+def _get_ocr() -> Optional[PaddleOCR]:
     global _ocr_instance
+    if not PADDLEOCR_AVAILABLE:
+        return None
     if _ocr_instance is not None:
         return _ocr_instance
     # try a few configs (some builds don't like show_log/use_angle_cls combos)
@@ -33,7 +42,11 @@ def _get_ocr() -> PaddleOCR:
             _ocr_instance = None
             continue
     if _ocr_instance is None:
-        _ocr_instance = PaddleOCR()
+        try:
+            _ocr_instance = PaddleOCR()
+        except Exception as e:
+            print(f"Failed to initialize PaddleOCR: {e}")
+            return None
     return _ocr_instance
 
 def _cached_resized_path(orig: Path) -> Path:
@@ -189,6 +202,10 @@ def _flatten_text_any(raw: Any) -> list[str]:
 
 def run_ocr(image_path: Path, debug_dump_to: Optional[Path] = None) -> List[str]:
     ocr = _get_ocr()
+    if ocr is None:
+        print("OCR not available - returning empty result")
+        return []
+    
     prepped = _prepare_image_for_ocr(Path(image_path))
     with Image.open(prepped) as im:
         im = im.convert("RGB")

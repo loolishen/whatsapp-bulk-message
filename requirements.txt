@@ -14,9 +14,9 @@ openpyxl==3.1.2
 # Image processing packages
 opencv-python==4.6.0.66
 
-# OCR packages
-paddleocr==2.7.3
-paddlepaddle==2.6.2
+# OCR packages (optional - may cause crashes in App Engine)
+# paddleocr==2.7.3
+# paddlepaddle==2.6.2
 
 # Cloud services
 cloudinary==1.36.0
