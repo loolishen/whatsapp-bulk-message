@@ -16,7 +16,7 @@ opencv-python==4.9.0.80
 
 # OCR packages
 paddleocr==2.7.3
-paddlepaddle==2.5.2
+paddlepaddle==2.6.2
 
 # Cloud services
 cloudinary==1.36.0
