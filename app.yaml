@@ -1,14 +1,54 @@
 runtime: python39
 env: standard
 
+# Automatic scaling configuration
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+  target_cpu_utilization: 0.6
+
+# Static files handler
 handlers:
 - url: /static
   static_dir: static/
+  secure: always
+  expiration: "1d"
+
+- url: /media
+  static_dir: media/
+  secure: always
+  expiration: "7d"
+
 - url: /.*
   script: auto
+  secure: always
 
+# Environment variables
 env_variables:
   DJANGO_SETTINGS_MODULE: "whatsapp_bulk.settings_production"
   SECRET_KEY: "your-secret-key-here"
   DEBUG: "False"
-  ALLOWED_HOSTS: "your-domain.com,*.appspot.com"
+  ALLOWED_HOSTS: "creativeunicorn.com,*.appspot.com,*.googleusercontent.com"
+  
+  # Database configuration (update with your Cloud SQL details)
+  DB_NAME: "whatsapp_bulk"
+  DB_USER: "postgres"
+  DB_PASSWORD: "your-db-password"
+  DB_HOST: "/cloudsql/your-project:region:instance-name"
+  DB_PORT: "5432"
+  
+  # WhatsApp API configuration
+  WHATSAPP_API_KEY: "your-whatsapp-api-key"
+  WHATSAPP_BASE_URL: "https://api.wabot.com/v1"
+  
+  # Cloudinary configuration
+  CLOUDINARY_CLOUD_NAME: "your-cloudinary-name"
+  CLOUDINARY_API_KEY: "your-cloudinary-key"
+  CLOUDINARY_API_SECRET: "your-cloudinary-secret"
+  
+  # Cloud Storage (for media files)
+  GS_BUCKET_NAME: "your-whatsapp-bulk-bucket"
+
+# Cloud SQL connection (update with your instance)
+beta_settings:
+  cloud_sql_instances: "your-project:region:instance-name"

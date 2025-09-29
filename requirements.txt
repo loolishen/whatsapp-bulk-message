@@ -5,3 +5,15 @@ python-decouple==3.8
 gunicorn==21.2.0
 whitenoise==6.6.0
 psycopg2-binary==2.9.7
+
+# GCP-specific packages
+google-cloud-storage==2.10.0
+google-cloud-sql-connector==1.4.3
+django-storages==1.14.2
+django-redis==5.4.0
+celery==5.3.4
+redis==5.0.1
+
+# Additional production packages
+django-cors-headers==4.3.1
+django-extensions==3.2.3
