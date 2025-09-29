@@ -992,7 +992,7 @@
     /* ===== Delete single / bulk ===== */
     function deleteContact(id){
       if(confirm('Are you sure you want to delete this customer?')){
-        window.location.href = `/delete-contact/${id}/`;
+        window.location.href = `{% url 'delete_contact' 'PLACEHOLDER' %}`.replace('PLACEHOLDER', id);
       }
     }
 
