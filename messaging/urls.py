@@ -31,6 +31,7 @@ urlpatterns = [
     path('contest/<str:contest_id>/entries/', views.contest_entries, name='contest_entries'),
     path('contest/entry/<str:entry_id>/verify/', views.contest_verify_entry, name='contest_verify_entry'),
     path('contest/analytics/', views.contest_analytics, name='contest_analytics'),
+    path('contest/toggle-status/', views.toggle_contest_status, name='toggle_contest_status'),
     
     # Auto Contest Management
     path('auto-contest/', auto_contest_views.auto_contest_dashboard, name='auto_contest_dashboard'),

@@ -1,0 +1,14 @@
+runtime: python39
+env: standard
+
+handlers:
+- url: /static
+  static_dir: static/
+- url: /.*
+  script: auto
+
+env_variables:
+  DJANGO_SETTINGS_MODULE: "whatsapp_bulk.settings_production"
+  SECRET_KEY: "your-secret-key-here"
+  DEBUG: "False"
+  ALLOWED_HOSTS: "your-domain.com,*.appspot.com"

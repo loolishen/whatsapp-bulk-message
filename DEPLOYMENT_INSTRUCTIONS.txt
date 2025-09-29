@@ -1,0 +1,48 @@
+cPanel Deployment Instructions
+================================
+
+1. UPLOAD FILES TO CPANEL:
+   - Upload all project files to: /public_html/whatsapp-bulk-message/
+   - Or create a subdomain and upload there
+
+2. SET UP PYTHON APP IN CPANEL:
+   - Go to "Python App" in cPanel
+   - Create new Python app
+   - Python version: 3.9 or higher
+   - App directory: /public_html/whatsapp-bulk-message
+   - App URL: your-domain.com (or subdomain)
+   - Application startup file: wsgi.py
+
+3. INSTALL DEPENDENCIES:
+   - In cPanel Python App, go to "Terminal"
+   - Run: pip install -r requirements.txt
+
+4. SET UP DATABASE:
+   - Create MySQL database in cPanel
+   - Update database settings in settings.py
+   - Run: python manage.py migrate
+
+5. CONFIGURE ENVIRONMENT VARIABLES:
+   - In cPanel Python App settings
+   - Add: DEBUG=False
+   - Add: SECRET_KEY=your-secret-key-here
+   - Add: ALLOWED_HOSTS=your-domain.com
+
+6. COLLECT STATIC FILES:
+   - Run: python manage.py collectstatic --noinput
+
+7. RESTART APPLICATION:
+   - Restart the Python app in cPanel
+
+8. TEST YOUR DEPLOYMENT:
+   - Visit your domain
+   - Check if all features work
+
+GITHUB INTEGRATION:
+- Connect your cPanel to GitHub
+- Set up auto-deployment on push
+- Your app will update automatically when you push to GitHub
+
+SUPPORT:
+- Check cPanel error logs if issues occur
+- Ensure all file permissions are correct (755 for directories, 644 for files)

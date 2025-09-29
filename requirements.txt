@@ -1,19 +1,7 @@
-Django==4.2.7
-Pillow==10.1.0
-gunicorn
-whitenoise
-psycopg2-binary        # for Postgres (Cloud SQL). Keep even if you first try SQLite
-dj-database-url
-google-cloud-storage   # needed later if you store uploads in Cloud Storage
-django-storages        # needed later if you store uploads in Cloud Storage
-cloudinary
-pandas
-requests
-openpyxl              # for Excel file processing
-xlrd==1.2.0           # for .xls file processing
-python-dateutil       # for date parsing
-pytesseract           # for OCR processing
-opencv-python         # for image processing
-numpy                 # for numerical operations
-celery                # for background tasks
-redis                 # for Celery broker
+Django==5.2.4
+Pillow==10.0.1
+requests==2.31.0
+python-decouple==3.8
+gunicorn==21.2.0
+whitenoise==6.6.0
+psycopg2-binary==2.9.7

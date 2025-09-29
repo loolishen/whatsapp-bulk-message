@@ -1,16 +1,21 @@
 # Django
+*.log
+*.pot
 *.pyc
 __pycache__/
+local_settings.py
 db.sqlite3
-*.sqlite3
+db.sqlite3-journal
 media/
-*.log
 
-# Virtual Environment
-venv/
+# Environment variables
+.env
+.venv
 env/
-.venv/
-.env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
@@ -21,21 +26,21 @@ env/
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Local settings
-local_settings.py
+# Static files
+static/
+staticfiles/
 
-# Migrations (keep initial migrations)
-messaging/migrations/0*.py
-!messaging/migrations/0001_initial.py
-!messaging/migrations/__init__.py
-
-# Uploaded files
-static/media/
-message_images/
+# cPanel specific
+cpanel-phpmyadmin/
+cpanel-phpmyadmin-*
 
 # Temporary files
-create_contacts.py
 *.tmp
-*.bak
+*.temp

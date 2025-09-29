@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>Contest Management - WhatsApp Bulk Message</title>
 
   <style>
@@ -220,6 +221,15 @@
     .status-empty{
       text-align:center; padding:20px; color:var(--text-muted); font-style:italic
     }
+    .status-item.flagged{
+      border-left:4px solid var(--danger)
+    }
+    .status-item.active{
+      border-left:4px solid var(--primary)
+    }
+    .status-item-date{
+      margin-top:8px; padding-top:8px; border-top:1px solid var(--border)
+    }
 
     /* ===== Contest Table ===== */
     .contest-table-section{
@@ -311,6 +321,40 @@
       padding:4px 8px; font-size:10px; border-radius:4px
     }
 
+    /* ===== Toggle Switch Styles ===== */
+    .contest-name-header{
+      display:flex; align-items:center; gap:12px
+    }
+    .contest-toggle-container{
+      flex-shrink:0
+    }
+    .contest-name-content{
+      flex:1
+    }
+    .toggle-switch{
+      position:relative; display:inline-block; width:44px; height:24px
+    }
+    .toggle-switch input{
+      opacity:0; width:0; height:0
+    }
+    .toggle-slider{
+      position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+      background-color:#ccc; transition:0.3s; border-radius:24px
+    }
+    .toggle-slider:before{
+      position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px;
+      background-color:white; transition:0.3s; border-radius:50%
+    }
+    .toggle-switch input:checked + .toggle-slider{
+      background-color:var(--primary)
+    }
+    .toggle-switch input:checked + .toggle-slider:before{
+      transform:translateX(20px)
+    }
+    .toggle-switch input:disabled + .toggle-slider{
+      opacity:0.5; cursor:not-allowed
+    }
+
     /* ===== Empty State ===== */
     .empty-state{
       text-align:center; padding:60px 20px; background:var(--white); border-radius:var(--radius-lg);
@@ -384,91 +428,102 @@
       </a>
     </div>
 
-    <!-- Contest Status Sections -->
+    <!-- Contest Status Sections - First Row -->
     <div class="contest-status-sections">
       <div class="status-section">
         <div class="status-header">
           <h3 class="status-title">Active Contests</h3>
-          <span class="status-count">{{ contests|length }}</span>
+          <span class="status-count">{{ overall_stats.active_contests }}</span>
         </div>
-        <div class="status-content">
-                   {% for contest in contests %}
-                     {% if contest.is_active and contest.starts_at <= now and contest.ends_at >= now %}
-                       <div class="status-item active {% if contest.flagged_entries > 0 %}flagged{% endif %}">
-                         <div class="status-item-info">
-                           <h4 class="status-item-title">
-                             {{ contest.name }}
-                             {% if contest.flagged_entries > 0 %}
-                               <span style="color: var(--danger); font-size: 12px; margin-left: 8px;">⚠️ {{ contest.flagged_entries }} flagged</span>
-                             {% endif %}
-                           </h4>
-                           <p class="status-item-desc">{{ contest.description|truncatechars:60 }}</p>
-                         </div>
-                         <div class="status-item-stats">
-                           <span class="stat-badge">{{ contest.total_entries }} entries</span>
-                           <span class="stat-badge">{{ contest.verified_entries }} verified</span>
-                           {% if contest.flagged_entries > 0 %}
-                             <span class="stat-badge" style="background: var(--danger); color: white;">{{ contest.flagged_entries }} flagged</span>
-                           {% endif %}
-                         </div>
-                       </div>
-                     {% endif %}
-                   {% empty %}
-                     <div class="status-empty">No active contests</div>
-                   {% endfor %}
-      </div>
-        </div>
-
-      <div class="status-section">
-        <div class="status-header">
-          <h3 class="status-title">Upcoming Contests</h3>
-          <span class="status-count">{{ contests|length }}</span>
-      </div>
         <div class="status-content">
           {% for contest in contests %}
-            {% if contest.starts_at > now %}
-              <div class="status-item upcoming">
+            {% if contest.is_active %}
+              <div class="status-item active {% if contest.flagged_entries > 0 %}flagged{% endif %}">
                 <div class="status-item-info">
-                  <h4 class="status-item-title">{{ contest.name }}</h4>
+                  <h4 class="status-item-title">
+                    {{ contest.name }}
+                    {% if contest.flagged_entries > 0 %}
+                      <span style="color: var(--danger); font-size: 12px; margin-left: 8px;">⚠️ {{ contest.flagged_entries }} flagged</span>
+                    {% endif %}
+                  </h4>
                   <p class="status-item-desc">{{ contest.description|truncatechars:60 }}</p>
-        </div>
-                <div class="status-item-date">
-                  <span class="date-label">Starts:</span>
-                  <span class="date-value">{{ contest.starts_at|date:"M d, Y" }}</span>
-      </div>
-        </div>
-            {% endif %}
-          {% empty %}
-            <div class="status-empty">No upcoming contests</div>
-          {% endfor %}
-      </div>
-    </div>
-
-      <div class="status-section">
-        <div class="status-header">
-          <h3 class="status-title">Ended Contests</h3>
-          <span class="status-count">{{ contests|length }}</span>
-        </div>
-        <div class="status-content">
-        {% for contest in contests %}
-            {% if contest.ends_at < now %}
-              <div class="status-item ended">
-                <div class="status-item-info">
-                  <h4 class="status-item-title">{{ contest.name }}</h4>
-                  <p class="status-item-desc">{{ contest.description|truncatechars:60 }}</p>
+                  <div class="status-item-date">
+                    <span class="date-label">Duration:</span>
+                    <span class="date-value">{{ contest.starts_at|date:"M d" }} - {{ contest.ends_at|date:"M d, Y" }}</span>
+                  </div>
                 </div>
                 <div class="status-item-stats">
                   <span class="stat-badge">{{ contest.total_entries }} entries</span>
                   <span class="stat-badge">{{ contest.verified_entries }} verified</span>
+                  {% if contest.flagged_entries > 0 %}
+                    <span class="stat-badge" style="background: var(--danger); color: white;">{{ contest.flagged_entries }} flagged</span>
+                  {% endif %}
+                  <span class="stat-badge" style="background: var(--primary-light); color: var(--primary);">Min: RM{{ contest.min_purchase_amount }}</span>
                 </div>
               </div>
             {% endif %}
           {% empty %}
-            <div class="status-empty">No ended contests</div>
+            <div class="status-empty">No active contests</div>
           {% endfor %}
-                </div>
+      </div>
+        </div>
+
+      <div class="status-section">
+        <div class="status-header">
+          <h3 class="status-title">Flagged Entries</h3>
+          <span class="status-count">{{ overall_stats.total_flagged_entries }}</span>
+        </div>
+        <div class="status-content">
+          {% if overall_stats.total_flagged_entries > 0 %}
+            <div class="status-item flagged">
+              <div class="status-item-info">
+                <h4 class="status-item-title">⚠️ {{ overall_stats.total_flagged_entries }} Flagged Entries</h4>
+                <p class="status-item-desc">Entries that require review or have been rejected</p>
+              </div>
+              <div class="status-item-stats">
+                <span class="stat-badge" style="background: var(--danger); color: white;">{{ overall_stats.total_flagged_entries }} flagged</span>
+                <span class="stat-badge">{{ overall_stats.total_entries }} total entries</span>
               </div>
             </div>
+            
+          {% else %}
+            <div class="status-empty">No flagged entries</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="status-section">
+        <div class="status-header">
+          <h3 class="status-title">Overall Contest Stats</h3>
+          <span class="status-count">{{ overall_stats.total_contests }}</span>
+        </div>
+        <div class="status-content">
+          <div class="status-item">
+            <div class="status-item-info">
+              <h4 class="status-item-title">📊 Contest Overview</h4>
+              <p class="status-item-desc">Total statistics across all contests</p>
+            </div>
+            <div class="status-item-stats">
+              <span class="stat-badge">{{ overall_stats.total_contests }} contests</span>
+              <span class="stat-badge">{{ overall_stats.active_contests }} active</span>
+            </div>
+          </div>
+          
+          <div class="status-item">
+            <div class="status-item-info">
+              <h4 class="status-item-title">📈 Entry Statistics</h4>
+              <p class="status-item-desc">Breakdown of all contest entries</p>
+            </div>
+            <div class="status-item-stats">
+              <span class="stat-badge">{{ overall_stats.total_entries }} total</span>
+              <span class="stat-badge">{{ overall_stats.total_verified_entries }} verified</span>
+              <span class="stat-badge">{{ overall_stats.total_pending_entries }} pending</span>
+              <span class="stat-badge">{{ overall_stats.total_winners }} winners</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
             
     <!-- Contest Summary Table -->
     <div class="contest-table-section">
@@ -493,105 +548,76 @@
               </tr>
             </thead>
             <tbody>
-              <!-- Sample summary data -->
-              <tr class="table-row" onclick="window.location.href='{% url 'contest_manager' %}'">
+              {% for contest in contests %}
+              <tr class="table-row" data-contest-url="{% url 'contest_manager' %}">
                 <td>
                   <div class="contest-name">
-                    <strong>Khind Merdeka Lucky Draw</strong>
-                    <div class="contest-dates">Aug 15 - Sep 15, 2024</div>
+                    <div class="contest-name-header">
+                      <div class="contest-toggle-container">
+                        <label class="toggle-switch">
+                          <input type="checkbox" 
+                                 class="contest-toggle" 
+                                 data-contest-id="{{ contest.contest_id }}"
+                                 {% if contest.is_active %}checked{% endif %}
+                                 onchange="toggleContestStatus(this)">
+                          <span class="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <div class="contest-name-content">
+                        <strong>{{ contest.name }}</strong>
+                        <div class="contest-dates">{{ contest.starts_at|date:"M d, Y" }} - {{ contest.ends_at|date:"M d, Y" }}</div>
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td>
                   <div class="spending-info">
-                    <span class="spending-amount">RM304.00</span>
-                    <div class="spending-detail">across 156 entries</div>
+                    <span class="spending-amount">RM{{ contest.min_purchase_amount|default:"0.00" }}</span>
+                    <div class="spending-detail">minimum purchase</div>
                   </div>
                 </td>
                 <td>
                   <div class="products-list">
-                    <div class="product-item">Khind Rice Cooker (45)</div>
-                    <div class="product-item">Khind Blender (32)</div>
-                    <div class="product-item">Khind Toaster (28)</div>
+                    <div class="product-item">Contest Products</div>
+                    <div class="product-item">Various Items</div>
                   </div>
                 </td>
                 <td>
                   <div class="stores-list">
-                    <div class="store-item">ED FEST (23)</div>
-                    <div class="store-item">SK HARDWARE (18)</div>
-                    <div class="store-item">ELECTRONIC CITY (15)</div>
+                    <div class="store-item">Participating Stores</div>
+                    <div class="store-item">Multiple Locations</div>
                   </div>
                 </td>
                 <td>
                   <div class="locations-list">
-                    <div class="location-item">Selangor (35)</div>
-                    <div class="location-item">Sarawak (28)</div>
-                    <div class="location-item">Kuala Lumpur (22)</div>
+                    <div class="location-item">All States</div>
+                    <div class="location-item">Nationwide</div>
                   </div>
                 </td>
                 <td>
                   <div class="entries-info">
-                    <span class="entries-count">156</span>
-                    <div class="entries-detail">valid submissions</div>
+                    <span class="entries-count">{{ contest.total_entries }}</span>
+                    <div class="entries-detail">total entries</div>
                   </div>
                 </td>
                 <td>
-                  <span class="status-badge active">ACTIVE</span>
+                  {% if contest.is_active %}
+                    <span class="status-badge active">ACTIVE</span>
+                  {% else %}
+                    <span class="status-badge ended">INACTIVE</span>
+                  {% endif %}
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <a href="{% url 'contest_manager' %}" class="btn btn-primary btn-sm">View Details</a>
+                    <a href="{% url 'contest_detail' contest.contest_id %}" class="btn btn-primary btn-sm">View Details</a>
                   </div>
                 </td>
               </tr>
-              <tr class="table-row" onclick="window.location.href='{% url 'contest_manager' %}'">
-                <td>
-                  <div class="contest-name">
-                    <strong>Khind Back to School</strong>
-                    <div class="contest-dates">Jul 1 - Aug 31, 2024</div>
-                  </div>
-                </td>
-                <td>
-                  <div class="spending-info">
-                    <span class="spending-amount">RM189.50</span>
-                    <div class="spending-detail">across 89 entries</div>
-                  </div>
-                </td>
-                <td>
-                  <div class="products-list">
-                    <div class="product-item">Khind Kettle (28)</div>
-                    <div class="product-item">Khind Iron (22)</div>
-                    <div class="product-item">Khind Fan (18)</div>
-              </div>
-                </td>
-                <td>
-                  <div class="stores-list">
-                    <div class="store-item">HARVEY NORMAN (15)</div>
-                    <div class="store-item">COURTS (12)</div>
-                    <div class="store-item">SENHENG (10)</div>
-              </div>
-                </td>
-                <td>
-                  <div class="locations-list">
-                    <div class="location-item">Johor (25)</div>
-                    <div class="location-item">Penang (18)</div>
-                    <div class="location-item">Perak (15)</div>
-            </div>
-                </td>
-                <td>
-                  <div class="entries-info">
-                    <span class="entries-count">89</span>
-                    <div class="entries-detail">valid submissions</div>
-            </div>
-                </td>
-                <td>
-                  <span class="status-badge ended">ENDED</span>
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <a href="{% url 'contest_manager' %}" class="btn btn-primary btn-sm">View Details</a>
-          </div>
-                </td>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center">No contests found</td>
               </tr>
+              {% endfor %}
             </tbody>
           </table>
       </div>
@@ -610,5 +636,161 @@
     {% endif %}
     </div>
   </div>
+
+  <script>
+    // Toggle contest status functionality
+    function toggleContestStatus(toggleElement) {
+      const contestId = toggleElement.getAttribute('data-contest-id');
+      const isActive = toggleElement.checked;
+      
+      // Disable the toggle while processing
+      toggleElement.disabled = true;
+      
+      // Get CSRF token from meta tag or cookie
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+      
+      // Make AJAX request
+      fetch('{% url "toggle_contest_status" %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+          contest_id: contestId,
+          is_active: isActive
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Update status badge
+          const row = toggleElement.closest('tr');
+          const statusBadge = row.querySelector('.status-badge');
+          if (statusBadge) {
+            if (isActive) {
+              statusBadge.textContent = 'ACTIVE';
+              statusBadge.className = 'status-badge active';
+            } else {
+              statusBadge.textContent = 'INACTIVE';
+              statusBadge.className = 'status-badge ended';
+            }
+          }
+          
+          // Show success message
+          showNotification(data.message, 'success');
+        } else {
+          // Revert toggle state on error
+          toggleElement.checked = !isActive;
+          showNotification(data.error || 'Failed to update contest status', 'error');
+        }
+      })
+      .catch(error => {
+        // Revert toggle state on error
+        toggleElement.checked = !isActive;
+        showNotification('Network error. Please try again.', 'error');
+        console.error('Error:', error);
+      })
+      .finally(() => {
+        // Re-enable the toggle
+        toggleElement.disabled = false;
+      });
+    }
+    
+    // Get CSRF token from cookies
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    
+    // Show notification
+    function showNotification(message, type = 'info') {
+      // Create notification element
+      const notification = document.createElement('div');
+      notification.className = `notification notification-${type}`;
+      notification.textContent = message;
+      
+      // Add styles
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+      `;
+      
+      // Set background color based on type
+      if (type === 'success') {
+        notification.style.backgroundColor = '#42b883';
+      } else if (type === 'error') {
+        notification.style.backgroundColor = '#e74c3c';
+      } else {
+        notification.style.backgroundColor = '#17a2b8';
+      }
+      
+      // Add to page
+      document.body.appendChild(notification);
+      
+      // Animate in
+      setTimeout(() => {
+        notification.style.transform = 'translateX(0)';
+      }, 100);
+      
+      // Remove after 3 seconds
+      setTimeout(() => {
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }, 3000);
+    }
+    
+    // Handle row clicks and prevent toggle clicks from triggering row navigation
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle row clicks
+      const tableRows = document.querySelectorAll('.table-row');
+      tableRows.forEach(row => {
+        row.addEventListener('click', function(e) {
+          // Don't navigate if clicking on toggle or action buttons
+          if (e.target.closest('.contest-toggle-container') || 
+              e.target.closest('.action-buttons')) {
+            return;
+          }
+          
+          const contestUrl = row.getAttribute('data-contest-url');
+          if (contestUrl) {
+            window.location.href = contestUrl;
+          }
+        });
+      });
+      
+      // Prevent toggle clicks from triggering row navigation
+      const toggleContainers = document.querySelectorAll('.contest-toggle-container');
+      toggleContainers.forEach(container => {
+        container.addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+      });
+    });
+  </script>
 </body>
 </html>

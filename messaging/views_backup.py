@@ -868,6 +868,67 @@ def contest_verify_entry(request, entry_id):
     return render(request, 'messaging/contest_verify_entry.html', context)
 
 
+def get_sample_contest_data(contest_filter):
+    """Get sample contest data as fallback"""
+    sample_data = {
+        'merdeka_w1': [
+            {
+                'submission_no': 'MLP_784',
+                'amount_spent': 'RM59.00',
+                'validity': 'valid',
+                'reason': '-',
+                'store': 'ED FEST',
+                'store_location': 'Sepang, Selangor',
+                'full_name': 'Muhammad Dzulfadhlie Bin Djunaidie',
+                'phone_number': '+601127052763',
+                'email': 'fadhlie2402.md@gmail.com',
+                'address': 'MA-14-13, Mira at shorea park, jalan meranti jaya 13, 47120',
+                'postcode': '47100',
+                'city': 'Sepang',
+                'state': 'Selangor',
+                'receipt_url': '#'
+            }
+        ],
+        'merdeka_w2': [
+            {
+                'submission_no': 'MLP_786',
+                'amount_spent': 'RM89.50',
+                'validity': 'invalid',
+                'reason': 'Receipt not clear',
+                'store': 'HARVEY NORMAN',
+                'store_location': 'Johor Bahru, Johor',
+                'full_name': 'Ahmad Bin Abdullah',
+                'phone_number': '+60123456789',
+                'email': 'ahmad@email.com',
+                'address': '123 Jalan Tebrau, Taman Century',
+                'postcode': '80250',
+                'city': 'Johor Bahru',
+                'state': 'Johor',
+                'receipt_url': '#'
+            }
+        ],
+        'merdeka_w3': [
+            {
+                'submission_no': 'MLP_788',
+                'amount_spent': 'RM159.00',
+                'validity': 'valid',
+                'reason': '-',
+                'store': 'SENHENG',
+                'store_location': 'Penang, Penang',
+                'full_name': 'Lim Wei Ming',
+                'phone_number': '+60155512345',
+                'email': 'lim.weiming@email.com',
+                'address': '789 Jalan Burma, George Town',
+                'postcode': '10050',
+                'city': 'George Town',
+                'state': 'Penang',
+                'receipt_url': '#'
+            }
+        ]
+    }
+    return sample_data.get(contest_filter, sample_data['merdeka_w1'])
+
+
 @login_required
 def contest_manager(request):
     """Contest manager page with detailed entries table"""
@@ -886,24 +947,194 @@ def contest_manager(request):
     location_filter = request.GET.get('location', '')
     contest_filter = request.GET.get('contest', 'merdeka_w1')  # Default to W1
     
-    # Hardcoded contests
-    contests = [
-        {'id': 'merdeka_w1', 'name': 'Khind Merdeka W1', 'status': 'active'},
-        {'id': 'merdeka_w2', 'name': 'Khind Merdeka W2', 'status': 'active'},
-        {'id': 'merdeka_w3', 'name': 'Khind Merdeka W3', 'status': 'ended'}
-    ]
+    # Get actual contests from database
+    try:
+        # Try to get contests from database first
+        db_contests = Contest.objects.filter(tenant=tenant).order_by('name')
+        if db_contests.exists():
+            contests = []
+            for contest in db_contests:
+                contests.append({
+                    'id': contest.name.lower().replace(' ', '_'),
+                    'name': contest.name,
+                    'status': 'active' if contest.is_active else 'ended'
+                })
+        else:
+            # Fallback to hardcoded contests if no database contests exist
+            contests = [
+                {'id': 'merdeka_w1', 'name': 'Khind Merdeka W1', 'status': 'active'},
+                {'id': 'merdeka_w2', 'name': 'Khind Merdeka W2', 'status': 'active'},
+                {'id': 'merdeka_w3', 'name': 'Khind Merdeka W3', 'status': 'ended'}
+            ]
+    except Exception as e:
+        print(f"Error getting contests: {e}")
+        contests = [
+            {'id': 'merdeka_w1', 'name': 'Khind Merdeka W1', 'status': 'active'},
+            {'id': 'merdeka_w2', 'name': 'Khind Merdeka W2', 'status': 'active'},
+            {'id': 'merdeka_w3', 'name': 'Khind Merdeka W3', 'status': 'ended'}
+        ]
     
     # Get selected contest
     selected_contest = next((c for c in contests if c['id'] == contest_filter), contests[0])
     
-    # Import the hardcoded Khind Merdeka W1 and W2 data
-    from .khind_merdeka_w1_data import KHIND_MERDEKA_W1_DATA
-    from .khind_merdeka_w2_data import KHIND_MERDEKA_W2_DATA
+    # Get real contest entries from database
+    contest_data = []
+    try:
+        # Find the contest in database
+        contest_name = selected_contest['name']
+        db_contest = Contest.objects.filter(tenant=tenant, name=contest_name).first()
+        
+        if db_contest:
+            # Get contest entries with filters
+            entries_query = ContestEntry.objects.filter(contest=db_contest)
+            
+            # Apply filters
+            if search_query:
+                entries_query = entries_query.filter(
+                    Q(contestant_name__icontains=search_query) |
+                    Q(contestant_phone__icontains=search_query) |
+                    Q(contestant_email__icontains=search_query)
+                )
+            
+            if status_filter:
+                if status_filter == 'valid':
+                    entries_query = entries_query.filter(is_verified=True)
+                elif status_filter == 'invalid':
+                    entries_query = entries_query.filter(is_verified=False)
+            
+            if store_filter:
+                entries_query = entries_query.filter(receipt_store__icontains=store_filter)
+            
+            if location_filter:
+                entries_query = entries_query.filter(
+                    Q(customer__city__icontains=location_filter) |
+                    Q(customer__state__icontains=location_filter)
+                )
+            
+            # Convert to display format
+            for entry in entries_query.order_by('-submitted_at'):
+                contest_data.append({
+                    'submission_no': str(entry.entry_id)[:8],  # Use first 8 chars of UUID
+                    'amount_spent': f"RM{entry.receipt_amount:.2f}" if entry.receipt_amount else '-',
+                    'validity': 'valid' if entry.is_verified else 'invalid',
+                    'reason': '-' if entry.is_verified else 'Pending verification',
+                    'store': entry.receipt_store or '-',
+                    'store_location': f"{entry.customer.city}, {entry.customer.state}" if entry.customer.city else '-',
+                    'full_name': entry.contestant_name or entry.customer.name,
+                    'phone_number': entry.contestant_phone or entry.customer.phone_number,
+                    'email': entry.contestant_email or '-',
+                    'address': entry.customer.address or '-',
+                    'postcode': entry.customer.postcode or '-',
+                    'city': entry.customer.city or '-',
+                    'state': entry.customer.state or '-',
+                    'receipt_url': entry.receipt_image_url or '#',
+                    'entry_id': str(entry.entry_id),
+                    'submitted_at': entry.submitted_at.strftime('%Y-%m-%d %H:%M') if entry.submitted_at else '-'
+                })
+        else:
+            # Fallback to sample data if no database contest found
+            contest_data = get_sample_contest_data(contest_filter)
+    except Exception as e:
+        print(f"Error getting contest data: {e}")
+        # Fallback to sample data
+        contest_data = get_sample_contest_data(contest_filter)
     
-    # Sample data for each contest
-    contest_data = {
-        'merdeka_w1': KHIND_MERDEKA_W1_DATA,
-        'merdeka_w2': KHIND_MERDEKA_W2_DATA,
+    # If no data found, use sample data
+    if not contest_data:
+        contest_data = get_sample_contest_data(contest_filter)
+    
+    # Apply additional filters to the data
+    if store_filter and contest_data:
+        contest_data = [entry for entry in contest_data if store_filter.lower() in entry.get('store', '').lower()]
+    
+    if location_filter and contest_data:
+        contest_data = [entry for entry in contest_data if location_filter.lower() in entry.get('store_location', '').lower()]
+    
+    context = {
+        'contests': contests,
+        'selected_contest': selected_contest,
+        'entries': contest_data,
+        'total_entries': len(contest_data),
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'store_filter': store_filter,
+        'location_filter': location_filter,
+        'contest_filter': contest_filter,
+    }
+    return render(request, 'messaging/contest_manager.html', context)
+
+
+@login_required
+def participants_manager(request):
+    """Participants manager page with filtering and detailed view"""
+    try:
+        tenant = _get_tenant(request)
+        if not _require_plan(tenant, 'contest'):
+            return redirect('dashboard')
+                'validity': 'valid',
+                'reason': '-',
+                'store': 'ED FEST',
+                'store_location': 'Sepang, Selangor',
+                'full_name': 'Muhammad Dzulfadhlie Bin Djunaidie',
+                'phone_number': '+601127052763',
+                'email': 'fadhlie2402.md@gmail.com',
+                'address': 'MA-14-13, Mira at shorea park, jalan meranti jaya 13, 47120',
+                'postcode': '47100',
+                'city': 'Sepang',
+                'state': 'Selangor',
+                'receipt_url': '#'
+            },
+            {
+                'submission_no': 'MLP_785',
+                'amount_spent': 'RM549.00',
+                'validity': 'valid',
+                'reason': '-',
+                'store': 'SK HARDWARE (KUCHING) SON.BHD',
+                'store_location': 'Kuching, Sarawak',
+                'full_name': 'Bong Kar Chun',
+                'phone_number': '+60168922696',
+                'email': 'bongkarchun@gmail.com',
+                'address': 'No 406,Lorong 7 Jalan Semaba',
+                'postcode': '93250',
+                'city': 'Kuching',
+                'state': 'Sarawak',
+                'receipt_url': '#'
+            }
+        ],
+        'merdeka_w2': [
+            {
+                'submission_no': 'MLP_786',
+                'amount_spent': 'RM89.50',
+                'validity': 'invalid',
+                'reason': 'Receipt not clear',
+                'store': 'HARVEY NORMAN',
+                'store_location': 'Johor Bahru, Johor',
+                'full_name': 'Ahmad Bin Abdullah',
+                'phone_number': '+60123456789',
+                'email': 'ahmad@email.com',
+                'address': '123 Jalan Tebrau, Taman Century',
+                'postcode': '80250',
+                'city': 'Johor Bahru',
+                'state': 'Johor',
+                'receipt_url': '#'
+            },
+            {
+                'submission_no': 'MLP_787',
+                'amount_spent': 'RM299.00',
+                'validity': 'valid',
+                'reason': '-',
+                'store': 'COURTS',
+                'store_location': 'Kuala Lumpur, KL',
+                'full_name': 'Sarah Binti Rahman',
+                'phone_number': '+60198765432',
+                'email': 'sarah.rahman@email.com',
+                'address': '456 Jalan Ampang, Taman U-Thant',
+                'postcode': '50450',
+                'city': 'Kuala Lumpur',
+                'state': 'Kuala Lumpur',
+                'receipt_url': '#'
+            }
+        ],
         'merdeka_w3': [
             {
                 'submission_no': 'MLP_788',
@@ -943,18 +1174,6 @@ def contest_manager(request):
     # Get entries for selected contest
     sample_entries = contest_data.get(contest_filter, contest_data['merdeka_w1'])
     
-    # Apply search filter
-    if search_query:
-        sample_entries = [entry for entry in sample_entries if 
-                         search_query.lower() in entry['full_name'].lower() or
-                         search_query.lower() in entry['phone_number'].lower() or
-                         search_query.lower() in entry['email'].lower() or
-                         search_query.lower() in entry['submission_no'].lower()]
-    
-    # Apply status filter
-    if status_filter:
-        sample_entries = [entry for entry in sample_entries if entry['validity'] == status_filter]
-    
     # Apply store and location filters to sample data
     if store_filter:
         sample_entries = [entry for entry in sample_entries if store_filter.lower() in entry['store'].lower()]
@@ -962,16 +1181,10 @@ def contest_manager(request):
     if location_filter:
         sample_entries = [entry for entry in sample_entries if location_filter.lower() in entry['store_location'].lower()]
     
-    # Implement pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(sample_entries, 20)  # 20 entries per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
     context = {
         'contests': contests,
         'selected_contest': selected_contest,
-        'entries': page_obj,
+        'entries': sample_entries,
         'total_entries': len(sample_entries),
         'search_query': search_query,
         'status_filter': status_filter,
