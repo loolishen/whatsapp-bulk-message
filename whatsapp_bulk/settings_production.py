@@ -10,7 +10,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Security settings
 DEBUG = False
 SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here-change-this-in-production')
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*.appspot.com').split(',')
+ALLOWED_HOSTS = [
+    '*.appspot.com',
+    'whatsapp-bulk-messaging-473607.as.r.appspot.com',
+    'localhost',
+    '127.0.0.1',
+    'testserver',  # For Django tests
+]
 
 # Application definition
 INSTALLED_APPS = [
