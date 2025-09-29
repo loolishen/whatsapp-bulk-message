@@ -92,7 +92,29 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Login URLs
+# Login URLs - Updated to match the actual URL structure
 LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
+LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# WhatsApp API Configuration
+WHATSAPP_API = {
+    'ACCESS_TOKEN': '68a0a10422130',
+    'BASE_URL': 'https://app.wabot.my/api',
+    'DEFAULT_INSTANCE_ID': '68A0A11A89A8D',
+    'DEFAULT_TEST_NUMBER': '+60162107682',
+}
+
+# Cloudinary Configuration
+CLOUDINARY = {
+    'CLOUD_NAME': 'dzbje38xw',
+    'API_KEY': '645993869662484',
+    'API_SECRET': '43OPTPwCt8cWEim-L9GHtwmj7_w',
+    'SECURE': True,
+    'FOLDER': 'whatsapp_bulk',
+}
+
+# Security settings
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True

@@ -41,6 +41,17 @@ gcloud app deploy
 # When prompted, type 'Y' to continue
 ```
 
+### **Step 4.5: Setup Database and Users (CRITICAL)**
+```bash
+# Run the deployment setup script to create database and users
+python deploy_setup.py
+
+# Test the login functionality
+python test_login.py
+```
+
+**Important:** This step is critical! Without running the setup script, you won't be able to log in because no users exist in the database.
+
 ### **Step 5: Check Deployment Status**
 ```bash
 # Check if deployment was successful
@@ -178,6 +189,35 @@ If you need to redeploy after making changes:
    gcloud app deploy
    ```
 
+## 🔧 Troubleshooting
+
+### **Login Issues (500 Error)**
+If you get a 500 error when trying to login:
+
+1. **Check if database is set up:**
+   ```bash
+   python test_login.py
+   ```
+
+2. **If test fails, run the setup script:**
+   ```bash
+   python deploy_setup.py
+   ```
+
+3. **Verify the setup worked:**
+   ```bash
+   python test_login.py
+   ```
+
+### **Common Issues:**
+- **500 Error on Login:** Database not migrated or no users created
+- **404 Error:** Wrong URL path or deployment failed
+- **Static Files Not Loading:** Run `python manage.py collectstatic --settings=whatsapp_bulk.settings_production`
+
+### **Default Login Credentials:**
+- **Username:** `tenant`
+- **Password:** `Tenant123!`
+
 ## 📞 Support
 
 If you encounter any issues not covered in this guide:
@@ -185,6 +225,7 @@ If you encounter any issues not covered in this guide:
 2. Verify your directory: `pwd` and `ls -la`
 3. Ensure all APIs are enabled
 4. Check the app status: `gcloud app describe`
+5. Run the setup script: `python deploy_setup.py`
 
 ---
 
