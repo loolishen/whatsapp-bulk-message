@@ -1,9 +1,9 @@
-# 🚀 Complete cPanel + GitHub Deployment Guide
+# 🚀 Complete GoDaddy cPanel + GitHub Deployment Guide
 
 ## Prerequisites
-- cPanel hosting with Python support
+- GoDaddy hosting with cPanel and Python support
 - GitHub account
-- Your domain name
+- Your domain name (e.g., creativeunicorn.com)
 
 ## Step 1: Prepare Your Local Project
 
@@ -26,27 +26,32 @@ git branch -M main
 git push -u origin main
 ```
 
-## Step 2: cPanel Setup
+## Step 2: GoDaddy cPanel Setup
 
 ### 2.1 Upload Files to cPanel
 1. **Option A: File Manager**
+   - Log into your GoDaddy account
    - Go to cPanel → File Manager
    - Navigate to `public_html`
-   - Create folder: `whatsapp-bulk-message`
+   - Create folder: `repositories/whatsapp-crm`
    - Upload all your project files
 
 2. **Option B: Git Integration (Recommended)**
+   - Log into your GoDaddy account
    - Go to cPanel → Git Version Control
-   - Clone your repository: `https://github.com/YOUR_USERNAME/whatsapp-bulk-message.git`
-   - Set directory to: `public_html/whatsapp-bulk-message`
+   - Click "Create Repository"
+   - Enable "Clone a Repository" toggle
+   - Clone URL: `https://github.com/loolishen/whatsapp-bulk-message.git`
+   - Repository Path: `/home/yourusername/public_html/repositories/whatsapp-crm`
+   - Repository Name: `whatsapp-bulk-message`
 
 ### 2.2 Set Up Python App
 1. Go to cPanel → **Python App**
 2. Click **Create Application**
 3. Fill in:
    - **Python Version**: 3.9 or higher
-   - **Application Root**: `/public_html/whatsapp-bulk-message`
-   - **Application URL**: `your-domain.com` (or subdomain)
+   - **Application Root**: `/home/yourusername/public_html/repositories/whatsapp-crm`
+   - **Application URL**: `creativeunicorn.com/repositories/whatsapp-crm`
    - **Application Startup File**: `wsgi.py`
    - **Application Entry Point**: `application`
 
@@ -54,13 +59,13 @@ git push -u origin main
 1. In cPanel Python App, click **Terminal**
 2. Run:
 ```bash
-cd /home/yourusername/public_html/whatsapp-bulk-message
+cd /home/yourusername/public_html/repositories/whatsapp-crm
 pip install -r requirements.txt
 ```
 
 ### 2.4 Set Up Database
 1. Go to cPanel → **MySQL Databases**
-2. Create a new database: `yourusername_whatsapp_bulk`
+2. Create a new database: `yourusername_whatsapp_crm`
 3. Create a user and assign to database
 4. Update `settings.py` with database credentials
 
@@ -68,8 +73,8 @@ pip install -r requirements.txt
 In cPanel Python App settings, add:
 - `DEBUG=False`
 - `SECRET_KEY=your-secret-key-here`
-- `ALLOWED_HOSTS=your-domain.com`
-- `DB_NAME=yourusername_whatsapp_bulk`
+- `ALLOWED_HOSTS=creativeunicorn.com`
+- `DB_NAME=yourusername_whatsapp_crm`
 - `DB_USER=yourusername_dbuser`
 - `DB_PASSWORD=your-db-password`
 - `DB_HOST=localhost`
@@ -77,6 +82,7 @@ In cPanel Python App settings, add:
 ### 2.6 Run Migrations
 In Terminal:
 ```bash
+cd /home/yourusername/public_html/repositories/whatsapp-crm
 python manage.py migrate
 python manage.py collectstatic --noinput
 ```
@@ -101,7 +107,7 @@ git push origin main
 
 2. **Update cPanel (if using Git):**
    - Go to cPanel → Git Version Control
-   - Click **Pull** on your repository
+   - Find your repository and click **Pull** or **Update**
 
 3. **Restart Python App:**
    - Go to Python App
@@ -110,7 +116,7 @@ git push origin main
 ## Step 4: Testing Your Deployment
 
 ### 4.1 Basic Tests
-1. Visit your domain
+1. Visit `https://creativeunicorn.com/repositories/whatsapp-crm/`
 2. Check if homepage loads
 3. Test contest manager functionality
 4. Verify all pages work
@@ -179,8 +185,8 @@ tail -f /home/yourusername/logs/django.log
 # (Use cPanel interface)
 
 # Check file permissions
-find /home/yourusername/public_html/whatsapp-bulk-message -type d -exec chmod 755 {} \;
-find /home/yourusername/public_html/whatsapp-bulk-message -type f -exec chmod 644 {} \;
+find /home/yourusername/public_html/repositories/whatsapp-crm -type d -exec chmod 755 {} \;
+find /home/yourusername/public_html/repositories/whatsapp-crm -type f -exec chmod 644 {} \;
 ```
 
 ## Support
@@ -192,4 +198,12 @@ If you encounter issues:
 4. Check file permissions
 5. Verify environment variables
 
-Your Django app should now be live and automatically update when you push to GitHub!
+Your Django app should now be live at `https://creativeunicorn.com/repositories/whatsapp-crm/` and automatically update when you push to GitHub!
+
+## GoDaddy-Specific Notes
+
+- **File Manager**: GoDaddy's file manager may have slightly different navigation
+- **Python Apps**: Make sure your hosting plan supports Python applications
+- **Database**: GoDaddy uses MySQL databases with specific naming conventions
+- **SSL**: Enable SSL certificate through GoDaddy's SSL management
+- **Domain**: Your app will be accessible at `creativeunicorn.com/repositories/whatsapp-crm/`

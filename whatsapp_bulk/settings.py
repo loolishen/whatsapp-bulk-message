@@ -11,6 +11,7 @@ try:
 except Exception:
     dj_database_url = None
 
+
 # --------------------------------------------------------------------------------------
 # Core paths
 # --------------------------------------------------------------------------------------
@@ -31,15 +32,18 @@ RUNNING_IN_CLOUD_RUN = bool(os.getenv("K_SERVICE"))
 # Hosts & CSRF
 # --------------------------------------------------------------------------------------
 # Comma-separated list in env, or sensible defaults
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    ".run.app,localhost,127.0.0.1"
-).split(",")
+# Simple and safe:
+ALLOWED_HOSTS = ["creativeunicorn.com", "www.creativeunicorn.com", "localhost", "127.0.0.1"]
 
-# Django 4.1+ supports wildcard subdomains for CSRF
+# You’re serving under a subpath:
+FORCE_SCRIPT_NAME = "/whatsapp-crm"
+USE_X_FORWARDED_HOST = True
+
 CSRF_TRUSTED_ORIGINS = [
-    "https://*.run.app",
+    "https://creativeunicorn.com",
+    "https://www.creativeunicorn.com",
 ]
+
 # If you have a custom domain, add it via env (comma-separated)
 _EXTRA_CSRF = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if _EXTRA_CSRF.strip():
@@ -142,7 +146,7 @@ USE_TZ = True
 # --------------------------------------------------------------------------------------
 # Static & Media
 # --------------------------------------------------------------------------------------
-STATIC_URL = "/static/"
+STATIC_URL = "/whatsapp-crm/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Optionally serve extra local static during dev
@@ -152,7 +156,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"] if (BASE_DIR / "static").exists() else 
 if not DEBUG:
     STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "/media/"
+MEDIA_URL = "/whatsapp-crm/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
