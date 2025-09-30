@@ -6,6 +6,7 @@ Force a fresh deployment and test
 import subprocess
 import time
 import requests
+import sys
 
 def force_deploy():
     """Force a fresh deployment"""
