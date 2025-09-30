@@ -4,7 +4,7 @@ env: standard
 # Basic handlers
 handlers:
 - url: /static
-  static_dir: static/
+  static_dir: staticfiles/
 - url: /.*
   script: auto
 
@@ -14,3 +14,9 @@ env_variables:
   SECRET_KEY: "your-secret-key-here-change-this-in-production"
   DEBUG: "False"
   ALLOWED_HOSTS: "*.appspot.com,whatsapp-bulk-messaging-473607.as.r.appspot.com"
+  WHATSAPP_API_ACCESS_TOKEN: "68a0a10422130"
+  WHATSAPP_API_BASE_URL: "https://app.wabot.my/api"
+  WHATSAPP_API_INSTANCE_ID: "68A0A11A89A8D"
+  CLOUDINARY_CLOUD_NAME: "dzbje38xw"
+  CLOUDINARY_API_KEY: "645993869662484"
+  CLOUDINARY_API_SECRET: "43OPTPwCt8cWEim-L9GHtwmj7_w"
