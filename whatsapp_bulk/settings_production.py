@@ -124,3 +124,14 @@ CLOUDINARY = {
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# CSRF settings for App Engine
+CSRF_TRUSTED_ORIGINS = [
+    'https://whatsapp-bulk-messaging-473607.as.r.appspot.com',
+    'https://whatsapp-bulk-messaging-473607.appspot.com',
+    'https://*.appspot.com',
+]
+
+# Additional CSRF settings for production
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access for AJAX
+CSRF_COOKIE_SAMESITE = 'Lax'  # More permissive for App Engine
