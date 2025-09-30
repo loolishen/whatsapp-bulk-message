@@ -80,7 +80,6 @@ def _require_plan(tenant, feature):
 
 
 @csrf_exempt
-@csrf_exempt
 def auth_login(request):
     """Robust login view with proper error handling"""
     try:
