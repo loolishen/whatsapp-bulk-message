@@ -64,7 +64,6 @@
             <p class="login-subtitle">Sign in to access your tenant dashboard</p>
             
             <form method="post">
-                {% csrf_token %}
                 
                 {% for m in messages %}
                     <div class="error-msg">{{ m }}</div>
