@@ -81,38 +81,24 @@ def _require_plan(tenant, feature):
 
 @csrf_exempt
 def auth_login(request):
-    """Robust login view with proper error handling"""
-    try:
-        if request.method == 'POST':
-            username = request.POST.get('username', '').strip()
-            password = request.POST.get('password', '').strip()
-            
-            if not username or not password:
-                messages.error(request, 'Username and password are required')
-                return render(request, 'messaging/auth_login.html')
-            
-            # Authenticate user
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                if user.is_active:
-                    login(request, user)
-                    return redirect('dashboard')
-                else:
-                    messages.error(request, 'Account is disabled')
-            else:
-                messages.error(request, 'Invalid credentials')
-        else:
-            # Clear any existing messages for GET requests
-            pass
-            
-        return render(request, 'messaging/auth_login.html')
+    """Login view with CSRF exemption for App Engine"""
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
         
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Login error: {e}")
-        messages.error(request, 'An error occurred during login. Please try again.')
-        return render(request, 'messaging/auth_login.html')
+        if not username or not password:
+            messages.error(request, 'Username and password are required')
+            return render(request, 'messaging/auth_login.html')
+        
+        # Authenticate user
+        user = authenticate(request, username=username, password=password)
+        if user is not None and user.is_active:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            messages.error(request, 'Invalid credentials')
+    
+    return render(request, 'messaging/auth_login.html')
 
 def auth_logout(request):
     logout(request)
