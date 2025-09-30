@@ -6,6 +6,7 @@ Deploy the final fix for login and dashboard
 import subprocess
 import time
 import requests
+import sys
 
 def deploy_final_fix():
     """Deploy the final fix"""
