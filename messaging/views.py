@@ -67,6 +67,7 @@ def _require_plan(tenant, feature):
     return False
 
 
+@csrf_exempt
 def auth_login(request):
     if request.method == 'POST':
         username = request.POST.get('username')
