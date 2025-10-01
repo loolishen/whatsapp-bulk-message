@@ -8,34 +8,64 @@ import requests
 import time
 import sys
 
+def check_git_status():
+    """Check git status and show what needs to be committed"""
+    print("=== Checking Git Status ===")
+    
+    try:
+        result = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
+        if result.returncode == 0:
+            changes = result.stdout.strip()
+            if changes:
+                print("Changes to commit:")
+                print(changes)
+                return True
+            else:
+                print("No changes to commit")
+                return False
+        else:
+            print(f"❌ Git status failed: {result.stderr}")
+            return False
+    except Exception as e:
+        print(f"❌ Check git status failed: {e}")
+        return False
+
 def deploy_fixed_login():
     """Deploy the fixed login function"""
     print("🔧 DEPLOYING FIXED LOGIN FUNCTION")
     print("=" * 50)
     
     try:
-        # Add changes
-        print("Adding changes to git...")
-        result = subprocess.run(['git', 'add', '.'], capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"❌ Git add failed: {result.stderr}")
-            return False
-        
-        # Commit changes
-        print("Committing changes...")
-        result = subprocess.run(['git', 'commit', '-m', 'Fix login function - minimal error handling'], capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"❌ Git commit failed: {result.stderr}")
-            return False
-        
-        # Push changes
-        print("Pushing changes to GitHub...")
-        result = subprocess.run(['git', 'push', 'origin', 'main'], capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"❌ Git push failed: {result.stderr}")
-            return False
-        
-        print("✓ Changes pushed to GitHub")
+        # Check git status first
+        if not check_git_status():
+            print("No changes to commit, proceeding with deployment...")
+        else:
+            # Add changes
+            print("Adding changes to git...")
+            result = subprocess.run(['git', 'add', '.'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ Git add failed: {result.stderr}")
+                return False
+            
+            # Commit changes
+            print("Committing changes...")
+            result = subprocess.run(['git', 'commit', '-m', 'Fix login function - minimal error handling'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ Git commit failed: {result.stderr}")
+                print("Trying to commit with --allow-empty...")
+                result = subprocess.run(['git', 'commit', '--allow-empty', '-m', 'Fix login function - minimal error handling'], capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"❌ Git commit with --allow-empty also failed: {result.stderr}")
+                    return False
+            
+            # Push changes
+            print("Pushing changes to GitHub...")
+            result = subprocess.run(['git', 'push', 'origin', 'main'], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"❌ Git push failed: {result.stderr}")
+                return False
+            
+            print("✓ Changes pushed to GitHub")
         
         # Deploy to App Engine
         print("Deploying to App Engine...")
