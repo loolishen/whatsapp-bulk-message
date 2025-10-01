@@ -1,22 +1,32 @@
 runtime: python311
-env: standard
 
-# Basic handlers
+# This file specifies the Python runtime and other settings for your App Engine app.
+
+# [START app_yaml]
+runtime: python311
+
+# [START handlers]
 handlers:
+# This configures Google App Engine to serve the files in the app's static
+# directory as static files. See:
+# https://cloud.google.com/appengine/docs/python/getting-started/serving-static-files
 - url: /static
-  static_dir: staticfiles/
+  static_dir: staticfiles
+
+# This handler routes all requests not caught above to your main app. It is
+# required when static routes are defined, but can be omitted (along with
+# the entire handlers section) when there are no static files defined.
 - url: /.*
   script: auto
+# [END handlers]
 
-# Environment variables
+# [START env_variables]
 env_variables:
   DJANGO_SETTINGS_MODULE: "whatsapp_bulk.settings_production"
-  SECRET_KEY: "your-secret-key-here-change-this-in-production"
-  DEBUG: "False"
-  ALLOWED_HOSTS: "*.appspot.com,whatsapp-bulk-messaging-473607.as.r.appspot.com"
-  WHATSAPP_API_ACCESS_TOKEN: "68a0a10422130"
-  WHATSAPP_API_BASE_URL: "https://app.wabot.my/api"
-  WHATSAPP_API_INSTANCE_ID: "68A0A11A89A8D"
-  CLOUDINARY_CLOUD_NAME: "dzbje38xw"
-  CLOUDINARY_API_KEY: "645993869662484"
-  CLOUDINARY_API_SECRET: "43OPTPwCt8cWEim-L9GHtwmj7_w"
+# [END env_variables]
+
+# [START automatic_scaling]
+automatic_scaling:
+  min_instances: 1
+  max_instances: 10
+# [END automatic_scaling]

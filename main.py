@@ -10,3 +10,10 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'whatsapp_bulk.settings_producti
 
 # Get the Django WSGI application
 app = get_wsgi_application()
+
+# Ensure production user exists on startup
+try:
+    from django.core.management import call_command
+    call_command('ensure_production_user')
+except Exception as e:
+    print(f"Warning: Failed to ensure production user: {e}")
