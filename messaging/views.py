@@ -49,23 +49,13 @@ from .models import (
 
 def _get_tenant(request):
     """Get tenant for authenticated user with error handling"""
+    if not request.user.is_authenticated:
+        return None
+    
     try:
-        if not request.user.is_authenticated:
-            return None
-        
-        # Check if user has tenant_profile
-        if hasattr(request.user, 'tenant_profile'):
-            return request.user.tenant_profile.tenant
-        else:
-            # User exists but has no tenant_profile
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"User {request.user.username} has no tenant_profile")
-            return None
+        return request.user.tenant_profile.tenant
     except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"_get_tenant error: {e}")
+        logger.warning("User %s has no tenant_profile: %s", request.user.username, str(e))
         return None
 
 def _require_plan(tenant, feature):
