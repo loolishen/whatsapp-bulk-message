@@ -24,6 +24,11 @@ env_variables:
   DJANGO_SETTINGS_MODULE: "whatsapp_bulk.settings_production"
 # [END env_variables]
 
+# [START cloud_sql]
+beta_settings:
+  cloud_sql_instances: "whatsapp-bulk-messaging-473607:us-central1:whatsapp-bulk-db"
+# [END cloud_sql]
+
 # [START automatic_scaling]
 automatic_scaling:
   min_instances: 1

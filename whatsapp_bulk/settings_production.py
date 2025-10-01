@@ -57,11 +57,18 @@ TEMPLATES = [
     },
 ]
 
-# Database - Use SQLite for simplicity
+# Database - Use PostgreSQL for production
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'whatsapp_bulk',
+        'USER': 'whatsapp_user',
+        'PASSWORD': 'whatsapp_password_123!',
+        'HOST': '/cloudsql/whatsapp-bulk-messaging-473607:us-central1:whatsapp-bulk-db',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
     }
 }
 
