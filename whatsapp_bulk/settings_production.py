@@ -63,8 +63,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'whatsapp_bulk',
         'USER': 'whatsapp_user',
-        'PASSWORD': 'whatsapp_password_123!',
-        'HOST': '/cloudsql/whatsapp-bulk-messaging-473607:us-central1:whatsapp-bulk-db',
+        'PASSWORD': 'WhatsappPassword123!',
+        'HOST': '/cloudsql/whatsapp-bulk-messaging-473607:asia-southeast1:whatsapp-bulk-db',
         'PORT': '5432',
         'OPTIONS': {
             'sslmode': 'require',

@@ -26,7 +26,7 @@ env_variables:
 
 # [START cloud_sql]
 beta_settings:
-  cloud_sql_instances: "whatsapp-bulk-messaging-473607:us-central1:whatsapp-bulk-db"
+  cloud_sql_instances: "whatsapp-bulk-messaging-473607:asia-southeast1:whatsapp-bulk-db"
 # [END cloud_sql]
 
 # [START automatic_scaling]
