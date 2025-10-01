@@ -15,8 +15,8 @@ def _safe(view_func):
 from .whatsapp_webhook import whatsapp_webhook
 
 urlpatterns = [
-    # Root -> contest
-    path('', views.contest_home, name='dashboard'),
+    # Root -> dashboard
+    path('', views.dashboard, name='dashboard'),
 
     # Auth
     path('login/', views.auth_login, name='auth_login'),
