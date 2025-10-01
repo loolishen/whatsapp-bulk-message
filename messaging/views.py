@@ -94,12 +94,21 @@ def auth_login(request):
                     'error': 'Username and password are required'
                 })
             
+            # Debug: Log the authentication attempt
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Login attempt: username={username}")
+            
             # Authenticate user
             user = authenticate(request, username=username, password=password)
+            logger.info(f"Authentication result: user={user}, is_active={user.is_active if user else None}")
+            
             if user is not None and user.is_active:
                 login(request, user)
+                logger.info(f"Login successful for user: {user.username}")
                 return redirect('dashboard')
             else:
+                logger.warning(f"Login failed for username: {username}")
                 return render(request, 'messaging/auth_login.html', {
                     'error': 'Invalid credentials'
                 })
