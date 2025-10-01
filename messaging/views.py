@@ -83,24 +83,39 @@ def _require_plan(tenant, feature):
 
 @csrf_exempt
 def auth_login(request):
-    """Login view with CSRF exemption for App Engine"""
-    if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
+    """Minimal login view with CSRF exemption for App Engine"""
+    try:
+        if request.method == 'POST':
+            username = request.POST.get('username', '').strip()
+            password = request.POST.get('password', '').strip()
+            
+            if not username or not password:
+                return render(request, 'messaging/auth_login.html', {
+                    'error': 'Username and password are required'
+                })
+            
+            # Authenticate user
+            user = authenticate(request, username=username, password=password)
+            if user is not None and user.is_active:
+                login(request, user)
+                return redirect('dashboard')
+            else:
+                return render(request, 'messaging/auth_login.html', {
+                    'error': 'Invalid credentials'
+                })
         
-        if not username or not password:
-            messages.error(request, 'Username and password are required')
-            return render(request, 'messaging/auth_login.html')
-        
-        # Authenticate user
-        user = authenticate(request, username=username, password=password)
-        if user is not None and user.is_active:
-            login(request, user)
-            return redirect('dashboard')
-        else:
-            messages.error(request, 'Invalid credentials')
+        return render(request, 'messaging/auth_login.html')
     
-    return render(request, 'messaging/auth_login.html')
+    except Exception as e:
+        # Log the error for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Login error: {e}")
+        
+        # Return a simple error response
+        return render(request, 'messaging/auth_login.html', {
+            'error': 'Login failed. Please try again.'
+        })
 
 def auth_logout(request):
     logout(request)
@@ -113,8 +128,9 @@ def dashboard(request):
     try:
         tenant = _get_tenant(request)
         if not tenant:
-            messages.error(request, 'No tenant associated with your account')
-            return redirect('auth_login')
+            return render(request, 'messaging/auth_login.html', {
+                'error': 'No tenant associated with your account'
+            })
         
         plan = (tenant.plan or '').upper()
         return render(request, 'messaging/dashboard.html', {
@@ -127,20 +143,9 @@ def dashboard(request):
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Dashboard error: {e}")
-        messages.error(request, 'An error occurred loading the dashboard')
-        return redirect('auth_login')
-
-def dashboard(request):
-    tenant = _get_tenant(request)
-    if not tenant:
-        return redirect('auth_login')
-    plan = (tenant.plan or '').upper()
-    return render(request, 'messaging/dashboard.html', {
-        'tenant': tenant,
-        'plan': plan,
-        'can_contest': _require_plan(tenant, 'contest'),
-        'can_crm': _require_plan(tenant, 'crm'),
-    })
+        return render(request, 'messaging/auth_login.html', {
+            'error': 'An error occurred loading the dashboard'
+        })
 
 
 # =========================
