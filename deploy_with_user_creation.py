@@ -1,22 +1,47 @@
 #!/usr/bin/env python
 """
-Deploy the URL fix directly without git
+Deploy with user creation to fix login issues
 """
 
 import subprocess
 import requests
 import time
 import sys
+import os
 
-def deploy_direct():
-    """Deploy directly to App Engine"""
-    print("DEPLOYING URL FIX DIRECTLY TO APP ENGINE")
+def run_user_creation():
+    """Run the user creation script"""
+    print("CREATING PRODUCTION USER")
     print("=" * 50)
     
     try:
-        # Deploy to App Engine directly
+        result = subprocess.run([sys.executable, 'create_user_for_production.py'], 
+                              capture_output=True, text=True, cwd=os.getcwd())
+        
+        if result.returncode == 0:
+            print("[OK] User creation successful")
+            print(result.stdout)
+            return True
+        else:
+            print(f"[ERROR] User creation failed: {result.stderr}")
+            print("User creation output:")
+            print(result.stdout)
+            return False
+            
+    except Exception as e:
+        print(f"[ERROR] User creation failed: {e}")
+        return False
+
+def deploy_to_app_engine():
+    """Deploy to Google App Engine"""
+    print("\nDEPLOYING TO APP ENGINE")
+    print("=" * 50)
+    
+    try:
+        # Deploy to App Engine
         print("Deploying to App Engine...")
-        result = subprocess.run(['gcloud', 'app', 'deploy', '--quiet'], capture_output=True, text=True)
+        result = subprocess.run(['gcloud', 'app', 'deploy', '--quiet'], 
+                              capture_output=True, text=True)
         
         if result.returncode == 0:
             print("[OK] Deployment successful")
@@ -30,12 +55,13 @@ def deploy_direct():
             return False
             
     except Exception as e:
-        print(f"[ERROR] Deploy direct failed: {e}")
+        print(f"[ERROR] Deploy failed: {e}")
         return False
 
-def test_direct_fix():
-    """Test the direct fix"""
-    print("\n=== Testing Direct Fix ===")
+def test_login():
+    """Test the login functionality"""
+    print("\nTESTING LOGIN")
+    print("=" * 50)
     
     try:
         base_url = "https://whatsapp-bulk-messaging-473607.as.r.appspot.com"
@@ -69,32 +95,38 @@ def test_direct_fix():
                 return True
             else:
                 print(f"[ERROR] Dashboard failed: {dashboard_response.status_code}")
+                print(f"Dashboard response: {dashboard_response.text[:500]}")
                 return False
         else:
             print(f"[ERROR] Login failed: {response.status_code}")
-            print(f"Response: {response.text[:200]}")
+            print(f"Response: {response.text[:500]}")
             return False
             
     except Exception as e:
-        print(f"[ERROR] Test direct fix failed: {e}")
+        print(f"[ERROR] Test login failed: {e}")
         return False
 
 def main():
-    print("DIRECT DEPLOYMENT OF URL FIX")
+    print("COMPLETE DEPLOYMENT WITH USER CREATION")
     print("=" * 50)
     
-    # Deploy directly
-    if not deploy_direct():
-        print("[ERROR] Deploy direct failed")
+    # Step 1: Create user
+    if not run_user_creation():
+        print("[ERROR] User creation failed")
         return False
     
-    # Test direct fix
-    if not test_direct_fix():
-        print("[ERROR] Test direct fix failed")
+    # Step 2: Deploy to App Engine
+    if not deploy_to_app_engine():
+        print("[ERROR] Deployment failed")
+        return False
+    
+    # Step 3: Test login
+    if not test_login():
+        print("[ERROR] Login test failed")
         return False
     
     print("\n" + "=" * 50)
-    print("SUCCESS! Login and dashboard are now working!")
+    print("SUCCESS! Complete deployment successful!")
     print("=" * 50)
     print("Your app is fully functional at:")
     print("https://whatsapp-bulk-messaging-473607.as.r.appspot.com/login/")
