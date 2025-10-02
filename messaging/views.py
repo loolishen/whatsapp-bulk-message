@@ -28,6 +28,8 @@ from .temp_image_storage import TemporaryImageStorage
 from .cloudinary_service import cloudinary_service
 from .ocr_service import OCRService
 from safe_demographics import process_demographics, get_race_code, get_gender_code
+from .khind_merdeka_w1_data import KHIND_MERDEKA_W1_DATA
+from .khind_merdeka_w2_data import KHIND_MERDEKA_W2_DATA
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -150,6 +152,25 @@ def dashboard(request):
 # =========================
 # Contest Management
 # =========================
+
+def get_contest_data_stats(contest_id):
+    """Get statistics from contest data files"""
+    if contest_id == 'merdeka_w1':
+        data = KHIND_MERDEKA_W1_DATA
+    elif contest_id == 'merdeka_w2':
+        data = KHIND_MERDEKA_W2_DATA
+    else:
+        return {'total_entries': 0, 'valid_entries': 0, 'flagged_entries': 0}
+    
+    total_entries = len(data)
+    valid_entries = len([entry for entry in data if entry.get('validity') == 'valid'])
+    flagged_entries = len([entry for entry in data if entry.get('validity') in ['invalid', 'duplicate']])
+    
+    return {
+        'total_entries': total_entries,
+        'valid_entries': valid_entries,
+        'flagged_entries': flagged_entries
+    }
 @login_required
 def contest_home(request):
     """Enhanced contest home with management dashboard"""
@@ -157,7 +178,10 @@ def contest_home(request):
     if not _require_plan(tenant, 'contest'):
         return redirect('dashboard')
     
-    # Only use hardcoded contests for display
+    # Get contest data from files for W1 and W2, keep W3 hardcoded
+    w1_stats = get_contest_data_stats('merdeka_w1')
+    w2_stats = get_contest_data_stats('merdeka_w2')
+    
     contests = [
         {
             'contest_id': 'merdeka_w1',
@@ -166,9 +190,9 @@ def contest_home(request):
             'starts_at': dj_timezone.now().replace(day=1),
             'ends_at': dj_timezone.now().replace(day=7),
             'is_active': True,
-            'total_entries': 156,
-            'verified_entries': 142,
-            'flagged_entries': 14,
+            'total_entries': w1_stats['total_entries'],
+            'verified_entries': w1_stats['valid_entries'],
+            'flagged_entries': w1_stats['flagged_entries'],
             'min_purchase_amount': 50.00
         },
         {
@@ -178,9 +202,9 @@ def contest_home(request):
             'starts_at': dj_timezone.now().replace(day=8),
             'ends_at': dj_timezone.now().replace(day=14),
             'is_active': True,
-            'total_entries': 89,
-            'verified_entries': 78,
-            'flagged_entries': 11,
+            'total_entries': w2_stats['total_entries'],
+            'verified_entries': w2_stats['valid_entries'],
+            'flagged_entries': w2_stats['flagged_entries'],
             'min_purchase_amount': 75.00
         },
         {
