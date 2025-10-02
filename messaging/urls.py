@@ -16,7 +16,7 @@ from .whatsapp_webhook import whatsapp_webhook
 
 urlpatterns = [
     # Root -> dashboard
-    path('', views.dashboard, name='dashboard'),
+    path('', views.contest_home, name='dashboard'),
 
     # Auth
     path('login/', views.auth_login, name='auth_login'),
