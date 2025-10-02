@@ -1148,6 +1148,8 @@ def participants_manager(request):
             participants = [p for p in participants if p['contest'] == 'Khind Merdeka W1']
         elif contest_filter == 'merdeka_w2':
             participants = [p for p in participants if p['contest'] == 'Khind Merdeka W2']
+        elif contest_filter == 'merdeka_w3':
+            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W3']
         elif contest_filter == 'merdeka':
             participants = [p for p in participants if 'Merdeka' in p['contest']]
         elif contest_filter == 'backtoschool':

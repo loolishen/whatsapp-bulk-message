@@ -330,9 +330,10 @@
         <label class="filter-label">Contest</label>
         <select class="filter-select" onchange="handleContestFilter(this.value)">
           <option value="">All Contests</option>
-          <option value="merdeka">Khind Merdeka Lucky Draw</option>
-          <option value="backtoschool">Khind Back to School</option>
-          <option value="holiday">Khind Holiday Special</option>
+          <option value="merdeka_w1" {% if contest_filter == 'merdeka_w1' %}selected{% endif %}>Khind Merdeka W1</option>
+          <option value="merdeka_w2" {% if contest_filter == 'merdeka_w2' %}selected{% endif %}>Khind Merdeka W2</option>
+          <option value="merdeka_w3" {% if contest_filter == 'merdeka_w3' %}selected{% endif %}>Khind Merdeka W3</option>
+          <option value="merdeka" {% if contest_filter == 'merdeka' %}selected{% endif %}>All Merdeka Contests</option>
         </select>
       </div>
       
@@ -340,15 +341,15 @@
         <label class="filter-label">Status</label>
         <select class="filter-select" onchange="handleStatusFilter(this.value)">
           <option value="">All Participants</option>
-          <option value="valid">Valid Only</option>
-          <option value="flagged">Flagged Only</option>
+          <option value="valid" {% if status_filter == 'valid' %}selected{% endif %}>Valid Only</option>
+          <option value="flagged" {% if status_filter == 'flagged' %}selected{% endif %}>Flagged Only</option>
         </select>
       </div>
       
       <div class="search-box">
         <span class="search-icon">🔍</span>
         <input type="text" class="search-input" placeholder="Search participants by name, phone, or email..." 
-               onkeyup="handleSearch(this.value)">
+               value="{{ search_query }}" onkeyup="handleSearch(this.value)">
       </div>
     </div>
 
@@ -709,18 +710,37 @@
 
     // Filter functions
     function handleContestFilter(contestId) {
-      console.log('Filtering by contest:', contestId);
-      // Implement contest filtering logic
+      const url = new URL(window.location);
+      if (contestId) {
+        url.searchParams.set('contest', contestId);
+      } else {
+        url.searchParams.delete('contest');
+      }
+      window.location.href = url.toString();
     }
 
     function handleStatusFilter(status) {
-      console.log('Filtering by status:', status);
-      // Implement status filtering logic
+      const url = new URL(window.location);
+      if (status) {
+        url.searchParams.set('status', status);
+      } else {
+        url.searchParams.delete('status');
+      }
+      window.location.href = url.toString();
     }
 
     function handleSearch(query) {
-      console.log('Searching for:', query);
-      // Implement search logic
+      // Debounce search to avoid too many requests
+      clearTimeout(window.searchTimeout);
+      window.searchTimeout = setTimeout(() => {
+        const url = new URL(window.location);
+        if (query.trim()) {
+          url.searchParams.set('search', query.trim());
+        } else {
+          url.searchParams.delete('search');
+        }
+        window.location.href = url.toString();
+      }, 500); // 500ms delay
     }
 
     // Close panel when clicking outside
