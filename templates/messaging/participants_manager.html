@@ -371,47 +371,20 @@
           </tr>
         </thead>
         <tbody>
-          <!-- Sample participants data -->
-          <tr onclick="showParticipantDetails('participant1')">
-            <td class="cell-name">Loo Li Shen</td>
-            <td class="cell-contact">0162107682 · loolishen016@gmail.com · 041030 10 1963</td>
-            <td class="cell-contest">Merdeka W1</td>
-            <td><span class="cell-status flagged">FLAGGED</span></td>
-            <td class="cell-errors">Invalid Receipt, Unreadable</td>
-            <td>Sep 15, 2024</td>
+          {% for participant in participants %}
+          <tr onclick="showParticipantDetails('{{ participant.id }}')">
+            <td class="cell-name">{{ participant.name }}</td>
+            <td class="cell-contact">{{ participant.phone }} · {{ participant.email }}{% if participant.ic %} · {{ participant.ic }}{% endif %}</td>
+            <td class="cell-contest">{{ participant.contest }}</td>
+            <td><span class="cell-status {{ participant.status }}">{{ participant.status|upper }}</span></td>
+            <td class="cell-errors">{{ participant.errors }}</td>
+            <td>{{ participant.submission_date }}</td>
           </tr>
-          <tr onclick="showParticipantDetails('participant2')">
-            <td class="cell-name">Muhammad Dzulfadhlie</td>
-            <td class="cell-contact">+601127052763 · fadhlie2402.md@gmail.com · 950815-10-1234</td>
-            <td class="cell-contest">Merdeka W1</td>
-            <td><span class="cell-status valid">VALID</span></td>
-            <td class="cell-errors">-</td>
-            <td>Sep 14, 2024</td>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center">No participants found</td>
           </tr>
-          <tr onclick="showParticipantDetails('participant3')">
-            <td class="cell-name">Sarah Binti Rahman</td>
-            <td class="cell-contact">+60198765432 · sarah.rahman@email.com · 920315-08-5678</td>
-            <td class="cell-contest">Back to School</td>
-            <td><span class="cell-status valid">VALID</span></td>
-            <td class="cell-errors">-</td>
-            <td>Aug 25, 2024</td>
-          </tr>
-          <tr onclick="showParticipantDetails('participant4')">
-            <td class="cell-name">Ahmad Bin Abdullah</td>
-            <td class="cell-contact">+60123456789 · ahmad@email.com · 880210-05-9012</td>
-            <td class="cell-contest">Merdeka W1</td>
-            <td><span class="cell-status flagged">FLAGGED</span></td>
-            <td class="cell-errors">Receipt not clear, Missing store info</td>
-            <td>Sep 16, 2024</td>
-          </tr>
-          <tr onclick="showParticipantDetails('participant5')">
-            <td class="cell-name">Lim Wei Ming</td>
-            <td class="cell-contact">+60155512345 · lim.weiming@email.com · 930512-12-3456</td>
-            <td class="cell-contest">Back to School</td>
-            <td><span class="cell-status valid">VALID</span></td>
-            <td class="cell-errors">-</td>
-            <td>Aug 20, 2024</td>
-          </tr>
+          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -434,31 +407,31 @@
         <div class="detail-info">
           <div class="detail-item">
             <span class="detail-label">Full Name</span>
-            <span class="detail-value">Loo Li Shen</span>
+            <span class="detail-value" id="participantName">Loo Li Shen</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Phone</span>
-            <span class="detail-value">0162107682</span>
+            <span class="detail-value" id="participantPhone">0162107682</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Email</span>
-            <span class="detail-value">loolishen016@gmail.com</span>
+            <span class="detail-value" id="participantEmail">loolishen016@gmail.com</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">IC Number</span>
-            <span class="detail-value">041030 10 1963</span>
+            <span class="detail-value" id="participantIc">041030 10 1963</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Contest</span>
-            <span class="detail-value">Merdeka W1</span>
+            <span class="detail-value" id="participantContest">Merdeka W1</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Status</span>
-            <span class="detail-value" style="color: var(--danger); font-weight: 600;">FLAGGED</span>
+            <span class="detail-value" id="participantStatus" style="color: var(--danger); font-weight: 600;">FLAGGED</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Errors</span>
-            <span class="detail-value" style="color: var(--danger);">Invalid Receipt, Unreadable</span>
+            <span class="detail-value" id="participantErrors" style="color: var(--danger);">Invalid Receipt, Unreadable</span>
           </div>
         </div>
       </div>
@@ -608,6 +581,9 @@
   </div>
 
   <script>
+    // Participant data from Django
+    const participantsData = {{ participants_json|safe }};
+    
     // Show participant details
     function showParticipantDetails(participantId) {
       const overlay = document.getElementById('overlay');
@@ -631,92 +607,37 @@
 
     // Update participant data
     function updateParticipantData(participantId) {
-      const participantData = {
-        'participant1': {
-          name: 'Loo Li Shen',
-          phone: '0162107682',
-          email: 'loolishen016@gmail.com',
-          ic: '041030 10 1963',
-          contest: 'Merdeka W1',
-          status: 'FLAGGED',
-          errors: 'Invalid Receipt, Unreadable',
-          store: 'Jaya Grocer',
-          companyNo: '123123123',
-          location: 'Subang Jaya, Selangor',
-          product: 'BLDC Fan',
-          amount: '1',
-          spent: 'RM123'
-        },
-        'participant2': {
-          name: 'Muhammad Dzulfadhlie',
-          phone: '+601127052763',
-          email: 'fadhlie2402.md@gmail.com',
-          ic: '950815-10-1234',
-          contest: 'Merdeka W1',
-          status: 'VALID',
-          errors: '-',
-          store: 'ED FEST',
-          companyNo: '456789012',
-          location: 'Sepang, Selangor',
-          product: 'Khind Rice Cooker',
-          amount: '1',
-          spent: 'RM59.00'
-        },
-        'participant3': {
-          name: 'Sarah Binti Rahman',
-          phone: '+60198765432',
-          email: 'sarah.rahman@email.com',
-          ic: '920315-08-5678',
-          contest: 'Back to School',
-          status: 'VALID',
-          errors: '-',
-          store: 'COURTS',
-          companyNo: '789012345',
-          location: 'Kuala Lumpur, KL',
-          product: 'Khind Blender',
-          amount: '1',
-          spent: 'RM299.00'
-        },
-        'participant4': {
-          name: 'Ahmad Bin Abdullah',
-          phone: '+60123456789',
-          email: 'ahmad@email.com',
-          ic: '880210-05-9012',
-          contest: 'Merdeka W1',
-          status: 'FLAGGED',
-          errors: 'Receipt not clear, Missing store info',
-          store: 'HARVEY NORMAN',
-          companyNo: '012345678',
-          location: 'Johor Bahru, Johor',
-          product: 'Khind Toaster',
-          amount: '1',
-          spent: 'RM89.50'
-        },
-        'participant5': {
-          name: 'Lim Wei Ming',
-          phone: '+60155512345',
-          email: 'lim.weiming@email.com',
-          ic: '930512-12-3456',
-          contest: 'Back to School',
-          status: 'VALID',
-          errors: '-',
-          store: 'SENHENG',
-          companyNo: '345678901',
-          location: 'Penang, Penang',
-          product: 'Khind Fan',
-          amount: '1',
-          spent: 'RM159.00'
-        }
-      };
+      // Find participant by ID in the participants data
+      const participant = participantsData.find(p => p.id === participantId);
       
-      const participant = participantData[participantId];
       if (participant) {
         // Update participant name
         document.getElementById('participantName').textContent = participant.name;
         
+        // Update all detail fields
+        updateDetailField('participantName', participant.name);
+        updateDetailField('participantPhone', participant.phone);
+        updateDetailField('participantEmail', participant.email);
+        updateDetailField('participantIc', participant.ic || 'Not provided');
+        updateDetailField('participantContest', participant.contest);
+        updateDetailField('participantStatus', participant.status.toUpperCase());
+        updateDetailField('participantErrors', participant.errors);
+        updateDetailField('participantStore', participant.store);
+        updateDetailField('participantCompanyNo', participant.company_no || 'Not provided');
+        updateDetailField('participantLocation', participant.location);
+        updateDetailField('participantProduct', participant.product);
+        updateDetailField('participantAmount', participant.amount);
+        updateDetailField('participantSpent', participant.spent);
+        updateDetailField('participantAddress', participant.address);
+        updateDetailField('participantPostcode', participant.postcode);
+        updateDetailField('participantCity', participant.city);
+        updateDetailField('participantState', participant.state);
+        updateDetailField('participantHowHeard', participant.how_heard);
+        updateDetailField('participantSubmissionDate', participant.submission_date);
+        
         // Show/hide flagged actions based on status
         const flaggedActions = document.getElementById('flaggedActions');
-        if (participant.status === 'FLAGGED') {
+        if (participant.status === 'flagged') {
           flaggedActions.style.display = 'block';
         } else {
           flaggedActions.style.display = 'none';
@@ -724,6 +645,14 @@
         
         // Hide manual entry by default
         document.getElementById('manualReceiptEntry').style.display = 'none';
+      }
+    }
+    
+    // Helper function to update detail fields
+    function updateDetailField(fieldId, value) {
+      const element = document.getElementById(fieldId);
+      if (element) {
+        element.textContent = value;
       }
     }
 

@@ -171,6 +171,74 @@ def get_contest_data_stats(contest_id):
         'valid_entries': valid_entries,
         'flagged_entries': flagged_entries
     }
+
+def convert_contest_data_to_participants():
+    """Convert contest data files to participant format for participants_manager"""
+    participants = []
+    
+    # Process W1 data
+    for entry in KHIND_MERDEKA_W1_DATA:
+        participant = {
+            'id': entry['submission_no'],
+            'name': entry['full_name'],
+            'phone': entry['phone_number'],
+            'email': entry['email'],
+            'ic': '',  # Not available in contest data
+            'contest': 'Khind Merdeka W1',
+            'status': 'valid' if entry.get('validity') == 'valid' else 'flagged',
+            'errors': entry.get('reason', '') if entry.get('validity') != 'valid' else '-',
+            'submission_date': entry['submitted_date'],
+            'store': entry['store'],
+            'company_no': '',  # Not available in contest data
+            'location': entry['store_location'],
+            'product': entry['product_purchased_1'],
+            'amount': entry['amount_purchased_1'],
+            'spent': entry['amount_spent'],
+            'address': entry['address'],
+            'postcode': entry['postcode'],
+            'city': entry['city'],
+            'state': entry['state'],
+            'receipt_url': entry['receipt_url'],
+            'how_heard': entry['how_heard'],
+            'product_2': entry.get('product_purchased_2', ''),
+            'amount_2': entry.get('amount_purchased_2', ''),
+            'product_3': entry.get('product_purchased_3', ''),
+            'amount_3': entry.get('amount_purchased_3', ''),
+        }
+        participants.append(participant)
+    
+    # Process W2 data
+    for entry in KHIND_MERDEKA_W2_DATA:
+        participant = {
+            'id': entry['submission_no'],
+            'name': entry['full_name'],
+            'phone': entry['phone_number'],
+            'email': entry['email'],
+            'ic': '',  # Not available in contest data
+            'contest': 'Khind Merdeka W2',
+            'status': 'valid' if entry.get('validity') == 'valid' else 'flagged',
+            'errors': entry.get('reason', '') if entry.get('validity') != 'valid' else '-',
+            'submission_date': entry['submitted_date'],
+            'store': entry['store'],
+            'company_no': '',  # Not available in contest data
+            'location': entry['store_location'],
+            'product': entry['product_purchased_1'],
+            'amount': entry['amount_purchased_1'],
+            'spent': entry['amount_spent'],
+            'address': entry['address'],
+            'postcode': entry['postcode'],
+            'city': entry['city'],
+            'state': entry['state'],
+            'receipt_url': entry['receipt_url'],
+            'how_heard': entry['how_heard'],
+            'product_2': entry.get('product_purchased_2', ''),
+            'amount_2': entry.get('amount_purchased_2', ''),
+            'product_3': entry.get('product_purchased_3', ''),
+            'amount_3': entry.get('amount_purchased_3', ''),
+        }
+        participants.append(participant)
+    
+    return participants
 @login_required
 def contest_home(request):
     """Enhanced contest home with management dashboard"""
@@ -1071,99 +1139,17 @@ def participants_manager(request):
     status_filter = request.GET.get('status', '')
     search_query = request.GET.get('search', '').strip()
     
-    # Sample participants data
-    participants = [
-        {
-            'id': 'participant1',
-            'name': 'Loo Li Shen',
-            'phone': '0162107682',
-            'email': 'loolishen016@gmail.com',
-            'ic': '041030 10 1963',
-            'contest': 'Merdeka W1',
-            'status': 'flagged',
-            'errors': 'Invalid Receipt, Unreadable',
-            'submission_date': 'Sep 15, 2024',
-            'store': 'Jaya Grocer',
-            'company_no': '123123123',
-            'location': 'Subang Jaya, Selangor',
-            'product': 'BLDC Fan',
-            'amount': '1',
-            'spent': 'RM123'
-        },
-        {
-            'id': 'participant2',
-            'name': 'Muhammad Dzulfadhlie',
-            'phone': '+601127052763',
-            'email': 'fadhlie2402.md@gmail.com',
-            'ic': '950815-10-1234',
-            'contest': 'Merdeka W1',
-            'status': 'valid',
-            'errors': '-',
-            'submission_date': 'Sep 14, 2024',
-            'store': 'ED FEST',
-            'company_no': '456789012',
-            'location': 'Sepang, Selangor',
-            'product': 'Khind Rice Cooker',
-            'amount': '1',
-            'spent': 'RM59.00'
-        },
-        {
-            'id': 'participant3',
-            'name': 'Sarah Binti Rahman',
-            'phone': '+60198765432',
-            'email': 'sarah.rahman@email.com',
-            'ic': '920315-08-5678',
-            'contest': 'Back to School',
-            'status': 'valid',
-            'errors': '-',
-            'submission_date': 'Aug 25, 2024',
-            'store': 'COURTS',
-            'company_no': '789012345',
-            'location': 'Kuala Lumpur, KL',
-            'product': 'Khind Blender',
-            'amount': '1',
-            'spent': 'RM299.00'
-        },
-        {
-            'id': 'participant4',
-            'name': 'Ahmad Bin Abdullah',
-            'phone': '+60123456789',
-            'email': 'ahmad@email.com',
-            'ic': '880210-05-9012',
-            'contest': 'Merdeka W1',
-            'status': 'flagged',
-            'errors': 'Receipt not clear, Missing store info',
-            'submission_date': 'Sep 16, 2024',
-            'store': 'HARVEY NORMAN',
-            'company_no': '012345678',
-            'location': 'Johor Bahru, Johor',
-            'product': 'Khind Toaster',
-            'amount': '1',
-            'spent': 'RM89.50'
-        },
-        {
-            'id': 'participant5',
-            'name': 'Lim Wei Ming',
-            'phone': '+60155512345',
-            'email': 'lim.weiming@email.com',
-            'ic': '930512-12-3456',
-            'contest': 'Back to School',
-            'status': 'valid',
-            'errors': '-',
-            'submission_date': 'Aug 20, 2024',
-            'store': 'SENHENG',
-            'company_no': '345678901',
-            'location': 'Penang, Penang',
-            'product': 'Khind Fan',
-            'amount': '1',
-            'spent': 'RM159.00'
-        }
-    ]
+    # Get participants from contest data files
+    participants = convert_contest_data_to_participants()
     
     # Apply filters
     if contest_filter:
-        if contest_filter == 'merdeka':
-            participants = [p for p in participants if p['contest'] == 'Merdeka W1']
+        if contest_filter == 'merdeka_w1':
+            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W1']
+        elif contest_filter == 'merdeka_w2':
+            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W2']
+        elif contest_filter == 'merdeka':
+            participants = [p for p in participants if 'Merdeka' in p['contest']]
         elif contest_filter == 'backtoschool':
             participants = [p for p in participants if p['contest'] == 'Back to School']
         elif contest_filter == 'holiday':
@@ -1181,8 +1167,11 @@ def participants_manager(request):
                       search_query.lower() in p['phone'].lower() or
                       search_query.lower() in p['email'].lower()]
     
+    import json
+    
     context = {
         'participants': participants,
+        'participants_json': json.dumps(participants),
         'total_participants': len(participants),
         'contest_filter': contest_filter,
         'status_filter': status_filter,
