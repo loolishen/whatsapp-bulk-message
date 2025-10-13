@@ -191,7 +191,7 @@
       padding:24px; border-bottom:1px solid var(--border); background:var(--gray-light)
     }
     .detail-panel-title{
-      font-size:24px; font-weight:600; color:var(--text); margin:0
+      font-size:28px; font-weight:600; color:var(--text); margin:0
     }
     .detail-panel-close{
       position:absolute; top:20px; right:20px; width:32px; height:32px;
@@ -212,7 +212,7 @@
       border-bottom:none; margin-bottom:0
     }
     .detail-section-title{
-      font-size:14px; font-weight:500; color:var(--text); margin-bottom:12px
+      font-size:16px; font-weight:500; color:var(--text); margin-bottom:12px
     }
     .detail-info{
       display:flex; flex-direction:column; gap:8px
@@ -222,16 +222,16 @@
       padding:8px 0
     }
     .detail-label{
-      font-size:12px; color:var(--text-muted); font-weight:500
+      font-size:14px; color:var(--text-muted); font-weight:500
     }
     .detail-value{
-      font-size:12px; color:var(--text); font-weight:400
+      font-size:14px; color:var(--text); font-weight:400
     }
     .detail-checklist{
       display:flex; flex-direction:column; gap:4px
     }
     .checklist-item{
-      display:flex; align-items:center; gap:8px; font-size:10px; color:var(--text)
+      display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text)
     }
     .checklist-check{
       color:var(--secondary); font-weight:bold
@@ -242,7 +242,7 @@
     .action-button{
       padding:8px 16px; border:1px solid var(--border); border-radius:4px;
       background:var(--white); color:var(--text); text-decoration:none;
-      font-size:12px; text-align:center; transition:all 0.2s
+      font-size:14px; text-align:center; transition:all 0.2s
     }
     .action-button:hover{
       background:var(--gray-light); border-color:var(--primary)
@@ -281,6 +281,29 @@
     @media (max-width: 1200px){
       .detail-panel{width:500px; right:-500px}
     }
+    
+    /* ===== Toast Notification Animations ===== */
+    @keyframes slideInRight {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideOutRight {
+      from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -310,6 +333,10 @@
       <a href="{% url 'participants_manager' %}" class="nav-item active">
         <span class="nav-item-icon">👥</span>
         Participants Manager
+      </a>
+      <a href="{% url 'select_winners' %}" class="nav-item">
+        <span class="nav-item-icon">🏆</span>
+        Select Winners
       </a>
     </nav>
   </div>
@@ -397,7 +424,7 @@
   <!-- Slide-in Detail Panel -->
   <div class="detail-panel" id="detailPanel">
     <div class="detail-panel-header">
-      <h2 class="detail-panel-title" id="participantName">Loo Li Shen</h2>
+      <h2 class="detail-panel-title" id="participantName">Gurdial Singh A/L Natha Singh</h2>
       <button class="detail-panel-close" onclick="closeParticipantDetails()">×</button>
     </div>
     
@@ -408,31 +435,31 @@
         <div class="detail-info">
           <div class="detail-item">
             <span class="detail-label">Full Name</span>
-            <span class="detail-value" id="participantName">Loo Li Shen</span>
+            <span class="detail-value" id="participantName">Gurdial Singh A/L Natha Singh</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Phone</span>
-            <span class="detail-value" id="participantPhone">0162107682</span>
+            <span class="detail-value" id="participantPhone">+60163608819</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Email</span>
-            <span class="detail-value" id="participantEmail">loolishen016@gmail.com</span>
+            <span class="detail-value" id="participantEmail">raji280955@icloud.com</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">IC Number</span>
-            <span class="detail-value" id="participantIc">041030 10 1963</span>
+            <span class="detail-value" id="participantIc">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Contest</span>
-            <span class="detail-value" id="participantContest">Merdeka W1</span>
+            <span class="detail-value" id="participantContest">Khind Merdeka W1</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Status</span>
-            <span class="detail-value" id="participantStatus" style="color: var(--danger); font-weight: 600;">FLAGGED</span>
+            <span class="detail-value" id="participantStatus" style="color: var(--success); font-weight: 600;">VALID</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Errors</span>
-            <span class="detail-value" id="participantErrors" style="color: var(--danger);">Invalid Receipt, Unreadable</span>
+            <span class="detail-label">Submission Date</span>
+            <span class="detail-value" id="participantSubmissionDate">2025-08-01 11:27 AM</span>
           </div>
         </div>
       </div>
@@ -466,60 +493,167 @@
 
       <!-- Flagged Actions (Only for flagged participants) -->
       <div class="detail-section" id="flaggedActions" style="display: none;">
-        <h3 class="detail-section-title">Flagged Actions</h3>
+        <h3 class="detail-section-title" style="color: var(--danger); display: flex; align-items: center; gap: 8px;">
+          ⚠️ Resolution Actions
+          <span style="font-size: 11px; font-weight: 400; color: var(--text-muted); text-transform: none; letter-spacing: normal; margin-left: auto;">
+            Entry requires manual review
+          </span>
+        </h3>
         
-        <!-- Custom Prompt Input -->
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 8px;">Custom Prompt Message</label>
-          <textarea id="customPrompt" placeholder="Type your custom prompt message here..." 
-                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 4px; 
-                           font-size: 14px; resize: vertical; min-height: 80px; font-family: inherit;"></textarea>
+        <!-- Manual Entry Button -->
+        <div style="margin-bottom: 20px;">
+          <button onclick="toggleManualEntry()" style="padding: 8px 14px; border: 2px solid var(--info); background: white; color: var(--info); border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;">
+            <span style="font-size: 14px;">✏️</span>
+            <span>Manual Data Entry</span>
+          </button>
         </div>
         
-        <div class="detail-actions">
-          <button class="action-button primary" onclick="sendCustomPrompt()">Send Custom Prompt</button>
-          <button class="action-button" onclick="toggleManualEntry()">Manually Enter Receipt Info</button>
+        <!-- Custom Message Section -->
+        <div style="background: var(--gray-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px;">
+            💬 Send Custom Message to Participant
+          </label>
+          
+          <!-- Quick Templates -->
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Quick Templates:</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button onclick="useTemplate('clearer')" style="padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
+                📷 Request Clearer Photo
+              </button>
+              <button onclick="useTemplate('amount')" style="padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
+                💰 Insufficient Amount
+              </button>
+              <button onclick="useTemplate('store')" style="padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
+                🏪 Wrong Store
+              </button>
+              <button onclick="useTemplate('date')" style="padding: 6px 12px; border: 1px solid var(--border); background: white; border-radius: 6px; font-size: 11px; cursor: pointer; transition: all 0.2s;">
+                📅 Date Issue
+              </button>
+            </div>
+          </div>
+          
+          <textarea id="customPrompt" placeholder="Type your message or select a template above..." 
+                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
+                           font-size: 13px; resize: vertical; min-height: 100px; font-family: inherit; background: white;"></textarea>
+          
+          <button onclick="sendCustomPrompt()" style="margin-top: 12px; width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            📤 Send Message via WhatsApp
+          </button>
+        </div>
+        
+        <!-- Admin Notes -->
+        <div style="background: #fff3cd; padding: 12px 16px; border-radius: 8px; border-left: 4px solid var(--warning);">
+          <div style="font-size: 12px; font-weight: 600; color: #856404; margin-bottom: 4px;">💡 Admin Tip</div>
+          <div style="font-size: 11px; color: #856404; line-height: 1.4;">
+            • Use quick actions for common scenarios<br>
+            • Send clear instructions to help participants resubmit<br>
+            • Manual entry should be last resort for unclear receipts
+          </div>
         </div>
       </div>
 
       <!-- Manual Receipt Entry (Hidden by default) -->
       <div class="detail-section" id="manualReceiptEntry" style="display: none;">
-        <h3 class="detail-section-title">Manual Receipt Entry</h3>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Store Name</label>
-            <input type="text" id="manualStore" placeholder="Enter store name" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Company Number</label>
-            <input type="text" id="manualCompanyNo" placeholder="Enter company number" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Store Location</label>
-            <input type="text" id="manualLocation" placeholder="Enter store location" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Product Purchased</label>
-            <input type="text" id="manualProduct" placeholder="Enter product name" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Quantity</label>
-            <input type="number" id="manualQuantity" placeholder="Enter quantity" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 4px;">Amount Spent</label>
-            <input type="text" id="manualAmount" placeholder="Enter amount (e.g., RM123)" 
-                   style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+        <h3 class="detail-section-title" style="color: var(--info); display: flex; align-items: center; gap: 8px;">
+          ✏️ Manual Receipt Data Entry
+          <span style="font-size: 11px; font-weight: 400; color: var(--text-muted); text-transform: none; letter-spacing: normal; margin-left: auto;">
+            Fill in receipt details manually
+          </span>
+        </h3>
+        
+        <!-- Info Banner -->
+        <div style="background: #e8f4fd; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--info);">
+          <div style="font-size: 12px; font-weight: 600; color: #014361; margin-bottom: 4px;">📝 Manual Entry Mode</div>
+          <div style="font-size: 11px; color: #014361; line-height: 1.4;">
+            Use this when the receipt image is clear enough for you to read manually, but OCR failed to extract the data automatically.
           </div>
         </div>
-        <div style="margin-top: 16px;">
-          <button class="action-button primary" onclick="saveManualEntry()">Save Manual Entry</button>
-          <button class="action-button" onclick="cancelManualEntry()">Cancel</button>
+        
+        <!-- Store Information -->
+        <div style="background: var(--gray-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🏪</span> Store Information
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Store Name *</label>
+              <input type="text" id="manualStore" placeholder="e.g., Khind Customer Service" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Company Number</label>
+              <input type="text" id="manualCompanyNo" placeholder="e.g., 123456-X" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+            <div style="grid-column: span 2;">
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Store Location *</label>
+              <input type="text" id="manualLocation" placeholder="e.g., Shah Alam, Selangor" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Purchase Details -->
+        <div style="background: var(--gray-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🛍️</span> Purchase Details
+          </div>
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Product Purchased *</label>
+              <input type="text" id="manualProduct" placeholder="e.g., VC9678MS Vacuum Cleaner" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Quantity *</label>
+              <input type="number" id="manualQuantity" placeholder="1" value="1" min="1"
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Total Amount *</label>
+              <div style="position: relative;">
+                <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-weight: 600;">RM</span>
+                <input type="number" id="manualAmount" placeholder="98.00" step="0.01" min="0"
+                       style="width: 100%; padding: 10px 12px 10px 38px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+              </div>
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Purchase Date *</label>
+              <input type="date" id="manualDate" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Invoice Details -->
+        <div style="background: var(--gray-light); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">📋</span> Invoice Details
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Invoice/Receipt Number</label>
+              <input type="text" id="manualInvoiceNo" placeholder="e.g., #17241" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Warranty Period</label>
+              <input type="text" id="manualWarranty" placeholder="e.g., 6 Months" 
+                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            </div>
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <button onclick="saveManualEntry()" style="flex: 1; padding: 12px 24px; background: var(--success); color: white; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+            <span style="font-size: 18px;">💾</span>
+            <span>Save & Approve Entry</span>
+          </button>
+          <button onclick="cancelManualEntry()" style="padding: 12px 24px; background: white; color: var(--text-muted); border: 2px solid var(--border); border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            Cancel
+          </button>
         </div>
       </div>
 
@@ -529,27 +663,31 @@
         <div class="detail-info">
           <div class="detail-item">
             <span class="detail-label">Store</span>
-            <span class="detail-value">Jaya Grocer</span>
-          </div>
-          <div class="detail-item">
-            <span class="detail-label">Company No.</span>
-            <span class="detail-value">123123123</span>
+            <span class="detail-value">Khind Customer Service SDN BHD</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Store Location</span>
-            <span class="detail-value">Subang Jaya, Selangor</span>
+            <span class="detail-value">Shah Alam</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Product Purchased</span>
-            <span class="detail-value">BLDC Fan</span>
+            <span class="detail-value">VC9678MS</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Amount Purchased</span>
+            <span class="detail-label">Quantity</span>
             <span class="detail-value">1</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Amount Spent</span>
-            <span class="detail-value">RM123</span>
+            <span class="detail-value">RM98.00</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Purchase Date</span>
+            <span class="detail-value">2025-08-01</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">How Heard About Contest</span>
+            <span class="detail-value">Social Media/Online Advertisement, Friends/Family Recommendation, In-store Display</span>
           </div>
         </div>
       </div>
@@ -557,23 +695,98 @@
       <!-- Participant Conversation -->
       <div class="detail-section">
         <h3 class="detail-section-title">Participant Conversation</h3>
-        <div style="background: var(--gray-light); padding: 16px; border-radius: var(--radius); min-height: 200px; max-height: 300px; overflow-y: auto;">
+        <div style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; position: relative;">
+          <!-- WhatsApp-style conversation based on contest creation preview -->
           <div style="margin-bottom: 12px;">
-            <div style="background: var(--white); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%;">
-              <p style="margin: 0; font-size: 12px; color: var(--text);">Hi! I've submitted my contest entry. Can you please check if my receipt is clear enough?</p>
-              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 15, 2024 at 2:30 PM</p>
+            <!-- Introduction -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Hi Gurdial! Welcome to our contest...</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:25 AM</p>
+              </div>
             </div>
-            <div style="background: var(--primary-light); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; margin-left: auto;">
-              <p style="margin: 0; font-size: 12px; color: var(--text);">Thank you for your submission! We're reviewing your receipt and will get back to you soon.</p>
-              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 15, 2024 at 2:32 PM</p>
+
+            <!-- PDPA Agreement -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:26 AM</p>
+              </div>
             </div>
-            <div style="background: var(--white); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%;">
-              <p style="margin: 0; font-size: 12px; color: var(--text);">I received a notification that my receipt is not clear. What should I do?</p>
-              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 16, 2024 at 10:15 AM</p>
+
+            <!-- User Agreement -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">I agree to the terms</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:27 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
+              </div>
             </div>
-            <div style="background: var(--primary-light); padding: 8px 12px; border-radius: 12px; margin-bottom: 8px; max-width: 80%; margin-left: auto;">
-              <p style="margin: 0; font-size: 12px; color: var(--text);">Please upload a clearer photo of your receipt. Make sure the store name, date, and amount are clearly visible.</p>
-              <p style="margin: 4px 0 0 0; font-size: 10px; color: var(--text-muted);">Sep 16, 2024 at 10:17 AM</p>
+
+            <!-- Contest Welcome -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">🎉 Welcome to our contest! Thank you for your consent...</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:28 AM</p>
+              </div>
+            </div>
+
+            <!-- Instructions -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">📸 Please upload your purchase receipt photo now. Follow these steps for a clear image:</p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">1. Place receipt on flat surface<br>2. Ensure good lighting<br>3. Hold phone steady<br>4. Capture entire receipt<br>5. Check text is readable</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:29 AM</p>
+              </div>
+            </div>
+
+            <!-- User Response with Receipt Image -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Here's my receipt from Khind Customer Service! 🧾</p>
+                <!-- Receipt Image Preview -->
+                <div style="margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f9f9f9;">
+                  <div style="padding: 8px; background: #fff; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 12px; color: #666; font-weight: 600;">📄 Receipt Image</div>
+                  </div>
+                  <div style="padding: 8px; text-align: center;">
+                    <img src="{% static 'img/Gurdial_Singh_AL_Natha_Singh.jpg' %}" 
+                         style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" 
+                         alt="Gurdial Singh Receipt"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display: none; padding: 20px; background: #f0f0f0; border-radius: 4px; color: #666; font-size: 13px;">
+                      📄 Receipt Image Preview<br>
+                      🏪 KHIND CUSTOMER SERVICES SDN. BHD.<br>
+                      📋 Invoice #17241<br>
+                      📅 Date: 11/8/2028<br>
+                      🛍️ VC9678MS - RM98.00<br>
+                      ✅ 6 MONTHS WARRANTY
+                    </div>
+                  </div>
+                </div>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:30 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
+              </div>
+            </div>
+
+            <!-- Bot Response with Receipt Analysis -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">✅ Perfect! I can see your receipt clearly:</p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">• Invoice #17241 from Khind Customer Service<br>• VC9678MS product for RM98.00<br>• Date: 11/8/2028<br>• 6 Months Warranty included<br>Your entry is valid! Good luck 🍀</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:31 AM</p>
+              </div>
+            </div>
+
+            <!-- Follow-up Message -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Thank you! I heard about this contest through social media and friends. Looking forward to the results! 🙏</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:32 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
+              </div>
             </div>
           </div>
         </div>
@@ -671,11 +884,17 @@
     function sendCustomPrompt() {
       const promptText = document.getElementById('customPrompt').value;
       if (promptText.trim()) {
-        alert(`Sending custom prompt: "${promptText}"\n\nIn a real implementation, this would:\n1. Send the message to the participant\n2. Log the interaction\n3. Update the conversation history`);
-        // Clear the prompt
-        document.getElementById('customPrompt').value = '';
+        // Show sending notification
+        showNotification('📤 Sending message to participant...', 'info');
+        
+        // Simulate sending delay
+        setTimeout(() => {
+          showNotification('✅ Message sent successfully via WhatsApp!', 'success');
+          // Clear the prompt
+          document.getElementById('customPrompt').value = '';
+        }, 800);
       } else {
-        alert('Please enter a custom prompt message.');
+        showNotification('⚠️ Please enter a message first!', 'warning');
       }
     }
 
@@ -687,13 +906,46 @@
       const product = document.getElementById('manualProduct').value;
       const quantity = document.getElementById('manualQuantity').value;
       const amount = document.getElementById('manualAmount').value;
+      const date = document.getElementById('manualDate')?.value;
       
-      if (store && companyNo && location && product && quantity && amount) {
-        alert(`Manual entry saved:\nStore: ${store}\nCompany No: ${companyNo}\nLocation: ${location}\nProduct: ${product}\nQuantity: ${quantity}\nAmount: ${amount}\n\nIn a real implementation, this would update the participant's receipt information.`);
-        cancelManualEntry();
-      } else {
-        alert('Please fill in all fields.');
+      // Check required fields
+      if (!store || !location || !product || !quantity || !amount) {
+        showNotification('⚠️ Please fill in all required fields (marked with *)', 'warning');
+        return;
       }
+      
+      // Show saving notification
+      showNotification('💾 Saving manual entry...', 'info');
+      
+      // Simulate save delay
+      setTimeout(() => {
+        showNotification(`✅ Entry saved successfully!
+Store: ${store}
+Product: ${product}
+Amount: RM${amount}`, 'success');
+        
+        // Update the detail panel with the new data
+        updateDetailField('participantStore', store);
+        updateDetailField('participantCompanyNo', companyNo || 'N/A');
+        updateDetailField('participantLocation', location);
+        updateDetailField('participantProduct', product);
+        updateDetailField('participantAmount', `RM${amount}`);
+        
+        // Update status to valid
+        const statusElement = document.getElementById('participantStatus');
+        if (statusElement) {
+          statusElement.textContent = 'VALID';
+          statusElement.style.color = 'var(--success)';
+        }
+        
+        // Hide flagged actions
+        const flaggedActions = document.getElementById('flaggedActions');
+        if (flaggedActions) {
+          flaggedActions.style.display = 'none';
+        }
+        
+        cancelManualEntry();
+      }, 1000);
     }
 
     // Cancel manual entry
@@ -766,6 +1018,297 @@
       menuBtn.style.marginRight = '12px';
       menuBtn.onclick = toggleSidebar;
       header.insertBefore(menuBtn, header.firstChild);
+    }
+    // Demo function to show flagged participant example
+    function showFlaggedExample() {
+      const overlay = document.getElementById('overlay');
+      const detailPanel = document.getElementById('detailPanel');
+      
+      overlay.classList.add('open');
+      detailPanel.classList.add('open');
+      
+      // Set flagged participant data for Raj Khaiqal
+      // Update both the title and the detail field
+      const titleElement = document.querySelector('.detail-panel-title');
+      if (titleElement) {
+        titleElement.textContent = 'Raj Khaiqal';
+      }
+      
+      // Update participant information
+      updateDetailField('participantName', 'Raj Khaiqal');
+      updateDetailField('participantPhone', '+6019823****');
+      updateDetailField('participantEmail', 'raj.k***@gmail.com');
+      updateDetailField('participantIc', 'Not provided');
+      updateDetailField('participantContest', 'Khind Merdeka W1');
+      updateDetailField('participantSubmissionDate', '2025-08-02 03:45 PM');
+      
+      // Set status to FLAGGED
+      const statusElement = document.getElementById('participantStatus');
+      statusElement.textContent = 'FLAGGED';
+      statusElement.style.color = 'var(--danger)';
+      statusElement.style.fontWeight = '600';
+      
+      // Update errors field
+      updateDetailField('participantErrors', 'Purchase amount below minimum (RM65 < RM98)');
+      
+      // Update receipt information with problematic data
+      updateDetailField('participantStore', 'Unknown Store');
+      updateDetailField('participantCompanyNo', 'Could not extract');
+      updateDetailField('participantLocation', 'Not detected');
+      updateDetailField('participantProduct', 'Unclear from receipt');
+      updateDetailField('participantAmount', 'RM65.00');
+      updateDetailField('participantSpent', 'RM65.00');
+      updateDetailField('participantAddress', 'Jalan Melaka, Taman...');
+      updateDetailField('participantPostcode', '41000');
+      updateDetailField('participantCity', 'Klang');
+      updateDetailField('participantState', 'Selangor');
+      updateDetailField('participantReceiptUrl', 'static/img/sample_flagged_receipt.jpg');
+      updateDetailField('participantHowHeard', 'Social Media');
+      
+      // Update submission checklist to show failures
+      const checklist = document.querySelector('.detail-checklist');
+      checklist.innerHTML = `
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: var(--danger);">✗</span>
+          <span>Receipt (Unclear/Low Quality)</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check">✓</span>
+          <span>Name</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: var(--danger);">✗</span>
+          <span>IC (Not provided)</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check">✓</span>
+          <span>Phone</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check">✓</span>
+          <span>Email</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: var(--danger);">✗</span>
+          <span>Purchase Amount (Below RM98 minimum)</span>
+        </div>
+      `;
+      
+      // Show flagged actions section
+      document.getElementById('flaggedActions').style.display = 'block';
+      
+      // Update WhatsApp conversation to show issue
+      const conversationDiv = document.querySelector('.detail-section:nth-child(6) > div');
+      if (conversationDiv) {
+        conversationDiv.innerHTML = `
+          <div style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; position: relative;">
+            <!-- Introduction -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Hi Raj! Welcome to the Khind Merdeka W1 contest!</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:40 PM</p>
+              </div>
+            </div>
+
+            <!-- PDPA -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:41 PM</p>
+              </div>
+            </div>
+
+            <!-- User Agreement -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">I agree</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:42 PM <span style="font-size: 11px; color: #999;">✓✓</span></p>
+              </div>
+            </div>
+
+            <!-- Instructions -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">📸 Please upload your purchase receipt photo now. Ensure good lighting and capture entire receipt clearly.</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:43 PM</p>
+              </div>
+            </div>
+
+            <!-- User Uploads Receipt -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+                <p style="margin: 0; font-size: 14px; color: #111;">Here is my receipt</p>
+                <!-- Blurred Receipt Image -->
+                <div style="margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f9f9f9;">
+                  <div style="padding: 8px; background: #fff; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 12px; color: #666; font-weight: 600;">📄 Receipt Image</div>
+                  </div>
+                  <div style="padding: 20px; text-align: center; background: #f0f0f0;">
+                    <div style="padding: 40px; background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%); border-radius: 4px; color: #999; font-size: 13px; filter: blur(2px);">
+                      [Blurry/Unclear Receipt Image]<br>
+                      Text not readable<br>
+                      Poor lighting
+                    </div>
+                  </div>
+                </div>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:45 PM <span style="font-size: 11px; color: #999;">✓✓</span></p>
+              </div>
+            </div>
+
+            <!-- Bot Flags Entry -->
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06); border-left: 3px solid var(--danger);">
+                <p style="margin: 0; font-size: 14px; color: #111;">⚠️ We encountered some issues with your submission:</p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--danger);">
+                  • Receipt image unclear<br>
+                  • Purchase amount detected: RM65.00<br>
+                  • Minimum required: RM98.00<br>
+                  • Store name could not be verified
+                </p>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">Your entry has been flagged for manual review. Our team will contact you shortly.</p>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">3:46 PM</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    // Add button to trigger flagged example (for demo purposes)
+    document.addEventListener('DOMContentLoaded', function() {
+      // Create a demo button in the page header (optional)
+      const pageHeader = document.querySelector('.page-header');
+      if (pageHeader) {
+        const demoBtn = document.createElement('button');
+        demoBtn.textContent = '👁️ View Flagged Example';
+        demoBtn.className = 'btn btn-secondary btn-sm';
+        demoBtn.style.cssText = 'margin-left: auto; padding: 8px 16px; font-size: 12px;';
+        demoBtn.onclick = showFlaggedExample;
+        pageHeader.appendChild(demoBtn);
+      }
+    });
+    
+    // Flagged Action Functions
+    function requestClearerReceipt() {
+      useTemplate('clearer');
+      showNotification('Template loaded: Request Clearer Photo', 'info');
+    }
+    
+    function approveManually() {
+      if (confirm('Are you sure you want to approve this entry manually?')) {
+        showNotification('✅ Entry approved successfully! Participant will be notified.', 'success');
+        // Update status to valid
+        const statusElement = document.getElementById('participantStatus');
+        statusElement.textContent = 'VALID';
+        statusElement.style.color = 'var(--success)';
+        // Hide flagged actions
+        document.getElementById('flaggedActions').style.display = 'none';
+      }
+    }
+    
+    function rejectEntry() {
+      const reason = prompt('Enter rejection reason (will be sent to participant):');
+      if (reason) {
+        showNotification('❌ Entry rejected. Notification sent to participant.', 'warning');
+        closeParticipantDetails();
+      }
+    }
+    
+    function useTemplate(templateType) {
+      const textarea = document.getElementById('customPrompt');
+      const templates = {
+        clearer: `Hi! We noticed your receipt photo is a bit unclear. Could you please send a clearer photo? 
+
+Tips for a good photo:
+📸 Place receipt on a flat surface
+💡 Ensure good lighting
+📏 Capture the entire receipt
+🔍 Make sure all text is readable
+
+Thank you!`,
+        amount: `Hi! We reviewed your submission but noticed the purchase amount (RM65.00) is below the minimum requirement of RM98.00 for this contest.
+
+Unfortunately, this entry does not qualify. However, if you have another eligible purchase, feel free to submit again!
+
+Thank you for understanding.`,
+        store: `Hi! Thank you for your submission. However, we noticed the purchase was not made at an authorized Khind retailer.
+
+Valid stores include:
+🏪 Khind Customer Service Centers
+🛒 Harvey Norman
+🏬 Courts Mammoth
+🛍️ Other authorized retailers
+
+If you have a receipt from an authorized store, please submit it. Thank you!`,
+        date: `Hi! We noticed your receipt date falls outside the contest period.
+
+Contest Period: Aug 1 - Sep 10, 2024
+Your Receipt: [Date detected]
+
+Only purchases within this period are eligible. If you have another eligible purchase, feel free to resubmit!
+
+Thank you.`
+      };
+      
+      textarea.value = templates[templateType] || '';
+      textarea.focus();
+    }
+    
+    function sendCustomPrompt() {
+      const message = document.getElementById('customPrompt').value;
+      if (!message.trim()) {
+        showNotification('⚠️ Please enter a message first!', 'warning');
+        return;
+      }
+      
+      // Show sending notification
+      showNotification('📤 Sending message to participant...', 'info');
+      
+      // Simulate sending delay
+      setTimeout(() => {
+        showNotification('✅ Message sent successfully via WhatsApp!', 'success');
+        document.getElementById('customPrompt').value = '';
+      }, 800);
+    }
+    
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      
+      // Support multi-line messages
+      notification.innerHTML = message.replace(/\n/g, '<br>');
+      
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? 'var(--success)' : type === 'warning' ? 'var(--warning)' : type === 'danger' ? 'var(--danger)' : 'var(--info)'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease;
+        max-width: 400px;
+        line-height: 1.4;
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Longer duration for multi-line messages
+      const duration = message.split('\n').length > 2 ? 4000 : 3000;
+      
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }, duration);
+      
+      return notification;
     }
   </script>
 </body>

@@ -1181,6 +1181,32 @@ def participants_manager(request):
     }
     return render(request, 'messaging/participants_manager.html', context)
 
+def select_winners(request):
+    """Select winners page for randomly selecting contest winners"""
+    try:
+        tenant = _get_tenant(request)
+        if not _require_plan(tenant, 'contest'):
+            return redirect('dashboard')
+    except Exception as e:
+        print(f"Error in select_winners: {e}")
+        return redirect('dashboard')
+    
+    # Get participants from contest data files
+    participants = convert_contest_data_to_participants()
+    
+    # Get available contests
+    contests = list(set([p['contest'] for p in participants]))
+    
+    import json
+    
+    context = {
+        'participants': participants,
+        'participants_json': json.dumps(participants),
+        'contests': contests,
+        'total_participants': len(participants),
+    }
+    return render(request, 'messaging/select_winners.html', context)
+
 def analytics_dashboard(request):
     """Analytics dashboard with data visualizations"""
     from django.db.models import Count, Q

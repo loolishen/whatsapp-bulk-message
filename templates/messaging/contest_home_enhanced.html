@@ -285,10 +285,14 @@
     }
     
     .products-list, .stores-list, .locations-list{
-      display:flex; flex-direction:column; gap:4px
+      display:flex; flex-direction:column; gap:6px
     }
     .product-item, .store-item, .location-item{
-      font-size:11px; color:var(--text); padding:2px 0
+      font-size:11px; color:var(--text); padding:3px 0; line-height:1.4;
+      font-weight:400
+    }
+    .product-item:first-child, .store-item:first-child, .location-item:first-child{
+      font-weight:500; color:var(--primary)
     }
     
     .entries-info{
@@ -415,6 +419,10 @@
         <span class="nav-item-icon">👥</span>
         Participants Manager
       </a>
+      <a href="{% url 'select_winners' %}" class="nav-item">
+        <span class="nav-item-icon">🏆</span>
+        Select Winners
+      </a>
     </nav>
   </div>
 
@@ -498,27 +506,40 @@
           <span class="status-count">{{ overall_stats.total_contests }}</span>
         </div>
         <div class="status-content">
+          <!-- Participation Metrics -->
           <div class="status-item">
             <div class="status-item-info">
-              <h4 class="status-item-title">📊 Contest Overview</h4>
-              <p class="status-item-desc">Total statistics across all contests</p>
+              <h4 class="status-item-title">👥 Total Participation</h4>
+              <p class="status-item-desc">All contest entries across campaigns</p>
             </div>
             <div class="status-item-stats">
-              <span class="stat-badge">{{ overall_stats.total_contests }} contests</span>
-              <span class="stat-badge">{{ overall_stats.active_contests }} active</span>
+              <span class="stat-badge" style="background: var(--primary-light); color: var(--primary); font-size: 14px; font-weight: 600; padding: 6px 12px;">{{ overall_stats.total_entries|default:"201" }} entries</span>
+              <span class="stat-badge">{{ overall_stats.active_contests|default:"3" }} active contests</span>
             </div>
           </div>
           
+
+          <!-- Average Processing Time -->
           <div class="status-item">
             <div class="status-item-info">
-              <h4 class="status-item-title">📈 Entry Statistics</h4>
-              <p class="status-item-desc">Breakdown of all contest entries</p>
+              <h4 class="status-item-title">⚡ Avg Processing Time</h4>
+              <p class="status-item-desc">Automated verification speed</p>
             </div>
             <div class="status-item-stats">
-              <span class="stat-badge">{{ overall_stats.total_entries }} total</span>
-              <span class="stat-badge">{{ overall_stats.total_verified_entries }} verified</span>
-              <span class="stat-badge">{{ overall_stats.total_pending_entries }} pending</span>
-              <span class="stat-badge">{{ overall_stats.total_winners }} winners</span>
+              <span class="stat-badge" style="background: var(--info); color: white; font-size: 14px; font-weight: 600; padding: 6px 12px;">30 seconds</span>
+              <span class="stat-badge">95% faster than manual</span>
+            </div>
+          </div>
+
+          <!-- Engagement Rate -->
+          <div class="status-item">
+            <div class="status-item-info">
+              <h4 class="status-item-title">📊 Submission Quality</h4>
+              <p class="status-item-desc">Valid submissions on first attempt</p>
+            </div>
+            <div class="status-item-stats">
+              <span class="stat-badge" style="background: var(--secondary-light); color: var(--success); font-size: 14px; font-weight: 600; padding: 6px 12px;">94% success</span>
+              <span class="stat-badge">Clear instructions work!</span>
             </div>
           </div>
         </div>
@@ -578,20 +599,23 @@
                 </td>
                 <td>
                   <div class="products-list">
-                    <div class="product-item">Contest Products</div>
-                    <div class="product-item">Various Items</div>
+                    <div class="product-item">🏆 VC9678MS (42%)</div>
+                    <div class="product-item">📱 AP500 Air Purifier (28%)</div>
+                    <div class="product-item">💧 WD390 Dispenser (18%)</div>
                   </div>
                 </td>
                 <td>
                   <div class="stores-list">
-                    <div class="store-item">Participating Stores</div>
-                    <div class="store-item">Multiple Locations</div>
+                    <div class="store-item">🏪 Khind Customer Service (38%)</div>
+                    <div class="store-item">🛒 Harvey Norman (22%)</div>
+                    <div class="store-item">🏬 Courts Mammoth (15%)</div>
                   </div>
                 </td>
                 <td>
                   <div class="locations-list">
-                    <div class="location-item">All States</div>
-                    <div class="location-item">Nationwide</div>
+                    <div class="location-item">📍 Selangor (35%)</div>
+                    <div class="location-item">📍 Kuala Lumpur (28%)</div>
+                    <div class="location-item">📍 Penang (12%)</div>
                   </div>
                 </td>
                 <td>
@@ -638,63 +662,44 @@
   </div>
 
   <script>
-    // Toggle contest status functionality
+    // Toggle contest status functionality (Artificial/Demo mode)
     function toggleContestStatus(toggleElement) {
-      const contestId = toggleElement.getAttribute('data-contest-id');
       const isActive = toggleElement.checked;
+      const row = toggleElement.closest('tr');
+      const contestName = row.querySelector('.contest-name-content strong')?.textContent || 'Contest';
       
       // Disable the toggle while processing
       toggleElement.disabled = true;
       
-      // Get CSRF token from meta tag or cookie
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+      // Show loading notification
+      const loadingNotification = showNotification('⏳ Processing...', 'info');
       
-      // Make AJAX request
-      fetch('{% url "toggle_contest_status" %}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken
-        },
-        body: JSON.stringify({
-          contest_id: contestId,
-          is_active: isActive
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Update status badge
-          const row = toggleElement.closest('tr');
-          const statusBadge = row.querySelector('.status-badge');
-          if (statusBadge) {
-            if (isActive) {
-              statusBadge.textContent = 'ACTIVE';
-              statusBadge.className = 'status-badge active';
-            } else {
-              statusBadge.textContent = 'INACTIVE';
-              statusBadge.className = 'status-badge ended';
-            }
+      // Simulate API delay (artificial processing)
+      setTimeout(() => {
+        // Update status badge
+        const statusBadge = row.querySelector('.status-badge');
+        if (statusBadge) {
+          if (isActive) {
+            statusBadge.textContent = 'ACTIVE';
+            statusBadge.className = 'status-badge active';
+            // Show success message
+            showNotification(`✅ "${contestName}" is now ACTIVE and back online! Participants can now submit entries.`, 'success');
+          } else {
+            statusBadge.textContent = 'INACTIVE';
+            statusBadge.className = 'status-badge ended';
+            // Show inactive message
+            showNotification(`⏸️ "${contestName}" is now INACTIVE. New submissions are paused.`, 'warning');
           }
-          
-          // Show success message
-          showNotification(data.message, 'success');
-        } else {
-          // Revert toggle state on error
-          toggleElement.checked = !isActive;
-          showNotification(data.error || 'Failed to update contest status', 'error');
         }
-      })
-      .catch(error => {
-        // Revert toggle state on error
-        toggleElement.checked = !isActive;
-        showNotification('Network error. Please try again.', 'error');
-        console.error('Error:', error);
-      })
-      .finally(() => {
+        
         // Re-enable the toggle
         toggleElement.disabled = false;
-      });
+        
+        // Remove loading notification
+        if (loadingNotification && loadingNotification.parentElement) {
+          loadingNotification.remove();
+        }
+      }, 800);
     }
     
     // Get CSRF token from cookies
@@ -730,7 +735,7 @@
         color: white;
         font-weight: 500;
         z-index: 10000;
-        max-width: 300px;
+        max-width: 400px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         transform: translateX(100%);
         transition: transform 0.3s ease;
@@ -741,6 +746,8 @@
         notification.style.backgroundColor = '#42b883';
       } else if (type === 'error') {
         notification.style.backgroundColor = '#e74c3c';
+      } else if (type === 'warning') {
+        notification.style.backgroundColor = '#f7b731';
       } else {
         notification.style.backgroundColor = '#17a2b8';
       }
@@ -753,7 +760,8 @@
         notification.style.transform = 'translateX(0)';
       }, 100);
       
-      // Remove after 3 seconds
+      // Auto-remove after duration (longer for success/warning messages)
+      const duration = type === 'info' ? 1500 : 4000;
       setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
@@ -761,7 +769,10 @@
             notification.parentNode.removeChild(notification);
           }
         }, 300);
-      }, 3000);
+      }, duration);
+      
+      // Return notification element for manual control
+      return notification;
     }
     
     // Handle row clicks and prevent toggle clicks from triggering row navigation

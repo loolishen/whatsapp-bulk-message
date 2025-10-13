@@ -87,10 +87,10 @@
       margin-bottom:32px; text-align:center
     }
     .page-title{
-      font-size:32px; font-weight:500; color:var(--text); margin-bottom:8px
+      font-size:18px; font-weight:500; color:var(--text); margin-bottom:8px
     }
     .page-subtitle{
-      font-size:24px; font-weight:300; color:var(--text-muted)
+      font-size:16px; font-weight:300; color:var(--text-muted)
     }
 
     .back-btn{
@@ -102,32 +102,57 @@
 
     /* ===== Form Sections ===== */
     .form-section{
-      margin-bottom:32px; padding-bottom:24px; border-bottom:1px solid var(--border)
+      margin-bottom:16px; border:1px solid var(--border); border-radius:var(--radius);
+      background:var(--white); overflow:hidden
     }
     .form-section:last-child{
-      border-bottom:none; margin-bottom:0
+      margin-bottom:0
     }
 
     .section-header{
-      display:flex; align-items:center; gap:12px; margin-bottom:20px
+      display:flex; align-items:center; gap:12px; padding:16px; cursor:pointer;
+      background:var(--gray-light); transition:all 0.2s; user-select:none
+    }
+    .section-header:hover{
+      background:var(--gray)
+    }
+    .section-header.active{
+      background:var(--primary-light); color:var(--primary)
     }
     .section-icon{
-      width:32px; height:32px; border-radius:50%; background:var(--gray-light);
-      display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--text-muted)
+      width:24px; height:24px; border-radius:50%; background:var(--gray);
+      display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-muted);
+      transition:all 0.2s
+    }
+    .section-header.active .section-icon{
+      background:var(--primary); color:white
     }
     .section-title{
-      font-size:16px; font-weight:300; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px
+      font-size:12px; font-weight:500; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
+      flex:1
+    }
+    .section-toggle{
+      font-size:16px; color:var(--text-muted); transition:transform 0.2s
+    }
+    .section-header.active .section-toggle{
+      transform:rotate(180deg)
+    }
+    .section-content{
+      padding:0 16px; max-height:0; overflow:hidden; transition:all 0.3s ease
+    }
+    .section-content.expanded{
+      padding:16px; max-height:1000px
     }
 
     .form-group{
       margin-bottom:16px
     }
     .form-label{
-      display:block; font-weight:300; color:var(--text-muted); margin-bottom:8px; font-size:16px
+      display:block; font-weight:300; color:var(--text-muted); margin-bottom:6px; font-size:12px
     }
     .form-input{
-      width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius);
-      font-size:16px; font-weight:200; transition:all 0.2s; background:var(--white);
+      width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius);
+      font-size:12px; font-weight:200; transition:all 0.2s; background:var(--white);
       font-family:"Inter",sans-serif
     }
     .form-input:focus{
@@ -148,7 +173,7 @@
       width:16px; height:16px; accent-color:var(--primary)
     }
     .checkbox-label{
-      font-weight:200; color:var(--text); font-size:16px
+      font-weight:200; color:var(--text); font-size:12px
     }
 
     .form-actions{
@@ -170,7 +195,7 @@
     .btn-primary:hover{background:var(--primary-hover); color:white}
 
     .help-text{
-      font-size:14px; color:var(--text-muted); margin-top:4px; font-weight:200
+      font-size:10px; color:var(--text-muted); margin-top:4px; font-weight:200
     }
 
     .required{
@@ -179,62 +204,128 @@
 
     /* ===== Right Column - WhatsApp Preview ===== */
     .preview-column{
-      background:var(--gray-light); border-radius:var(--radius-lg); padding:24px;
-      border:1px solid var(--border); height:fit-content; position:sticky; top:80px
+      background:var(--gray-light); border-radius:var(--radius-lg); padding:0;
+      border:1px solid var(--border); height:fit-content; position:sticky; top:80px;
+      overflow:hidden
     }
 
     .preview-header{
-      text-align:center; margin-bottom:24px
+      text-align:center; margin-bottom:16px; padding:16px 24px 0;
     }
     .preview-title{
-      font-size:24px; font-weight:500; color:var(--text); margin-bottom:8px
+      font-size:20px; font-weight:500; color:var(--text); margin-bottom:4px
     }
     .preview-subtitle{
-      font-size:16px; font-weight:300; color:var(--text-muted)
+      font-size:14px; font-weight:300; color:var(--text-muted)
     }
 
-    .whatsapp-preview{
-      background:var(--white); border-radius:var(--radius); padding:16px; margin-bottom:16px;
-      box-shadow:0 1px 3px rgba(0,0,0,0.1)
+    /* ===== WhatsApp Phone Mockup ===== */
+    .wa-phone{
+      background:#1f2937; border-radius:20px; padding:8px; margin:0 auto 16px;
+      width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.3)
     }
 
-    .message-bubble{
-      background:#e7f3ff; border-radius:12px; padding:12px; margin-bottom:8px; position:relative;
-      max-width:85%; margin-left:0; margin-right:auto
-    }
-    .message-bubble.user{
-      background:#dcf8c6; margin-left:auto; margin-right:0
-    }
-    .message-bubble.system{
-      background:#f0f0f0; text-align:center; font-style:italic; font-size:14px;
-      color:var(--text-muted); margin:8px auto
+    .wa-screen{
+      background:#fff; border-radius:12px; overflow:hidden; height:500px;
+      display:flex; flex-direction:column
     }
 
-    .message-text{
-      font-size:16px; font-weight:200; line-height:1.4; margin:0
+    /* ===== WhatsApp Chat Header ===== */
+    .wa-chat-header{
+      background:#075e54; color:white; padding:12px 16px;
+      display:flex; align-items:center; gap:12px; flex-shrink:0
+    }
+    .wa-chat-avatar{
+      width:36px; height:36px; border-radius:50%; background:#25d366;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px
+    }
+    .wa-chat-info{flex:1}
+    .wa-chat-name{font-weight:600; font-size:16px; margin:0}
+    .wa-chat-status{font-size:12px; color:#a5f3fc; margin:0}
+    .wa-chat-actions{
+      display:flex; gap:8px; color:#a5f3fc
+    }
+    .wa-chat-action{
+      font-size:18px; cursor:pointer; padding:4px
     }
 
-    .message-time{
-      font-size:12px; color:var(--text-muted); text-align:right; margin-top:4px
+    /* ===== WhatsApp Messages Area ===== */
+    .wa-messages{
+      flex:1; padding:8px; background:#efeae2;
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 80% 0%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 0% 80%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 100% 90%, rgba(0,0,0,.02) 2px, transparent 2px);
+      background-size: 280px 280px, 240px 240px, 260px 260px, 220px 220px;
+      overflow-y:auto; max-height:400px
     }
 
+    /* ===== Message Bubbles ===== */
+    .wa-message{
+      display:flex; align-items:flex-end; margin-bottom:8px; position:relative
+    }
+    .wa-message.incoming{
+      justify-content:flex-start
+    }
+    .wa-message.outgoing{
+      justify-content:flex-end
+    }
+
+    .wa-message-avatar{
+      width:24px; height:24px; border-radius:50%; background:#34b7f1;
+      color:#fff; display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:600; margin-right:6px; flex-shrink:0
+    }
+
+    .wa-bubble{
+      max-width:75%; padding:8px 12px; border-radius:7.5px;
+      position:relative; word-wrap:break-word; box-shadow:0 1px 1px rgba(0,0,0,0.06)
+    }
+    .wa-bubble.incoming{
+      background:#fff; color:#111; border-radius:7.5px 7.5px 7.5px 0
+    }
+    .wa-bubble.outgoing{
+      background:#dcf8c6; color:#111; border-radius:7.5px 7.5px 0 7.5px
+    }
+
+    .wa-bubble-text{
+      font-size:14px; line-height:1.3; margin:0; word-wrap:break-word
+    }
+
+    .wa-bubble-time{
+      text-align:right; color:#999; font-size:11px; margin-top:2px;
+      display:flex; justify-content:flex-end; align-items:center; gap:4px
+    }
+
+    .wa-bubble-status{
+      font-size:10px; color:#999
+    }
+
+    /* ===== Receipt/Media Preview ===== */
+    .wa-media{
+      background:#f8f9fa; border:1px dashed #ddd; border-radius:8px;
+      padding:12px; text-align:center; margin:4px 0; max-width:200px
+    }
+    .wa-media-icon{
+      font-size:24px; margin-bottom:4px; display:block
+    }
+    .wa-media-text{
+      font-size:12px; color:#666; margin:0
+    }
+
+    /* ===== Preview Sections ===== */
     .preview-section{
-      margin-bottom:20px
+      margin-bottom:16px; padding:0 16px
     }
     .preview-section-title{
-      font-size:16px; font-weight:300; color:var(--text-muted); margin-bottom:8px;
+      font-size:14px; font-weight:500; color:var(--text-muted); margin-bottom:8px;
       text-transform:uppercase; letter-spacing:0.5px
     }
 
-    .example-receipt{
-      background:var(--white); border:2px dashed var(--border); border-radius:var(--radius);
-      padding:20px; text-align:center; margin:8px 0
-    }
-    .receipt-icon{
-      font-size:24px; margin-bottom:8px
-    }
-    .receipt-text{
-      font-size:14px; color:var(--text-muted); font-weight:200
+    .whatsapp-preview{
+      background:transparent; border-radius:0; padding:0; margin-bottom:0;
+      box-shadow:none
     }
 
     /* ===== Responsive ===== */
@@ -299,151 +390,171 @@
         
         <!-- Contest Name -->
         <div class="form-section">
-          <div class="section-header">
+          <div class="section-header" onclick="toggleSection(this)">
             <div class="section-icon">📝</div>
-            <div class="section-title">Contest Name</div>
+            <div class="section-title">Contest</div>
+            <div class="section-toggle">▼</div>
           </div>
           
-          <div class="form-group">
-            <input type="text" id="name" name="name" class="form-input" required 
-                   placeholder="Enter your contest name">
+          <div class="section-content">
+            <div class="form-group">
+              <input type="text" id="name" name="name" class="form-input" required 
+                     placeholder="Enter your contest name">
+            </div>
+            
+            <div class="form-group">
+              <label for="description" class="form-label">Description</label>
+              <textarea id="description" name="description" class="form-input form-textarea" 
+                        placeholder="Describe your contest..."></textarea>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
+                <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
+                <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label for="post_pdpa_text" class="form-label">Contest Welcome Message</label>
+              <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
+                        placeholder="Welcome to our contest! Thank you for your consent..."></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- Contest Introduction -->
+        <!-- Introduction -->
         <div class="form-section">
-          <div class="section-header">
-            <div class="section-icon">📖</div>
-            <div class="section-title">Contest Introduction</div>
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-icon">👋</div>
+            <div class="section-title">Introduction</div>
+            <div class="section-toggle">▼</div>
           </div>
           
-          <div class="form-group">
-            <label for="description" class="form-label">Description</label>
-            <textarea id="description" name="description" class="form-input form-textarea" 
-                      placeholder="Describe your contest..."></textarea>
-          </div>
-          
-          <div class="form-row">
+          <div class="section-content">
             <div class="form-group">
-              <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
-              <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
-            </div>
-            <div class="form-group">
-              <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
-              <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+              <label for="introduction_message" class="form-label">Introduction Message</label>
+              <textarea id="introduction_message" name="introduction_message" class="form-input form-textarea" 
+                        placeholder="Hi [Name]! Welcome to our contest..."></textarea>
             </div>
           </div>
         </div>
+
+        <!-- PDPA Agreement -->
+        <div class="form-section">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-icon">🔒</div>
+            <div class="section-title">PDPA Agreement</div>
+            <div class="section-toggle">▼</div>
+          </div>
+          
+          <div class="section-content">
+            <div class="form-group">
+              <label for="pdpa_url" class="form-label">PDPA Link</label>
+              <input type="url" id="pdpa_url" name="pdpa_url" class="form-input" 
+                     placeholder="https://example.com/privacy-policy">
+            </div>
+            
+            <div class="form-group">
+              <label for="participant_agreement" class="form-label">Participant's Agreement Message</label>
+              <textarea id="participant_agreement" name="participant_agreement" class="form-input form-textarea" 
+                        placeholder="Thank you for agreeing! Please follow the following steps..."></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="participant_rejection" class="form-label">Participant's Rejection Message</label>
+              <textarea id="participant_rejection" name="participant_rejection" class="form-input form-textarea" 
+                        placeholder="We respect your choice, you won't receive contest messages."></textarea>
+            </div>
+          </div>
+        </div>
+
 
         <!-- Submission Requirements -->
         <div class="form-section">
-          <div class="section-header">
+          <div class="section-header" onclick="toggleSection(this)">
             <div class="section-icon">📋</div>
             <div class="section-title">Submission Requirements</div>
+            <div class="section-toggle">▼</div>
           </div>
           
-          <div class="form-group">
-            <label for="contest_instructions" class="form-label">Instructions</label>
-            <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
-                      placeholder="Instructions for participants..."></textarea>
-          </div>
-          
-          <div class="checkbox-group">
-            <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
-            <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
-          </div>
-          
-          <div class="checkbox-group">
-            <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
-            <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
-          </div>
-          
-          <div class="form-group">
-            <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
-            <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
-                   step="0.01" min="0" placeholder="0.00">
-            <div class="help-text">Leave empty for no minimum purchase requirement</div>
+          <div class="section-content">
+            <div class="form-group">
+              <label for="contest_instructions" class="form-label">Instructions</label>
+              <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
+                        placeholder="Instructions for participants..."></textarea>
+            </div>
+            
+            <div class="checkbox-group">
+              <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
+              <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
+            </div>
+            
+            <div class="checkbox-group">
+              <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
+              <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
+            </div>
+            
+            <div class="form-group">
+              <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
+              <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
+                     step="0.01" min="0" placeholder="0.00">
+              <div class="help-text">Leave empty for no minimum purchase requirement</div>
+            </div>
           </div>
         </div>
 
-        <!-- Welcome Message -->
-        <div class="form-section">
-          <div class="section-header">
-            <div class="section-icon">👋</div>
-            <div class="section-title">Welcome Message</div>
-          </div>
-          
-          <div class="form-group">
-            <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
-                      placeholder="Welcome to our contest! Thank you for your consent..."></textarea>
-          </div>
-        </div>
 
         <!-- Instructions -->
         <div class="form-section">
-          <div class="section-header">
+          <div class="section-header" onclick="toggleSection(this)">
             <div class="section-icon">📸</div>
             <div class="section-title">Instructions</div>
+            <div class="section-toggle">▼</div>
           </div>
           
-          <div class="form-group">
-            <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
-                      placeholder="Instructions for verification process..."></textarea>
-          </div>
-          
-          <div class="form-group">
-            <label for="post_pdpa_image_url" class="form-label">Instructions GIF/Image URL</label>
-            <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
-                   placeholder="https://example.com/contest-animation.gif">
-            <div class="help-text">URL to show example on how to take picture</div>
+          <div class="section-content">
+            <div class="form-group">
+              <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
+                        placeholder="Instructions for verification process..."></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="post_pdpa_image_url" class="form-label">Instructions GIF/Image URL</label>
+              <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
+                     placeholder="https://example.com/contest-animation.gif">
+              <div class="help-text">URL to show example on how to take picture</div>
+            </div>
           </div>
         </div>
 
         <!-- Success/Failure Messages -->
         <div class="form-section">
-          <div class="section-header">
+          <div class="section-header" onclick="toggleSection(this)">
             <div class="section-icon">✅</div>
             <div class="section-title">Success/Failure</div>
+            <div class="section-toggle">▼</div>
           </div>
           
-          <div class="form-group">
-            <label for="eligibility_message" class="form-label">Success Message</label>
-            <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
-                      placeholder="Congratulations! You are eligible to participate..."></textarea>
-          </div>
-          
-          <div class="form-group">
-            <label for="failure_message" class="form-label">Failure Message</label>
-            <textarea id="failure_message" name="failure_message" class="form-input form-textarea" 
-                      placeholder="Sorry, we couldn't detect a valid receipt..."></textarea>
+          <div class="section-content">
+            <div class="form-group">
+              <label for="eligibility_message" class="form-label">Success Message</label>
+              <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
+                        placeholder="Congratulations! You are eligible to participate..."></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="failure_message" class="form-label">Failure Message</label>
+              <textarea id="failure_message" name="failure_message" class="form-input form-textarea" 
+                        placeholder="Sorry, we couldn't detect a valid receipt..."></textarea>
+            </div>
           </div>
         </div>
 
-        <!-- PDPA -->
-        <div class="form-section">
-          <div class="section-header">
-            <div class="section-icon">🔒</div>
-            <div class="section-title">PDPA</div>
-          </div>
-          
-          <div class="form-group">
-            <label for="pdpa_url" class="form-label">PDPA Link</label>
-            <input type="url" id="pdpa_url" name="pdpa_url" class="form-input" 
-                   placeholder="https://example.com/privacy-policy">
-          </div>
-          
-          <div class="form-group">
-            <label for="participant_agreement" class="form-label">Participant's Agreement Message</label>
-            <textarea id="participant_agreement" name="participant_agreement" class="form-input form-textarea" 
-                      placeholder="Thank you for agreeing! Please follow the following steps..."></textarea>
-          </div>
-          
-          <div class="form-group">
-            <label for="participant_rejection" class="form-label">Participant's Rejection Message</label>
-            <textarea id="participant_rejection" name="participant_rejection" class="form-input form-textarea" 
-                      placeholder="We respect your choice, you won't receive contest messages."></textarea>
-          </div>
-        </div>
 
         <!-- Form Actions -->
         <div class="form-actions">
@@ -460,84 +571,134 @@
         <p class="preview-subtitle">Live preview of participant interactions</p>
       </div>
 
-      <!-- Welcome Message Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">Welcome Message</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble">
-            <p class="message-text">👋 Hi there! Welcome to the <strong>Khind Merdeka Lucky Draw Contest</strong>.</p>
-            <div class="message-time">10:30 AM</div>
+      <!-- WhatsApp Phone Mockup -->
+      <div class="wa-phone">
+        <div class="wa-screen">
+          <!-- WhatsApp Chat Header -->
+          <div class="wa-chat-header">
+            <div class="wa-chat-avatar">🤖</div>
+            <div class="wa-chat-info">
+              <div class="wa-chat-name">Contest Bot</div>
+              <div class="wa-chat-status">online</div>
+            </div>
+            <div class="wa-chat-actions">
+              <span class="wa-chat-action">📞</span>
+              <span class="wa-chat-action">📹</span>
+              <span class="wa-chat-action">⋮</span>
+            </div>
           </div>
+
+          <!-- WhatsApp Messages Area -->
+          <div class="wa-messages">
+            <!-- Introduction (Hi/Hello [Name]) -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">Hi [Name]! Welcome to our contest...</div>
+                <div class="wa-bubble-time">10:30 AM</div>
+              </div>
+            </div>
+
+            <!-- PDPA Agreement -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></div>
+                <div class="wa-bubble-time">10:31 AM</div>
+              </div>
+            </div>
+
+            <!-- User Agreement -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">I agree to the terms</div>
+                <div class="wa-bubble-time">10:32 AM <span class="wa-bubble-status">✓✓</span></div>
+              </div>
+            </div>
+
+            <!-- Contest Welcome Message -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">🎉 Welcome to our contest! Thank you for your consent...</div>
+                <div class="wa-bubble-time">10:33 AM</div>
+              </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">📸 Please upload your purchase receipt photo now. Make sure the store name, date, and amount are clear.</div>
+                <div class="wa-bubble-time">10:32 AM</div>
+              </div>
+            </div>
+
+            <!-- Example Receipt -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-media">
+                  <div class="wa-media-icon">📷</div>
+                  <div class="wa-media-text">Example receipt image</div>
+          </div>
+                <div class="wa-bubble-time">10:32 AM</div>
+          </div>
+            </div>
+
+            <!-- Participant Response -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">Here's my receipt! 🧾</div>
+                <div class="wa-bubble-time">10:35 AM <span class="wa-bubble-status">✓✓</span></div>
         </div>
       </div>
 
-      <!-- Contest Introduction Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">Contest Introduction</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble">
-            <p class="message-text">🎉 Here's how it works: Submit a photo of your purchase receipt worth RM50 or above, and you'll qualify for the lucky draw. Multiple entries allowed!</p>
-            <div class="message-time">10:31 AM</div>
+            <!-- Participant Receipt -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-media">
+                  <div class="wa-media-icon">🧾</div>
+                  <div class="wa-media-text">Receipt uploaded by participant</div>
           </div>
+                <div class="wa-bubble-time">10:35 AM <span class="wa-bubble-status">✓✓</span></div>
+          </div>
+            </div>
+
+            <!-- Success Response -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">✅ Your entry has been received! Good luck 🍀<br>Winners will be announced on [date].</div>
+                <div class="wa-bubble-time">10:36 AM</div>
         </div>
       </div>
 
-      <!-- Instructions Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">Instructions</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble">
-            <p class="message-text">📸 Please upload your purchase receipt photo now. Make sure the store name, date, and amount are clear.</p>
-            <div class="message-time">10:32 AM</div>
+            <!-- PDPA Agreement -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></div>
+                <div class="wa-bubble-time">10:37 AM</div>
           </div>
-          <div class="example-receipt">
-            <div class="receipt-icon">📷</div>
-            <div class="receipt-text">Example receipt image</div>
-          </div>
+            </div>
+
+            <!-- User Agreement -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">I agree to the terms</div>
+                <div class="wa-bubble-time">10:38 AM <span class="wa-bubble-status">✓✓</span></div>
         </div>
       </div>
 
-      <!-- Participant Response Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">Participant Response</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble user">
-            <p class="message-text">Here's my receipt! 🧾</p>
-            <div class="message-time">10:35 AM</div>
+            <!-- Final Confirmation -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">Thank you for agreeing! Please follow the following steps to enter the contest.</div>
+                <div class="wa-bubble-time">10:38 AM</div>
           </div>
-          <div class="example-receipt">
-            <div class="receipt-icon">🧾</div>
-            <div class="receipt-text">Receipt uploaded by participant</div>
           </div>
-        </div>
-      </div>
-
-      <!-- Success Response Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">Success Response</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble">
-            <p class="message-text">✅ Your entry has been received! Good luck 🍀<br>Winners will be announced on [date].</p>
-            <div class="message-time">10:36 AM</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- PDPA Preview -->
-      <div class="preview-section">
-        <div class="preview-section-title">PDPA Agreement</div>
-        <div class="whatsapp-preview">
-          <div class="message-bubble">
-            <p class="message-text">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></p>
-            <div class="message-time">10:37 AM</div>
-          </div>
-          <div class="message-bubble user">
-            <p class="message-text">I agree to the terms</p>
-            <div class="message-time">10:38 AM</div>
-          </div>
-          <div class="message-bubble">
-            <p class="message-text">Thank you for agreeing! Please follow the following steps to enter the contest.</p>
-            <div class="message-time">10:38 AM</div>
           </div>
         </div>
       </div>
@@ -553,46 +714,85 @@
     document.getElementById('starts_at').value = startTime.toISOString().slice(0, 16);
     document.getElementById('ends_at').value = endTime.toISOString().slice(0, 16);
 
+    // Toggle section collapse/expand
+    function toggleSection(header) {
+      const section = header.parentElement;
+      const content = section.querySelector('.section-content');
+      const isExpanded = content.classList.contains('expanded');
+      
+      // Close all other sections
+      document.querySelectorAll('.section-content.expanded').forEach(el => {
+        el.classList.remove('expanded');
+        el.parentElement.querySelector('.section-header').classList.remove('active');
+      });
+      
+      // Toggle current section
+      if (!isExpanded) {
+        content.classList.add('expanded');
+        header.classList.add('active');
+      }
+    }
+
     // Update preview in real-time
     function updatePreview() {
       const contestName = document.getElementById('name').value || 'Khind Contest';
-      const welcomeMessage = document.getElementById('post_pdpa_text').value || '👋 Hi there! Welcome to the Khind Merdeka Lucky Draw Contest.';
+      const introductionMessage = document.getElementById('introduction_message').value || 'Hi [Name]! Welcome to our contest...';
+      const welcomeMessage = document.getElementById('post_pdpa_text').value || '🎉 Welcome to our contest! Thank you for your consent...';
       const instructions = document.getElementById('verification_instructions').value || '📸 Please upload your purchase receipt photo now. Make sure the store name, date, and amount are clear.';
       const successMessage = document.getElementById('eligibility_message').value || '✅ Your entry has been received! Good luck 🍀\nWinners will be announced on [date].';
       const pdpaUrl = document.getElementById('pdpa_url').value || 'https://khind.com.my/pages/privacy-policy';
       
-      // Update preview messages
-      const welcomeBubble = document.querySelector('.preview-section:nth-child(2) .message-text');
+      // Update WhatsApp preview messages in correct order:
+      // 1. Introduction (Hi/Hello [Name])
+      const introBubble = document.querySelector('.wa-message:nth-child(1) .wa-bubble-text');
+      if (introBubble) {
+        introBubble.innerHTML = introductionMessage.replace(/\n/g, '<br>');
+      }
+      
+      // 2. PDPA Agreement
+      const pdpaBubble = document.querySelector('.wa-message:nth-child(2) .wa-bubble-text a');
+      if (pdpaBubble) {
+        pdpaBubble.href = pdpaUrl;
+        pdpaBubble.textContent = pdpaUrl;
+      }
+      
+      // 3. Contest Welcome Message
+      const welcomeBubble = document.querySelector('.wa-message:nth-child(4) .wa-bubble-text');
       if (welcomeBubble) {
         welcomeBubble.innerHTML = welcomeMessage.replace(/\n/g, '<br>');
       }
       
-      const instructionBubble = document.querySelector('.preview-section:nth-child(4) .message-text');
+      // 4. Instructions
+      const instructionBubble = document.querySelector('.wa-message:nth-child(5) .wa-bubble-text');
       if (instructionBubble) {
         instructionBubble.innerHTML = instructions.replace(/\n/g, '<br>');
       }
       
-      const successBubble = document.querySelector('.preview-section:nth-child(6) .message-text');
+      // 5. Success Response
+      const successBubble = document.querySelector('.wa-message:nth-child(8) .wa-bubble-text');
       if (successBubble) {
         successBubble.innerHTML = successMessage.replace(/\n/g, '<br>');
-      }
-      
-      const pdpaBubble = document.querySelector('.preview-section:nth-child(7) .message-text a');
-      if (pdpaBubble) {
-        pdpaBubble.href = pdpaUrl;
-        pdpaBubble.textContent = pdpaUrl;
       }
     }
 
     // Add event listeners for real-time preview updates
     document.getElementById('name').addEventListener('input', updatePreview);
+    document.getElementById('introduction_message').addEventListener('input', updatePreview);
     document.getElementById('post_pdpa_text').addEventListener('input', updatePreview);
     document.getElementById('verification_instructions').addEventListener('input', updatePreview);
     document.getElementById('eligibility_message').addEventListener('input', updatePreview);
     document.getElementById('pdpa_url').addEventListener('input', updatePreview);
 
-    // Initialize preview
+    // Initialize preview and open first section
     updatePreview();
+    
+    // Open the first section by default
+    document.addEventListener('DOMContentLoaded', function() {
+      const firstSection = document.querySelector('.form-section .section-header');
+      if (firstSection) {
+        toggleSection(firstSection);
+      }
+    });
   </script>
 </body>
 </html>

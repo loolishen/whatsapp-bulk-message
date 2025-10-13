@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Winners</title>
+
+  <style>
+    /* ===== Google Material Design Variables ===== */
+    :root{
+      --primary:#1a73e8; --primary-hover:#1557b0; --primary-light:#e8f0fe;
+      --secondary:#34a853; --secondary-hover:#2d8f47; --secondary-light:#e6f4ea;
+      --success:#34a853; --warning:#fbbc04; --danger:#ea4335; --info:#4285f4;
+      --gray:#f8f9fa; --gray-dark:#5f6368; --gray-light:#f1f3f4;
+      --white:#ffffff; --black:#202124; --text:#202124; --text-muted:#5f6368;
+      --border:#dadce0; --shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --shadow-hover:0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+      --radius:8px; --radius-lg:12px; --radius-xl:16px;
+      --font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{
+      background:var(--gray); color:var(--text); font-family:var(--font-family);
+      line-height:1.5; font-size:14px; overflow-x:hidden
+    }
+
+    /* ===== Sidebar Navigation ===== */
+    .sidebar{
+      position:fixed; top:0; left:0; width:280px; height:100vh;
+      background:var(--white); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)
+    }
+    .sidebar-header{
+      padding:24px; border-bottom:1px solid var(--border); text-align:center
+    }
+    .profile-section{
+      display:flex; flex-direction:column; align-items:center; gap:12px
+    }
+    .profile-avatar{
+      width:60px; height:60px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px
+    }
+    .profile-name{
+      font-size:18px; font-weight:500; color:var(--text); margin:0
+    }
+    .profile-role{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+    .sidebar-nav{
+      flex:1; padding:24px 0; overflow-y:auto
+    }
+    .nav-item{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:300;
+      color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px
+    }
+    .nav-item:hover{
+      background:var(--gray-light); color:var(--text); border-left-color:var(--primary)
+    }
+    .nav-item.active{
+      background:var(--primary-light); color:var(--primary); border-left-color:var(--primary);
+      font-weight:500
+    }
+    .nav-item-icon{
+      margin-right:12px; font-size:16px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-layout{
+      margin-left:280px; padding:24px 32px; display:grid; grid-template-columns:550px 400px; gap:170px; min-height:100vh
+    }
+
+    /* ===== Left Column - Form ===== */
+    .form-column{
+      background:var(--white); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow);
+      border:1px solid var(--border); height:fit-content
+    }
+
+    .page-header{
+      margin-bottom:32px; text-align:center
+    }
+    .page-title{
+      font-size:18px; font-weight:500; color:var(--text); margin-bottom:8px
+    }
+    .page-subtitle{
+      font-size:16px; font-weight:300; color:var(--text-muted)
+    }
+
+    /* ===== Form Sections ===== */
+    .form-section{
+      margin-bottom:16px; border:1px solid var(--border); border-radius:var(--radius);
+      background:var(--white); overflow:hidden
+    }
+    .form-section:last-child{
+      margin-bottom:0
+    }
+
+    .section-header{
+      display:flex; align-items:center; gap:12px; padding:16px; cursor:pointer;
+      background:var(--gray-light); transition:all 0.2s; user-select:none
+    }
+    .section-header:hover{
+      background:var(--gray)
+    }
+    .section-header.active{
+      background:var(--primary-light); color:var(--primary)
+    }
+    .section-icon{
+      width:24px; height:24px; border-radius:50%; background:var(--gray);
+      display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-muted);
+      transition:all 0.2s
+    }
+    .section-header.active .section-icon{
+      background:var(--primary); color:white
+    }
+    .section-title{
+      font-size:12px; font-weight:500; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
+      flex:1
+    }
+    .section-toggle{
+      font-size:16px; color:var(--text-muted); transition:transform 0.2s
+    }
+    .section-header.active .section-toggle{
+      transform:rotate(180deg)
+    }
+    .section-content{
+      padding:0 16px; max-height:0; overflow:hidden; transition:all 0.3s ease
+    }
+    .section-content.expanded{
+      padding:16px; max-height:1000px
+    }
+    .form-group{
+      margin-bottom:16px
+    }
+    .form-label{
+      display:block; font-weight:300; color:var(--text-muted); margin-bottom:6px; font-size:12px
+    }
+    .form-input{
+      width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius);
+      font-size:12px; font-weight:200; transition:all 0.2s; background:var(--white);
+      font-family:"Inter",sans-serif
+    }
+    .form-input:focus{
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light)
+    }
+    .form-textarea{
+      min-height:180px; resize:vertical; font-family:"Inter",sans-serif
+    }
+    .form-row{
+      display:grid; grid-template-columns:1fr 1fr; gap:16px
+    }
+
+    /* ===== Right Column - Preview ===== */
+    .preview-column{
+      background:var(--gray-light); border-radius:var(--radius-lg); padding:0;
+      border:1px solid var(--border); height:fit-content; position:sticky; top:80px;
+      overflow:hidden
+    }
+
+    .preview-header{
+      text-align:center; margin-bottom:16px; padding:16px 24px 0;
+    }
+    .preview-title{
+      font-size:16px; font-weight:500; color:var(--text); margin-bottom:4px
+    }
+    .preview-subtitle{
+      font-size:12px; font-weight:300; color:var(--text-muted)
+    }
+
+    /* ===== WhatsApp Phone Mockup ===== */
+    .wa-phone{
+      background:#1f2937; border-radius:20px; padding:8px; margin:0 auto 16px;
+      width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.3)
+    }
+
+    .wa-screen{
+      background:#fff; border-radius:12px; overflow:hidden; height:500px;
+      display:flex; flex-direction:column
+    }
+
+    /* ===== WhatsApp Chat Header ===== */
+    .wa-chat-header{
+      background:#075e54; color:white; padding:12px 16px;
+      display:flex; align-items:center; gap:12px; flex-shrink:0
+    }
+    .wa-chat-avatar{
+      width:36px; height:36px; border-radius:50%; background:#25d366;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px
+    }
+    .wa-chat-info{flex:1}
+    .wa-chat-name{font-weight:600; font-size:16px; margin:0}
+    .wa-chat-status{font-size:12px; color:#a5f3fc; margin:0}
+
+    /* ===== WhatsApp Messages Area ===== */
+    .wa-messages{
+      flex:1; padding:8px; background:#efeae2;
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 80% 0%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 0% 80%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 100% 90%, rgba(0,0,0,.02) 2px, transparent 2px);
+      background-size: 280px 280px, 240px 240px, 260px 260px, 220px 220px;
+      overflow-y:auto; max-height:400px
+    }
+
+    /* ===== Message Bubbles ===== */
+    .wa-message{
+      display:flex; align-items:flex-end; margin-bottom:8px; position:relative
+    }
+    .wa-message.incoming{
+      justify-content:flex-start
+    }
+
+    .wa-message-avatar{
+      width:24px; height:24px; border-radius:50%; background:#34b7f1;
+      color:#fff; display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:600; margin-right:6px; flex-shrink:0
+    }
+
+    .wa-bubble{
+      max-width:75%; padding:8px 12px; border-radius:7.5px;
+      position:relative; word-wrap:break-word; box-shadow:0 1px 1px rgba(0,0,0,0.06)
+    }
+    .wa-bubble.incoming{
+      background:#fff; color:#111; border-radius:7.5px 7.5px 7.5px 0
+    }
+
+    .wa-bubble-text{
+      font-size:14px; line-height:1.3; margin:0; word-wrap:break-word; white-space:pre-wrap
+    }
+
+    .wa-bubble-time{
+      text-align:right; color:#999; font-size:11px; margin-top:2px;
+      display:flex; justify-content:flex-end; align-items:center; gap:4px
+    }
+
+    /* ===== Buttons ===== */
+    .btn{
+      padding:12px 24px; border-radius:var(--radius); text-decoration:none; font-weight:500;
+      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      font-size:16px; font-family:"Inter",sans-serif
+    }
+    .btn-secondary{
+      background:var(--gray-dark); color:white
+    }
+    .btn-secondary:hover{background:var(--text); color:white}
+    .btn-primary{
+      background:var(--primary); color:white
+    }
+    .btn-primary:hover{background:var(--primary-hover); color:white}
+    .btn-success{
+      background:var(--success); color:white
+    }
+    .btn-success:hover{background:var(--secondary-hover); color:white}
+    .btn-sm{
+      padding:6px 12px; font-size:12px
+    }
+
+    .form-actions{
+      display:flex; gap:12px; justify-content:center; margin-top:32px; padding-top:24px;
+      border-top:1px solid var(--border)
+    }
+
+    /* ===== Winner Display ===== */
+    .winners-section{
+      margin-top:32px; padding-top:32px; border-top:2px solid var(--border);
+      display:none
+    }
+    .winners-section.visible{
+      display:block; animation:slideDown 0.4s ease
+    }
+    @keyframes slideDown{
+      from{opacity:0; transform:translateY(-20px)}
+      to{opacity:1; transform:translateY(0)}
+    }
+    
+    .winners-header{
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:24px
+    }
+    .winners-title{
+      font-size:18px; font-weight:500; color:var(--text); margin:0;
+      display:flex; align-items:center; gap:12px
+    }
+    .winner-count-badge{
+      background:var(--success); color:white; padding:4px 12px; border-radius:16px;
+      font-size:14px; font-weight:600
+    }
+    
+    .winners-list{
+      display:flex; flex-direction:column; gap:12px; margin-bottom:24px
+    }
+    .winner-card{
+      background:var(--gray-light); border-radius:var(--radius-lg); padding:16px;
+      border:2px solid var(--border); transition:all 0.3s; position:relative;
+      display:flex; align-items:center; gap:12px
+    }
+    .winner-card:hover{
+      border-color:var(--success); box-shadow:var(--shadow-hover);
+      transform:translateY(-2px)
+    }
+    
+    .winner-rank{
+      width:40px; height:40px; border-radius:50%; 
+      background:linear-gradient(135deg, var(--success) 0%, var(--secondary-hover) 100%);
+      color:white; display:flex; align-items:center; justify-content:center;
+      font-size:16px; font-weight:700; flex-shrink:0; box-shadow:0 4px 12px rgba(52,168,83,0.3)
+    }
+    .winner-rank.gold{
+      background:linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      box-shadow:0 4px 12px rgba(255,215,0,0.4)
+    }
+    .winner-rank.silver{
+      background:linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);
+      box-shadow:0 4px 12px rgba(192,192,192,0.4)
+    }
+    .winner-rank.bronze{
+      background:linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+      box-shadow:0 4px 12px rgba(205,127,50,0.4)
+    }
+    
+    .winner-info{
+      flex:1
+    }
+    .winner-name{
+      font-size:14px; font-weight:600; color:var(--text); margin:0 0 4px 0;
+      display:flex; align-items:center; gap:8px
+    }
+    .winner-trophy{
+      font-size:14px
+    }
+    .winner-details{
+      font-size:12px; color:var(--text-muted); margin:0;
+      display:flex; flex-direction:column; gap:2px
+    }
+    .winner-detail-item{
+      display:flex; align-items:center; gap:6px
+    }
+    .winner-icon{
+      font-size:12px; color:var(--primary)
+    }
+    
+    .winner-status{
+      padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600;
+      background:var(--success-light); color:var(--success);
+      display:inline-flex; align-items:center; gap:6px
+    }
+    
+    .no-winners{
+      text-align:center; padding:40px; color:var(--text-muted)
+    }
+    .no-winners-icon{
+      font-size:48px; margin-bottom:16px; opacity:0.5
+    }
+    .no-winners-text{
+      font-size:16px; margin:0
+    }
+
+    /* ===== Message Preview ===== */
+    .message-preview{
+      background:var(--white); border-radius:var(--radius); padding:24px;
+      box-shadow:var(--shadow); border:1px solid var(--border)
+    }
+    .preview-header{
+      display:flex; align-items:center; gap:12px; margin-bottom:16px; padding-bottom:12px;
+      border-bottom:1px solid var(--border)
+    }
+    .preview-title{
+      font-size:16px; font-weight:500; color:var(--text)
+    }
+    .preview-subtitle{
+      font-size:12px; color:var(--text-muted)
+    }
+    .whatsapp-preview{
+      background:#075e54; border-radius:12px; padding:16px; color:white; max-width:400px
+    }
+    .whatsapp-header{
+      display:flex; align-items:center; gap:8px; margin-bottom:12px
+    }
+    .whatsapp-avatar{
+      width:32px; height:32px; border-radius:50%; background:#34b7f1;
+      display:flex; align-items:center; justify-content:center; font-size:14px
+    }
+    .whatsapp-info h4{
+      font-size:14px; font-weight:500; margin:0
+    }
+    .whatsapp-info p{
+      font-size:11px; color:#a7a7a7; margin:0
+    }
+    .whatsapp-message{
+      background:#128c7e; padding:12px; border-radius:8px; font-size:13px; line-height:1.4
+    }
+
+    /* ===== Loading Animation ===== */
+    .loading{
+      display:none; text-align:center; padding:20px
+    }
+    .spinner{
+      width:32px; height:32px; border:3px solid var(--border); border-top:3px solid var(--primary);
+      border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 12px
+    }
+    @keyframes spin{
+      0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)}
+    }
+    
+    /* ===== Success Notification Animations ===== */
+    @keyframes slideInRight{
+      from{opacity:0; transform:translateX(100px)}
+      to{opacity:1; transform:translateX(0)}
+    }
+    @keyframes slideOutRight{
+      from{opacity:1; transform:translateX(0)}
+      to{opacity:0; transform:translateX(100px)}
+    }
+
+    /* ===== Responsive Design ===== */
+    @media (max-width: 768px){
+      .sidebar{width:100%; transform:translateX(-100%); transition:transform 0.3s}
+      .sidebar.open{transform:translateX(0)}
+      .main-content{margin-left:0; padding:16px}
+      .form-row{flex-direction:column; align-items:stretch}
+      .winners-grid{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">👤</div>
+        <h3 class="profile-name">Admin User</h3>
+        <p class="profile-role">Contest Manager</p>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <a href="/" class="nav-item">
+        <span class="nav-item-icon">🏠</span>Dashboard
+      </a>
+      <a href="/contest/create/" class="nav-item">
+        <span class="nav-item-icon">➕</span>Create Contest
+      </a>
+      <a href="/participants/" class="nav-item">
+        <span class="nav-item-icon">👥</span>Participants
+      </a>
+      <a href="/select-winners/" class="nav-item active">
+        <span class="nav-item-icon">🏆</span>Select Winners
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Left Column - Form -->
+    <div class="form-column">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Select Winners</h1>
+        <p class="page-subtitle">Randomly select winners and send notification messages</p>
+      </div>
+
+      <!-- Contest Selection -->
+      <div class="form-section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <div class="section-icon">🏆</div>
+          <div class="section-title">Contest Selection</div>
+          <div class="section-toggle">▼</div>
+        </div>
+        <div class="section-content expanded">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="contest-select" class="form-label">Select Contest</label>
+              <select id="contest-select" class="form-input">
+                <option value="">Choose a contest...</option>
+                <option value="khind-merdeka-w1">Khind Merdeka W1</option>
+                <option value="khind-merdeka-w2">Khind Merdeka W2</option>
+                <option value="khind-merdeka-w3">Khind Merdeka W3</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="winner-count" class="form-label">Number of Winners</label>
+              <input type="number" id="winner-count" class="form-input" value="3" min="1" max="100">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Winner Message -->
+      <div class="form-section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <div class="section-icon">💬</div>
+          <div class="section-title">Winner Notification Message</div>
+          <div class="section-toggle">▼</div>
+        </div>
+        <div class="section-content expanded">
+          <div class="form-group">
+            <label for="winner-message" class="form-label">Message Content</label>
+            <textarea id="winner-message" class="form-input form-textarea" placeholder="Enter the message to send to winners...">Congratulations! You are one of the lucky winners of our contest!
+
+Your prize details:
+• Prize: [Prize Details]
+• Collection: [Collection Details]
+• Contact: [Contact Information]
+
+Thank you for participating!</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Actions -->
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="selectWinners()" id="select-btn" style="width:100%; font-size:16px; padding:14px">
+          🎲 Select Winners
+        </button>
+      </div>
+
+      <!-- Winners Display Section -->
+      <div class="winners-section" id="winners-section">
+        <div class="winners-header">
+          <h2 class="winners-title">
+            🏆 Selected Winners
+            <span class="winner-count-badge" id="winner-count-display">0</span>
+          </h2>
+          <button class="btn btn-secondary btn-sm" onclick="reselectWinners()" id="reselect-btn" style="font-size:12px; padding:6px 12px">
+            🔄 Reselect
+          </button>
+        </div>
+        
+        <div class="winners-list" id="winners-list">
+          <!-- Winners will be dynamically inserted here -->
+        </div>
+        
+        <div class="form-actions" style="border-top:1px solid var(--border); padding-top:24px; margin-top:24px">
+          <button class="btn btn-success" onclick="sendNotifications()" id="send-btn" disabled style="width:100%; font-size:16px; padding:14px">
+            📤 Send Notifications to All Winners
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column - Preview -->
+    <div class="preview-column">
+      <div class="preview-header">
+        <div class="preview-title">Winner Preview</div>
+        <div class="preview-subtitle">WhatsApp message preview</div>
+      </div>
+      
+      <!-- WhatsApp Phone Mockup -->
+      <div class="wa-phone">
+        <div class="wa-screen">
+          <!-- WhatsApp Chat Header -->
+          <div class="wa-chat-header">
+            <div class="wa-chat-avatar">🤖</div>
+            <div class="wa-chat-info">
+              <div class="wa-chat-name">Contest Bot</div>
+              <div class="wa-chat-status">online</div>
+            </div>
+          </div>
+
+          <!-- WhatsApp Messages Area -->
+          <div class="wa-messages">
+            <!-- Winner Message -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text" id="preview-message">Congratulations! You are one of the lucky winners of our contest!
+
+Your prize details:
+• Prize: [Prize Details]
+• Collection: [Collection Details]
+• Contact: [Contact Information]
+
+Thank you for participating!</div>
+                <div class="wa-bubble-time">10:30 AM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedWinners = [];
+
+    function toggleSection(header) {
+      const section = header.parentElement;
+      const content = section.querySelector('.section-content');
+      const isExpanded = content.classList.contains('expanded');
+      
+      // Close all other sections
+      document.querySelectorAll('.section-content.expanded').forEach(el => {
+        el.classList.remove('expanded');
+        el.parentElement.querySelector('.section-header').classList.remove('active');
+      });
+      
+      if (!isExpanded) {
+        content.classList.add('expanded');
+        header.classList.add('active');
+      }
+    }
+
+    function selectWinners() {
+      const contestSelect = document.getElementById('contest-select');
+      const winnerCount = parseInt(document.getElementById('winner-count').value);
+      
+      if (!contestSelect.value) {
+        alert('Please select a contest first!');
+        return;
+      }
+      
+      if (winnerCount < 1) {
+        alert('Please enter a valid number of winners!');
+        return;
+      }
+
+      // Show loading state
+      const selectBtn = document.getElementById('select-btn');
+      selectBtn.innerHTML = '⏳ Selecting Winners...';
+      selectBtn.disabled = true;
+      
+      // Simulate API call delay
+      setTimeout(() => {
+        // Mock data - in real implementation, this would come from your backend
+        const mockParticipants = [
+          { name: 'G****** Singh A/L N***a Singh', phone: '+6016360****', email: 'raji2***@icloud.com' },
+          { name: 'Chew P** Yee', phone: '+6012345****', email: 'chew.p***@gmail.com' },
+          { name: 'Ahmad Bin H****n', phone: '+6012345****', email: 'ahmad.h***@gmail.com' },
+          { name: ' Tan W** Lin', phone: '+6012345****', email: 'sarah.t***@gmail.com' },
+          { name: 'Muhammad A**', phone: '+6012345****', email: 'muham***@gmail.com' },
+          { name: 'Lisa W***', phone: '+6012345****', email: 'lisa.w***@gmail.com' },
+          { name: 'David L**', phone: '+6012345****', email: 'david.l***@gmail.com' },
+          { name: 'Priya S****a', phone: '+6012345****', email: 'priya.s***@gmail.com' }
+        ];
+        
+        // Randomly select winners
+        const shuffled = [...mockParticipants].sort(() => 0.5 - Math.random());
+        selectedWinners = shuffled.slice(0, winnerCount);
+        
+        // Display winners in the left column
+        displayWinners(selectedWinners);
+        
+        // Hide select button, show winners section
+        selectBtn.style.display = 'none';
+        
+        // Enable send button
+        document.getElementById('send-btn').disabled = false;
+        
+        // Scroll to winners section
+        setTimeout(() => {
+          document.getElementById('winners-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+      }, 1500);
+    }
+    
+    function reselectWinners() {
+      // Reset the interface
+      const selectBtn = document.getElementById('select-btn');
+      const winnersSection = document.getElementById('winners-section');
+      const sendBtn = document.getElementById('send-btn');
+      
+      // Hide winners section
+      winnersSection.classList.remove('visible');
+      
+      // Show select button again
+      selectBtn.style.display = 'block';
+      selectBtn.innerHTML = '🎲 Select Winners';
+      selectBtn.disabled = false;
+      
+      // Disable send button
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '📤 Send Notifications to All Winners';
+      sendBtn.style.background = 'var(--success)';
+      
+      // Clear selected winners
+      selectedWinners = [];
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    function displayWinners(winners) {
+      const winnersSection = document.getElementById('winners-section');
+      const winnersList = document.getElementById('winners-list');
+      const countBadge = document.getElementById('winner-count-display');
+      
+      // Clear existing winners
+      winnersList.innerHTML = '';
+      
+      // Update count badge
+      countBadge.textContent = winners.length;
+      
+      // Create winner cards
+      winners.forEach((winner, index) => {
+        const rank = index + 1;
+        let rankClass = '';
+        let trophy = '🏅';
+        
+        // Assign special styling for top 3
+        if (rank === 1) {
+          rankClass = 'gold';
+          trophy = '🥇';
+        } else if (rank === 2) {
+          rankClass = 'silver';
+          trophy = '🥈';
+        } else if (rank === 3) {
+          rankClass = 'bronze';
+          trophy = '🥉';
+        }
+        
+        const card = document.createElement('div');
+        card.className = 'winner-card';
+        card.innerHTML = `
+          <div class="winner-rank ${rankClass}">${rank}</div>
+          <div class="winner-info">
+            <div class="winner-name">
+              ${winner.name}
+              <span class="winner-trophy">${trophy}</span>
+            </div>
+            <div class="winner-details">
+              <div class="winner-detail-item">
+                <span class="winner-icon">📱</span>
+                <span>${winner.phone}</span>
+              </div>
+              <div class="winner-detail-item">
+                <span class="winner-icon">📧</span>
+                <span>${winner.email}</span>
+              </div>
+            </div>
+          </div>
+          <div class="winner-status">
+            ✓ Selected
+          </div>
+        `;
+        winnersList.appendChild(card);
+      });
+      
+      // Show the winners section with animation
+      winnersSection.classList.add('visible');
+    }
+
+    function sendNotifications() {
+      if (selectedWinners.length === 0) {
+        alert('Please select winners first!');
+        return;
+      }
+      
+      const message = document.getElementById('winner-message').value;
+      if (!message.trim()) {
+        alert('Please enter a message first!');
+        return;
+      }
+      
+      if (confirm(`Are you sure you want to send WhatsApp notifications to ${selectedWinners.length} winners?`)) {
+        // Show loading on send button
+        const sendBtn = document.getElementById('send-btn');
+        const reselectBtn = document.getElementById('reselect-btn');
+        
+        sendBtn.innerHTML = '⏳ Sending Notifications...';
+        sendBtn.disabled = true;
+        reselectBtn.disabled = true;
+        
+        // Update winner cards to show sending status
+        const winnerCards = document.querySelectorAll('.winner-status');
+        winnerCards.forEach(card => {
+          card.innerHTML = '⏳ Sending...';
+          card.style.background = 'var(--primary-light)';
+          card.style.color = 'var(--primary)';
+        });
+        
+        // Simulate sending notifications
+        setTimeout(() => {
+          // Update button to success state
+          sendBtn.innerHTML = '✅ Notifications Sent Successfully!';
+          sendBtn.style.background = 'var(--success)';
+          sendBtn.disabled = true;
+          
+          // Keep reselect button disabled
+          reselectBtn.disabled = true;
+          reselectBtn.style.opacity = '0.5';
+          
+          // Update winner cards to show sent status
+          winnerCards.forEach(card => {
+            card.innerHTML = '✅ Notified';
+            card.style.background = 'var(--secondary-light)';
+            card.style.color = 'var(--success)';
+          });
+          
+          // Show success message
+          showSuccessMessage(`Successfully sent notifications to ${selectedWinners.length} winners via WhatsApp!`);
+        }, 2500);
+      }
+    }
+    
+    function showSuccessMessage(message) {
+      // Create success notification
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        background: var(--success);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-size: 16px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease;
+      `;
+      notification.innerHTML = `✅ ${message}`;
+      document.body.appendChild(notification);
+      
+      // Remove after 5 seconds
+      setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }, 5000);
+    }
+
+    // Auto-preview message when typing
+    function updatePreview() {
+      const message = document.getElementById('winner-message').value;
+      const previewBubble = document.getElementById('preview-message');
+      if (previewBubble) {
+        previewBubble.innerHTML = message.replace(/\n/g, '<br>');
+      }
+    }
+
+    document.getElementById('winner-message').addEventListener('input', updatePreview);
+
+    // Initialize first section as expanded
+    document.addEventListener('DOMContentLoaded', function() {
+      const firstSection = document.querySelector('.section-content');
+      if (firstSection) {
+        firstSection.classList.add('expanded');
+        firstSection.parentElement.querySelector('.section-header').classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>
