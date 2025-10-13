@@ -130,15 +130,18 @@ env_variables:
   CLOUDINARY_API_SECRET: "your-cloudinary-secret"
 
 # Cloud SQL connection
-beta_settings:
-  cloud_sql_instances: "your-project:region:instance-name"
-
-# Automatic scaling
+# Keep autoscaling cheap & predictable
 automatic_scaling:
-  min_instances: 1
-  max_instances: 10
+  min_instances: 0
+  max_instances: 2
   target_cpu_utilization: 0.6
+  target_throughput_utilization: 0.6
 
+# Small resources (good enough for Django)
+resources:
+  cpu: 0.5
+  memory_gb: 0.5
+  
 # Static files
 handlers:
 - url: /static
@@ -158,7 +161,7 @@ handlers:
 cd /path/to/your/whatsapp-bulk-message
 
 # Initialize App Engine
-gcloud app create --region=us-central
+gcloud app create --region=asia-southeast1
 
 # Deploy your application
 gcloud app deploy
