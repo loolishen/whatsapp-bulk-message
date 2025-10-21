@@ -429,6 +429,11 @@ class Contest(models.Model):
     post_pdpa_image_url = models.URLField(blank=True, null=True, help_text='Image URL for post-PDPA message')
     post_pdpa_gif_url = models.URLField(blank=True, null=True, help_text='GIF URL for post-PDPA message')
     
+    # PDPA consent message
+    pdpa_message = models.TextField(blank=True, null=True, help_text='PDPA consent message sent to participants')
+    participant_agreement = models.TextField(blank=True, null=True, help_text='Message sent when participant agrees to PDPA')
+    participant_rejection = models.TextField(blank=True, null=True, help_text='Message sent when participant rejects PDPA')
+    
     # Contest instructions
     contest_instructions = models.TextField(blank=True, null=True, help_text='Instructions for contestants')
     verification_instructions = models.TextField(blank=True, null=True, help_text='Instructions for verification process')
@@ -617,3 +622,137 @@ class PromptReply(models.Model):
     
     def __str__(self):
         return self.name
+
+# =============================================================================
+# WHATSAPP BLASTING MODELS
+# =============================================================================
+
+class CustomerGroup(models.Model):
+    """Groups of customers for targeted messaging"""
+    group_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='customer_groups')
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    source = models.CharField(max_length=50, default='manual', help_text='Source of group: manual, import, contest')
+    contest = models.ForeignKey(Contest, on_delete=models.SET_NULL, blank=True, null=True, related_name='customer_groups', help_text='Linked contest if source is contest')
+    
+    # Import metadata
+    import_file_name = models.CharField(max_length=255, blank=True, null=True)
+    import_date = models.DateTimeField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.member_count} members)"
+    
+    @property
+    def member_count(self):
+        """Get total number of members in this group"""
+        return self.members.count()
+
+class GroupMember(models.Model):
+    """Individual customer membership in a group"""
+    member_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='group_members')
+    group = models.ForeignKey(CustomerGroup, on_delete=models.CASCADE, related_name='members')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='group_memberships')
+    
+    # Additional member-specific fields
+    custom_data = models.JSONField(default=dict, blank=True, help_text='Custom data for this member')
+    
+    added_at = models.DateTimeField(default=dj_timezone.now)
+    
+    class Meta:
+        unique_together = ['group', 'customer']
+        ordering = ['-added_at']
+    
+    def __str__(self):
+        return f"{self.customer.name} in {self.group.name}"
+
+class BlastCampaign(models.Model):
+    """WhatsApp blast messaging campaigns"""
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('scheduled', 'Scheduled'),
+        ('sending', 'Sending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    blast_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='blast_campaigns')
+    whatsapp_connection = models.ForeignKey(WhatsAppConnection, on_delete=models.CASCADE, related_name='blast_campaigns')
+    
+    name = models.CharField(max_length=200)
+    message_text = models.TextField(help_text='Message to be sent to recipients')
+    message_image_url = models.URLField(blank=True, null=True, help_text='Optional image URL')
+    
+    # Target recipients
+    target_groups = models.ManyToManyField(CustomerGroup, related_name='blast_campaigns', blank=True)
+    target_contests = models.ManyToManyField(Contest, related_name='blast_campaigns', blank=True, help_text='Target contest participants')
+    
+    # Campaign settings
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    scheduled_at = models.DateTimeField(blank=True, null=True)
+    
+    # Statistics
+    total_recipients = models.IntegerField(default=0)
+    sent_count = models.IntegerField(default=0)
+    delivered_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    
+    # Timestamps
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    started_at = models.DateTimeField(blank=True, null=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.name} - {self.status}"
+    
+    @property
+    def success_rate(self):
+        """Calculate success rate percentage"""
+        if self.total_recipients == 0:
+            return 0
+        return round((self.delivered_count / self.total_recipients) * 100, 2)
+
+class BlastRecipient(models.Model):
+    """Individual recipients for a blast campaign"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('queued', 'Queued'),
+        ('sent', 'Sent'),
+        ('delivered', 'Delivered'),
+        ('failed', 'Failed'),
+        ('skipped', 'Skipped'),
+    ]
+    
+    recipient_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='blast_recipients')
+    blast_campaign = models.ForeignKey(BlastCampaign, on_delete=models.CASCADE, related_name='recipients')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='blast_recipients')
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    message = models.ForeignKey(CoreMessage, on_delete=models.SET_NULL, blank=True, null=True, related_name='blast_recipients')
+    
+    # Delivery tracking
+    sent_at = models.DateTimeField(blank=True, null=True)
+    delivered_at = models.DateTimeField(blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    
+    class Meta:
+        unique_together = ['blast_campaign', 'customer']
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.customer.name} - {self.blast_campaign.name} ({self.status})"

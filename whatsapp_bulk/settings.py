@@ -164,9 +164,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # --------------------------------------------------------------------------------------
 # Auth redirects
 # --------------------------------------------------------------------------------------
-LOGIN_URL = "/whatsapp-crm/login/"
-LOGIN_REDIRECT_URL = "/whatsapp-crm/dashboard/"
-LOGOUT_REDIRECT_URL = "/whatsapp-crm/login/"
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/login/"
 
 # --------------------------------------------------------------------------------------
 # WhatsApp / Cloudinary – read from env (no secrets in code)

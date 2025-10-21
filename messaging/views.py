@@ -246,48 +246,26 @@ def contest_home(request):
     if not _require_plan(tenant, 'contest'):
         return redirect('dashboard')
     
-    # Get contest data from files for W1 and W2, keep W3 hardcoded
-    w1_stats = get_contest_data_stats('merdeka_w1')
-    w2_stats = get_contest_data_stats('merdeka_w2')
+    # Get only the demo contest from database
+    db_contests = Contest.objects.filter(tenant=tenant).order_by('-created_at')
     
-    contests = [
-        {
-            'contest_id': 'merdeka_w1',
-            'name': 'Khind Merdeka W1',
-            'description': 'Merdeka Week 1 Contest',
-            'starts_at': dj_timezone.now().replace(day=1),
-            'ends_at': dj_timezone.now().replace(day=7),
-            'is_active': True,
-            'total_entries': w1_stats['total_entries'],
-            'verified_entries': w1_stats['valid_entries'],
-            'flagged_entries': w1_stats['flagged_entries'],
-            'min_purchase_amount': 50.00
-        },
-        {
-            'contest_id': 'merdeka_w2',
-            'name': 'Khind Merdeka W2',
-            'description': 'Merdeka Week 2 Contest',
-            'starts_at': dj_timezone.now().replace(day=8),
-            'ends_at': dj_timezone.now().replace(day=14),
-            'is_active': True,
-            'total_entries': w2_stats['total_entries'],
-            'verified_entries': w2_stats['valid_entries'],
-            'flagged_entries': w2_stats['flagged_entries'],
-            'min_purchase_amount': 75.00
-        },
-        {
-            'contest_id': 'merdeka_w3',
-            'name': 'Khind Merdeka W3',
-            'description': 'Merdeka Week 3 Contest',
-            'starts_at': dj_timezone.now().replace(day=15),
-            'ends_at': dj_timezone.now().replace(day=21),
-            'is_active': False,
-            'total_entries': 203,
-            'verified_entries': 195,
-            'flagged_entries': 8,
-            'min_purchase_amount': 100.00
-        }
-    ]
+    # Convert database contests to display format
+    contests = []
+    
+    for contest in db_contests:
+        entries = contest.entries.all()
+        contests.append({
+            'contest_id': str(contest.contest_id),
+            'name': contest.name,
+            'description': contest.description or '',
+            'starts_at': contest.starts_at,
+            'ends_at': contest.ends_at,
+            'is_active': contest.is_currently_active,
+            'total_entries': entries.count(),
+            'verified_entries': entries.filter(is_verified=True).count(),
+            'flagged_entries': entries.filter(status='rejected').count(),
+            'min_purchase_amount': float(contest.min_purchase_amount) if contest.min_purchase_amount else 0.0
+        })
     
     # Get active contest (from hardcoded contests)
     active_contest = next((c for c in contests if c['is_active']), None)
@@ -812,6 +790,11 @@ def contest_create(request):
             post_pdpa_image_url = request.POST.get('post_pdpa_image_url', '').strip()
             post_pdpa_gif_url = request.POST.get('post_pdpa_gif_url', '').strip()
             
+            # PDPA consent messages
+            pdpa_message = request.POST.get('pdpa_message', '').strip()
+            participant_agreement = request.POST.get('participant_agreement', '').strip()
+            participant_rejection = request.POST.get('participant_rejection', '').strip()
+            
             # Contest instructions
             contest_instructions = request.POST.get('contest_instructions', '').strip()
             verification_instructions = request.POST.get('verification_instructions', '').strip()
@@ -837,6 +820,11 @@ def contest_create(request):
                 post_pdpa_text=post_pdpa_text or None,
                 post_pdpa_image_url=post_pdpa_image_url or None,
                 post_pdpa_gif_url=post_pdpa_gif_url or None,
+                
+                # PDPA consent messages
+                pdpa_message=pdpa_message or None,
+                participant_agreement=participant_agreement or None,
+                participant_rejection=participant_rejection or None,
                 
                 # Instructions
                 contest_instructions=contest_instructions or None,
@@ -1025,64 +1013,57 @@ def contest_manager(request):
     status_filter = request.GET.get('status', '')
     store_filter = request.GET.get('store', '')
     location_filter = request.GET.get('location', '')
-    contest_filter = request.GET.get('contest', 'merdeka_w1')  # Default to W1
     
-    # Hardcoded contests
-    contests = [
-        {'id': 'merdeka_w1', 'name': 'Khind Merdeka W1', 'status': 'active'},
-        {'id': 'merdeka_w2', 'name': 'Khind Merdeka W2', 'status': 'active'},
-        {'id': 'merdeka_w3', 'name': 'Khind Merdeka W3', 'status': 'ended'}
-    ]
+    # Get only the demo contest from database
+    db_contests = Contest.objects.filter(tenant=tenant).order_by('-created_at')
     
-    # Get selected contest
-    selected_contest = next((c for c in contests if c['id'] == contest_filter), contests[0])
+    # Build contests list
+    contests = []
     
-    # Import the hardcoded Khind Merdeka W1 and W2 data
-    from .khind_merdeka_w1_data import KHIND_MERDEKA_W1_DATA
-    from .khind_merdeka_w2_data import KHIND_MERDEKA_W2_DATA
+    for contest in db_contests:
+        contests.append({
+            'id': str(contest.contest_id),
+            'name': contest.name,
+            'status': 'active' if contest.is_currently_active else 'ended'
+        })
     
-    # Sample data for each contest
-    contest_data = {
-        'merdeka_w1': KHIND_MERDEKA_W1_DATA,
-        'merdeka_w2': KHIND_MERDEKA_W2_DATA,
-        'merdeka_w3': [
-            {
-                'submission_no': 'MLP_788',
-                'amount_spent': 'RM159.00',
-                'validity': 'valid',
-                'reason': '-',
-                'store': 'SENHENG',
-                'store_location': 'Penang, Penang',
-                'full_name': 'Lim Wei Ming',
-                'phone_number': '+60155512345',
-                'email': 'lim.weiming@email.com',
-                'address': '789 Jalan Burma, George Town',
-                'postcode': '10050',
-                'city': 'George Town',
-                'state': 'Penang',
-                'receipt_url': '#'
-            },
-            {
-                'submission_no': 'MLP_789',
-                'amount_spent': 'RM199.00',
-                'validity': 'valid',
-                'reason': '-',
-                'store': 'ELECTRONICS STORE',
-                'store_location': 'Kota Kinabalu, Sabah',
-                'full_name': 'Ahmad Bin Hassan',
-                'phone_number': '+60123456789',
-                'email': 'ahmad.hassan@email.com',
-                'address': '123 Jalan Lintas, Kota Kinabalu',
-                'postcode': '88000',
-                'city': 'Kota Kinabalu',
-                'state': 'Sabah',
-                'receipt_url': '#'
-            }
-        ]
-    }
+    # Get selected contest (default to first contest)
+    selected_contest = contests[0] if contests else None
+    contest_filter = selected_contest['id'] if selected_contest else None
     
-    # Get entries for selected contest
-    sample_entries = contest_data.get(contest_filter, contest_data['merdeka_w1'])
+    # Get demo contest data
+    demo_contest = None
+    if contest_filter:
+        try:
+            demo_contest = Contest.objects.get(tenant=tenant, contest_id=contest_filter)
+        except Contest.DoesNotExist:
+            pass
+    
+    # Get entries for the demo contest
+    sample_entries = []
+    if demo_contest:
+        entries = demo_contest.entries.all()
+        for entry in entries:
+            sample_entries.append({
+                'submission_no': str(entry.entry_id),
+                'full_name': entry.contestant_name or entry.customer.name,
+                'phone_number': entry.contestant_phone or entry.customer.phone_number,
+                'email': entry.contestant_email or '',
+                'validity': 'valid' if entry.is_verified else 'flagged',
+                'reason': 'Demo entry' if entry.is_verified else 'Pending verification',
+                'submitted_date': entry.submitted_at.strftime('%b %d, %Y'),
+                'store': entry.receipt_store or 'Khind Customer Service Sdn Bhd',
+                'store_location': 'Shah Alam, Selangor',
+                'product_purchased_1': 'VC9678MS (Khind Vacuum Cleaner)',
+                'amount_purchased_1': '1',
+                'amount_spent': f'RM{entry.receipt_amount or 98}',
+                'address': 'Demo Address',
+                'postcode': '12345',
+                'city': 'Shah Alam',
+                'state': 'Selangor',
+                'receipt_url': entry.receipt_image_url or '',
+                'how_heard': 'Demo Source'
+            })
     
     # Apply search filter
     if search_query:
@@ -1139,23 +1120,47 @@ def participants_manager(request):
     status_filter = request.GET.get('status', '')
     search_query = request.GET.get('search', '').strip()
     
-    # Get participants from contest data files
-    participants = convert_contest_data_to_participants()
+    # Get only demo contest participants
+    participants = []
+    
+    try:
+        demo_contests = Contest.objects.filter(tenant=tenant)
+        for contest in demo_contests:
+            entries = contest.entries.all()
+            for entry in entries:
+                participants.append({
+                    'id': str(entry.entry_id),
+                    'name': entry.contestant_name or entry.customer.name,
+                    'phone': entry.contestant_phone or entry.customer.phone_number,
+                    'email': entry.contestant_email or '',
+                    'ic': entry.contestant_nric or '',
+                    'contest': contest.name,
+                    'status': 'valid' if entry.is_verified else 'flagged',
+                    'errors': 'Demo entry' if entry.is_verified else 'Pending verification',
+                    'submission_date': entry.submitted_at.strftime('%b %d, %Y'),
+                    'store': entry.receipt_store or 'Khind Customer Service Sdn Bhd',
+                    'company_no': '',
+                    'location': 'Shah Alam, Selangor',
+                    'product': 'VC9678MS (Khind Vacuum Cleaner)',
+                    'amount': '1',
+                    'spent': f'RM{entry.receipt_amount or 98}',
+                    'address': 'Demo Address',
+                    'postcode': '12345',
+                    'city': 'Shah Alam',
+                    'state': 'Selangor',
+                    'receipt_url': entry.receipt_image_url or '',
+                    'how_heard': 'Demo Source',
+                    'product_2': '',
+                    'amount_2': '',
+                    'product_3': '',
+                    'amount_3': ''
+                })
+    except Exception as e:
+        print(f"Error adding demo participants: {e}")
     
     # Apply filters
     if contest_filter:
-        if contest_filter == 'merdeka_w1':
-            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W1']
-        elif contest_filter == 'merdeka_w2':
-            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W2']
-        elif contest_filter == 'merdeka_w3':
-            participants = [p for p in participants if p['contest'] == 'Khind Merdeka W3']
-        elif contest_filter == 'merdeka':
-            participants = [p for p in participants if 'Merdeka' in p['contest']]
-        elif contest_filter == 'backtoschool':
-            participants = [p for p in participants if p['contest'] == 'Back to School']
-        elif contest_filter == 'holiday':
-            participants = [p for p in participants if p['contest'] == 'Holiday Special']
+        participants = [p for p in participants if p['contest'] == contest_filter]
     
     if status_filter:
         if status_filter == 'valid':
@@ -1169,11 +1174,37 @@ def participants_manager(request):
                       search_query.lower() in p['phone'].lower() or
                       search_query.lower() in p['email'].lower()]
     
+    # Get chat history for participants
+    chat_history = {}
+    for participant in participants:
+        try:
+            # Find the conversation for this participant
+            customer = Customer.objects.get(tenant=tenant, phone_number=participant['phone'])
+            contest = Contest.objects.get(tenant=tenant, name=participant['contest'])
+            conversation = Conversation.objects.filter(customer=customer, contest=contest).first()
+            
+            if conversation:
+                messages = CoreMessage.objects.filter(conversation=conversation).order_by('sent_at')
+                chat_messages = []
+                for msg in messages:
+                    chat_messages.append({
+                        'text': msg.text_body,
+                        'direction': msg.direction,
+                        'timestamp': msg.sent_at.strftime('%H:%M'),
+                        'is_image': msg.text_body == '[image]'
+                    })
+                chat_history[participant['id']] = chat_messages
+        except Exception as e:
+            print(f"Error getting chat history for {participant['name']}: {e}")
+            chat_history[participant['id']] = []
+    
     import json
     
     context = {
         'participants': participants,
         'participants_json': json.dumps(participants),
+        'chat_history': chat_history,
+        'chat_history_json': json.dumps(chat_history),
         'total_participants': len(participants),
         'contest_filter': contest_filter,
         'status_filter': status_filter,

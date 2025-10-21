@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ campaign.name }} - Blast Details</title>
+  
+  <style>
+    /* ===== Google Material Design Variables ===== */
+    :root{
+      --primary:#1a73e8; --primary-hover:#1557b0; --primary-light:#e8f0fe;
+      --secondary:#34a853; --secondary-hover:#2d8f47; --secondary-light:#e6f4ea;
+      --success:#34a853; --warning:#fbbc04; --danger:#ea4335; --info:#4285f4;
+      --gray:#f8f9fa; --gray-dark:#5f6368; --gray-light:#f1f3f4;
+      --white:#ffffff; --black:#202124; --text:#202124; --text-muted:#5f6368;
+      --border:#dadce0; --shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15);
+      --shadow-hover:0 1px 3px 0 rgba(60,64,67,.3), 0 4px 8px 3px rgba(60,64,67,.15);
+      --radius:8px; --radius-lg:12px; --radius-xl:16px;
+      --font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    }
+    
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--gray); color:var(--text); font-family:var(--font-family); line-height:1.5; font-size:14px}
+
+    /* ===== Sidebar Navigation ===== */
+    .sidebar{position:fixed; top:0; left:0; width:280px; height:100vh; background:var(--white); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)}
+    .sidebar-header{padding:24px; border-bottom:1px solid var(--border); text-align:center}
+    .profile-section{display:flex; flex-direction:column; align-items:center; gap:12px}
+    .profile-avatar{width:60px; height:60px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px}
+    .profile-name{font-size:18px; font-weight:500; color:var(--text); margin:0}
+    .profile-role{font-size:11px; font-weight:300; color:var(--text-muted); margin:0}
+    .sidebar-nav{flex:1; padding:24px 0; overflow-y:auto}
+    .nav-item{display:block; padding:12px 24px; text-decoration:none; font-weight:300; color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent; font-size:14px}
+    .nav-item:hover{background:var(--gray-light); color:var(--text); border-left-color:var(--primary)}
+    .nav-item.active{background:var(--primary-light); color:var(--primary); border-left-color:var(--primary); font-weight:500}
+    .nav-item-icon{margin-right:12px; font-size:16px}
+
+    /* ===== Main Content ===== */
+    .main-content{margin-left:280px; padding:24px 32px; min-height:100vh}
+
+    /* ===== Page Header ===== */
+    .page-header{display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border)}
+    .page-title{font-size:24px; font-weight:400; color:var(--text); margin:0; display:flex; align-items:center; gap:12px}
+    .page-subtitle{font-size:14px; color:var(--text-muted); margin:4px 0 0 0}
+    .campaign-status{padding:4px 12px; border-radius:12px; font-size:11px; font-weight:600; text-transform:uppercase}
+    .status-draft{background:var(--gray-light); color:var(--gray-dark)}
+    .status-sending{background:var(--primary-light); color:var(--primary)}
+    .status-completed{background:var(--secondary-light); color:var(--secondary)}
+    .status-failed{background:#fce8e6; color:var(--danger)}
+    .status-cancelled{background:var(--gray-light); color:var(--danger)}
+
+    /* ===== Buttons ===== */
+    .btn{padding:8px 16px; border-radius:4px; text-decoration:none; font-weight:500; transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-size:14px; box-shadow:0 1px 2px 0 rgba(60,64,67,.3), 0 1px 3px 1px rgba(60,64,67,.15)}
+    .btn:hover{box-shadow:var(--shadow-hover)}
+    .btn-primary{background:var(--primary); color:white}
+    .btn-primary:hover{background:var(--primary-hover)}
+    .btn-secondary{background:var(--white); color:var(--text); border:1px solid var(--border)}
+    .btn-secondary:hover{background:var(--gray-light)}
+    .btn-success{background:var(--success); color:white}
+    .btn-success:hover{background:var(--secondary-hover)}
+    .btn-danger{background:var(--danger); color:white}
+    .btn-danger:hover{background:#c5221f}
+
+    /* ===== Stats ===== */
+    .stats-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px; margin-bottom:24px}
+    .stat-card{background:var(--white); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow); border:1px solid var(--border); text-align:center}
+    .stat-number{font-size:32px; font-weight:700; color:var(--text); margin-bottom:4px}
+    .stat-label{color:var(--text-muted); font-size:14px; font-weight:500}
+
+    /* ===== Cards ===== */
+    .card{background:var(--white); border-radius:var(--radius-lg); box-shadow:var(--shadow); border:1px solid var(--border); padding:24px; margin-bottom:24px}
+    .card-title{font-size:18px; font-weight:500; margin-bottom:16px; color:var(--text); padding-bottom:8px; border-bottom:1px solid var(--border)}
+    .message-box{padding:16px; background:var(--gray-light); border-radius:var(--radius); border:1px solid var(--border); white-space:pre-wrap; line-height:1.6; font-size:14px; color:var(--text)}
+
+    /* ===== Table ===== */
+    .table-container{background:var(--white); border-radius:var(--radius-lg); box-shadow:var(--shadow); border:1px solid var(--border); overflow:hidden}
+    .table{width:100%; border-collapse:collapse; font-size:13px}
+    .table th{background:var(--gray-light); color:var(--text); font-weight:500; padding:12px 16px; text-align:left; border-bottom:1px solid var(--border); font-size:12px; text-transform:uppercase}
+    .table td{padding:12px 16px; border-bottom:1px solid var(--border); color:var(--text)}
+    .table tr:hover{background:var(--gray-light)}
+    .recipient-status{padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600; text-transform:uppercase}
+    .status-pending{background:#fff3cd; color:#856404}
+    .status-queued{background:var(--primary-light); color:var(--primary)}
+    .status-sent{background:#cfe2ff; color:#084298}
+    .status-delivered{background:var(--secondary-light); color:var(--secondary)}
+    .status-failed-recipient{background:#fce8e6; color:var(--danger)}
+    .status-skipped{background:var(--gray-light); color:var(--gray-dark)}
+
+    @media (max-width:768px){.sidebar{width:100%; height:auto; position:static} .main-content{margin-left:0; padding:16px} .stats-grid{grid-template-columns:repeat(2, 1fr)}}
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">{{ user.username|first|upper }}</div>
+        <h3 class="profile-name">{{ tenant.name|default:"WhatsApp Campaign" }}</h3>
+        <p class="profile-role">Admin</p>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{% url 'blast_groups_list' %}" class="nav-item">
+        <span class="nav-item-icon">📁</span>
+        Customer Groups
+      </a>
+      <a href="{% url 'blast_create_campaign' %}" class="nav-item">
+        <span class="nav-item-icon">✉️</span>
+        Create Blast
+      </a>
+    </nav>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">
+          {{ campaign.name }}
+          <span class="campaign-status status-{{ campaign.status }}">{{ campaign.status }}</span>
+        </h1>
+        <p class="page-subtitle">Created on {{ campaign.created_at|date:"M d, Y h:i A" }}</p>
+      </div>
+      <div style="display:flex; gap:12px">
+        <a href="{% url 'blast_campaigns_list' %}" class="btn btn-secondary">← Back to Messages</a>
+        {% if campaign.status == 'draft' or campaign.status == 'failed' %}
+        <button onclick="sendCampaign()" class="btn btn-success">Send Blast</button>
+        {% endif %}
+        {% if campaign.status in 'draft,scheduled,sending' %}
+        <button onclick="cancelCampaign()" class="btn btn-danger">Cancel</button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">{{ campaign.total_recipients }}</div>
+        <div class="stat-label">Total Recipients</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ campaign.sent_count }}</div>
+        <div class="stat-label">Sent</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ campaign.delivered_count }}</div>
+        <div class="stat-label">Delivered</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ campaign.failed_count }}</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ campaign.success_rate }}%</div>
+        <div class="stat-label">Success Rate</div>
+      </div>
+    </div>
+
+    <!-- Message Preview -->
+    <div class="card">
+      <h3 class="card-title">Message Content</h3>
+      <div class="message-box">{{ campaign.message_text }}</div>
+      {% if campaign.message_image_url %}
+      <div style="margin-top:16px">
+        <strong style="display:block; margin-bottom:8px">Image:</strong>
+        <img src="{{ campaign.message_image_url }}" alt="Campaign Image" style="max-width:100%; height:auto; border-radius:8px; box-shadow:var(--shadow)">
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Target Groups/Contests -->
+    <div class="card">
+      <h3 class="card-title">Target Audience</h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px">
+        <div>
+          <strong style="display:block; margin-bottom:8px; color:var(--text-muted)">Customer Groups (XLSX Imports):</strong>
+          {% if campaign.target_groups.all %}
+          <ul style="list-style:none; padding:0">
+            {% for group in campaign.target_groups.all %}
+            <li style="padding:8px; background:var(--gray-light); border-radius:4px; margin-bottom:4px">
+              📁 {{ group.name }} ({{ group.member_count }} members)
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p style="color:var(--text-muted); font-size:14px">None</p>
+          {% endif %}
+        </div>
+        <div>
+          <strong style="display:block; margin-bottom:8px; color:var(--text-muted)">Contest Participants (from Contest Manager):</strong>
+          {% if campaign.target_contests.all %}
+          <ul style="list-style:none; padding:0">
+            {% for contest in campaign.target_contests.all %}
+            <li style="padding:8px; background:var(--gray-light); border-radius:4px; margin-bottom:4px">
+              🏆 {{ contest.name }} ({{ contest.participant_count }} participants)
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p style="color:var(--text-muted); font-size:14px">None</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recipients Table -->
+    <div class="table-container">
+      <div style="padding:16px 20px; border-bottom:1px solid var(--border); background:var(--gray-light)">
+        <h3 style="font-size:16px; font-weight:500; color:var(--text); margin:0">Recipients ({{ recipients|length }})</h3>
+      </div>
+      {% if recipients %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Customer Name</th>
+            <th>Phone Number</th>
+            <th>Status</th>
+            <th>Sent At</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for recipient in recipients %}
+          <tr>
+            <td>{{ recipient.customer.name }}</td>
+            <td>{{ recipient.customer.phone_number }}</td>
+            <td><span class="recipient-status status-{{ recipient.status }}">{{ recipient.status }}</span></td>
+            <td>{{ recipient.sent_at|date:"M d, Y h:i A"|default:"-" }}</td>
+            <td style="color:var(--danger); font-size:12px">{{ recipient.error_message|default:"-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding:40px; text-align:center; color:var(--text-muted)">
+        <p>No recipients found for this campaign.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    let progressInterval = null;
+
+    async function sendCampaign() {
+      if (!confirm('Are you sure you want to send this blast now?')) return;
+      
+      try {
+        const response = await fetch('/blast/campaigns/{{ campaign.blast_id }}/send/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          if (data.async) {
+            alert('Blast is being sent in the background! This page will auto-refresh to show progress.');
+            startProgressTracking();
+          } else {
+            alert(data.message);
+            window.location.reload();
+          }
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        alert('Error sending blast: ' + error);
+      }
+    }
+
+    async function cancelCampaign() {
+      if (!confirm('Are you sure you want to cancel this blast?')) return;
+      
+      try {
+        const response = await fetch('/blast/campaigns/{{ campaign.blast_id }}/cancel/', {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          alert('Blast cancelled!');
+          window.location.reload();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (error) {
+        alert('Error cancelling blast: ' + error);
+      }
+    }
+
+    function startProgressTracking() {
+      // Refresh page every 5 seconds to show progress
+      progressInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/blast/campaigns/{{ campaign.blast_id }}/progress/');
+          const data = await response.json();
+          
+          if (data.success) {
+            // Update stats on page
+            const stats = document.querySelectorAll('.stat-number');
+            if (stats.length >= 5) {
+              stats[1].textContent = data.sent_count;
+              stats[2].textContent = data.delivered_count;
+              stats[3].textContent = data.failed_count;
+              stats[4].textContent = data.success_rate + '%';
+            }
+            
+            // If campaign is completed or failed, reload page and stop tracking
+            if (data.campaign_status === 'completed' || data.campaign_status === 'failed') {
+              clearInterval(progressInterval);
+              window.location.reload();
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching progress:', error);
+        }
+      }, 5000); // Check every 5 seconds
+    }
+
+    // Auto-start progress tracking if campaign is currently sending
+    {% if campaign.status == 'sending' %}
+    document.addEventListener('DOMContentLoaded', function() {
+      startProgressTracking();
+    });
+    {% endif %}
+
+    // Clean up interval when leaving page
+    window.addEventListener('beforeunload', function() {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+    });
+  </script>
+</body>
+</html>

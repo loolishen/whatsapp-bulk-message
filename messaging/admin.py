@@ -3,7 +3,8 @@ from .models import (
     Tenant, WhatsAppConnection, Customer, Consent, Conversation, CoreMessage, 
     MessageAttachment, Receipt, ReceiptItem, TemplateMessage, Segment, 
     Campaign, CampaignVariant, CampaignRun, CampaignRecipient, 
-    CampaignMessage, SendQueue, Contest, ContestEntry, PromptReply, TenantUser
+    CampaignMessage, SendQueue, Contest, ContestEntry, PromptReply, TenantUser,
+    CustomerGroup, GroupMember, BlastCampaign, BlastRecipient
 )
 
 # =============================================================================
@@ -206,3 +207,55 @@ class PromptReplyAdmin(admin.ModelAdmin):
     list_filter = ['created_at']
     readonly_fields = ['prompt_id', 'created_at']
     raw_id_fields = ['tenant']
+
+# =============================================================================
+# WHATSAPP BLASTING ADMIN
+# =============================================================================
+
+@admin.register(CustomerGroup)
+class CustomerGroupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'tenant', 'source', 'member_count', 'created_at']
+    search_fields = ['name', 'description', 'tenant__name']
+    list_filter = ['source', 'created_at']
+    readonly_fields = ['group_id', 'created_at', 'updated_at']
+    raw_id_fields = ['tenant', 'contest']
+    
+    def member_count(self, obj):
+        return obj.member_count
+    member_count.short_description = 'Members'
+
+@admin.register(GroupMember)
+class GroupMemberAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'group', 'tenant', 'added_at']
+    search_fields = ['customer__name', 'customer__phone_number', 'group__name']
+    list_filter = ['added_at', 'tenant']
+    readonly_fields = ['member_id', 'added_at']
+    raw_id_fields = ['tenant', 'group', 'customer']
+
+@admin.register(BlastCampaign)
+class BlastCampaignAdmin(admin.ModelAdmin):
+    list_display = ['name', 'tenant', 'status', 'total_recipients', 'sent_count', 'delivered_count', 'success_rate', 'created_at']
+    search_fields = ['name', 'tenant__name', 'message_text']
+    list_filter = ['status', 'created_at', 'started_at', 'completed_at']
+    readonly_fields = ['blast_id', 'created_at', 'started_at', 'completed_at']
+    raw_id_fields = ['tenant', 'whatsapp_connection']
+    filter_horizontal = ['target_groups', 'target_contests']
+    
+    def success_rate(self, obj):
+        return f"{obj.success_rate}%"
+    success_rate.short_description = 'Success Rate'
+
+@admin.register(BlastRecipient)
+class BlastRecipientAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'blast_campaign', 'status', 'sent_at', 'delivered_at']
+    search_fields = ['customer__name', 'customer__phone_number', 'blast_campaign__name']
+    list_filter = ['status', 'sent_at', 'delivered_at', 'created_at']
+    readonly_fields = ['recipient_id', 'created_at', 'sent_at', 'delivered_at']
+    raw_id_fields = ['tenant', 'blast_campaign', 'customer', 'message']
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'customer',
+            'blast_campaign',
+            'tenant'
+        )

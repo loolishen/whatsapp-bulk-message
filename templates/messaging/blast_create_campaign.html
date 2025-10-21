@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Create Blast - WhatsApp Blasting</title>
+
+  <style>
+    /* ===== Modern Blast Creation Design (Matching Contest Creation) ===== */
+    :root{
+      --primary:#1877f2; --primary-hover:#166fe5; --primary-light:#e7f3ff;
+      --secondary:#42b883; --secondary-hover:#3aa876; --secondary-light:#e8f5e8;
+      --success:#42b883; --warning:#f7b731; --danger:#e74c3c; --info:#17a2b8;
+      --gray:#f0f2f5; --gray-dark:#65676b; --gray-light:#f8f9fa;
+      --white:#ffffff; --black:#1c1e21; --text:#1c1e21;
+      --border:#dadde1; --shadow:0 2px 4px rgba(0,0,0,0.1), 0 8px 16px rgba(0,0,0,0.1);
+      --radius:8px; --radius-lg:12px;
+      --text-muted:#595959;
+    }
+    *{box-sizing:border-box; margin:0; padding:0}
+    body{background:var(--white); color:var(--text); font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.4}
+
+    /* ===== Side Navigation ===== */
+    .sidebar{
+      position:fixed; top:0; left:0; width:280px; height:100vh;
+      background:var(--white); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; z-index:1000; box-shadow:2px 0 8px rgba(0,0,0,0.1)
+    }
+
+    .sidebar-header{
+      padding:24px; border-bottom:1px solid var(--border); text-align:center
+    }
+
+    .profile-section{
+      display:flex; flex-direction:column; align-items:center; gap:12px
+    }
+
+    .profile-avatar{
+      width:60px; height:60px; border-radius:50%; background:var(--primary);
+      display:flex; align-items:center; justify-content:center; color:white; font-weight:700; font-size:24px
+    }
+
+    .profile-name{
+      font-size:18px; font-weight:500; color:var(--text); margin:0
+    }
+
+    .profile-role{
+      font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+
+    .sidebar-nav{
+      flex:1; padding:24px 0; overflow-y:auto
+    }
+
+    .nav-item{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:300;
+      color:var(--text-muted); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px
+    }
+
+    .nav-item:hover{
+      background:var(--gray-light); color:var(--text); border-left-color:var(--primary)
+    }
+
+    .nav-item.active{
+      background:var(--primary-light); color:var(--primary); border-left-color:var(--primary);
+      font-weight:500
+    }
+
+    .nav-item-icon{
+      margin-right:12px; font-size:16px
+    }
+
+    /* ===== Main Layout ===== */
+    .main-layout{
+      margin-left:280px; padding:24px 32px; display:grid; grid-template-columns:550px 400px; gap:170px; min-height:100vh
+    }
+
+    /* ===== Left Column - Form ===== */
+    .form-column{
+      background:var(--white); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow);
+      border:1px solid var(--border); height:fit-content
+    }
+
+    .page-header{
+      margin-bottom:32px; text-align:center
+    }
+    .page-title{
+      font-size:18px; font-weight:500; color:var(--text); margin-bottom:8px
+    }
+    .page-subtitle{
+      font-size:16px; font-weight:300; color:var(--text-muted)
+    }
+
+    .back-btn{
+      position:absolute; top:32px; left:32px; padding:8px 16px; border-radius:var(--radius);
+      text-decoration:none; font-weight:300; color:var(--text-muted); transition:all 0.2s;
+      background:var(--gray-light); border:1px solid var(--border)
+    }
+    .back-btn:hover{background:var(--gray); color:var(--text)}
+
+    /* ===== Form Sections ===== */
+    .form-section{
+      margin-bottom:16px; border:1px solid var(--border); border-radius:var(--radius);
+      background:var(--white); overflow:hidden
+    }
+    .form-section:last-child{
+      margin-bottom:0
+    }
+
+    .section-header{
+      display:flex; align-items:center; gap:12px; padding:16px; cursor:pointer;
+      background:var(--gray-light); transition:all 0.2s; user-select:none
+    }
+    .section-header:hover{
+      background:var(--gray)
+    }
+    .section-header.active{
+      background:var(--primary-light); color:var(--primary)
+    }
+    .section-icon{
+      width:24px; height:24px; border-radius:50%; background:var(--gray);
+      display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--text-muted);
+      transition:all 0.2s
+    }
+    .section-header.active .section-icon{
+      background:var(--primary); color:white
+    }
+    .section-title{
+      font-size:12px; font-weight:500; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;
+      flex:1
+    }
+    .section-toggle{
+      font-size:16px; color:var(--text-muted); transition:transform 0.2s
+    }
+    .section-header.active .section-toggle{
+      transform:rotate(180deg)
+    }
+    .section-content{
+      padding:0 16px; max-height:0; overflow:hidden; transition:all 0.3s ease
+    }
+    .section-content.expanded{
+      padding:16px; max-height:1000px
+    }
+
+    .form-group{
+      margin-bottom:16px
+    }
+    .form-label{
+      display:block; font-weight:300; color:var(--text-muted); margin-bottom:6px; font-size:12px
+    }
+    .form-input, .form-select{
+      width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius);
+      font-size:12px; font-weight:200; transition:all 0.2s; background:var(--white);
+      font-family:"Inter",sans-serif
+    }
+    .form-input:focus, .form-select:focus{
+      outline:none; border-color:var(--primary); box-shadow:0 0 0 2px var(--primary-light)
+    }
+    .form-textarea{
+      min-height:80px; resize:vertical; font-family:"Inter",sans-serif
+    }
+
+    .checkbox-group{
+      display:flex; align-items:center; gap:8px; margin-bottom:12px
+    }
+    .checkbox{
+      width:16px; height:16px; accent-color:var(--primary)
+    }
+    .checkbox-label{
+      font-weight:200; color:var(--text); font-size:12px
+    }
+
+    .form-actions{
+      display:flex; gap:12px; justify-content:center; margin-top:32px; padding-top:24px;
+      border-top:1px solid var(--border)
+    }
+    .btn{
+      padding:12px 24px; border-radius:var(--radius); text-decoration:none; font-weight:500;
+      transition:all 0.2s; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      font-size:16px; font-family:"Inter",sans-serif
+    }
+    .btn-secondary{
+      background:var(--gray-dark); color:white
+    }
+    .btn-secondary:hover{background:var(--text); color:white}
+    .btn-primary{
+      background:var(--primary); color:white
+    }
+    .btn-primary:hover{background:var(--primary-hover); color:white}
+
+    .help-text{
+      font-size:10px; color:var(--text-muted); margin-top:4px; font-weight:200
+    }
+
+    .required{
+      color:var(--danger)
+    }
+
+    /* ===== Right Column - WhatsApp Preview ===== */
+    .preview-column{
+      background:var(--gray-light); border-radius:var(--radius-lg); padding:0;
+      border:1px solid var(--border); height:fit-content; position:sticky; top:80px;
+      overflow:hidden
+    }
+
+    .preview-header{
+      text-align:center; margin-bottom:16px; padding:16px 24px 0;
+    }
+    .preview-title{
+      font-size:20px; font-weight:500; color:var(--text); margin-bottom:4px
+    }
+    .preview-subtitle{
+      font-size:14px; font-weight:300; color:var(--text-muted)
+    }
+
+    /* ===== WhatsApp Phone Mockup ===== */
+    .wa-phone{
+      background:#1f2937; border-radius:20px; padding:8px; margin:0 auto 16px;
+      width:320px; box-shadow:0 8px 24px rgba(0,0,0,0.3)
+    }
+
+    .wa-screen{
+      background:#fff; border-radius:12px; overflow:hidden; height:500px;
+      display:flex; flex-direction:column
+    }
+
+    /* ===== WhatsApp Chat Header ===== */
+    .wa-chat-header{
+      background:#075e54; color:white; padding:12px 16px;
+      display:flex; align-items:center; gap:12px; flex-shrink:0
+    }
+    .wa-chat-avatar{
+      width:36px; height:36px; border-radius:50%; background:#25d366;
+      display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px
+    }
+    .wa-chat-info{flex:1}
+    .wa-chat-name{font-weight:600; font-size:16px; margin:0}
+    .wa-chat-status{font-size:12px; color:#a5f3fc; margin:0}
+
+    /* ===== WhatsApp Messages Area ===== */
+    .wa-messages{
+      flex:1; padding:8px; background:#efeae2;
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 80% 0%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 0% 80%, rgba(0,0,0,.02) 2px, transparent 2px),
+        radial-gradient(circle at 100% 90%, rgba(0,0,0,.02) 2px, transparent 2px);
+      background-size: 280px 280px, 240px 240px, 260px 260px, 220px 220px;
+      overflow-y:auto; max-height:400px
+    }
+
+    /* ===== Message Bubbles ===== */
+    .wa-message{
+      display:flex; align-items:flex-end; margin-bottom:8px; position:relative
+    }
+    .wa-message.incoming{
+      justify-content:flex-start
+    }
+    .wa-message.outgoing{
+      justify-content:flex-end
+    }
+
+    .wa-bubble{
+      max-width:70%; padding:6px 8px; border-radius:7.5px; position:relative;
+      box-shadow:0 1px 0.5px rgba(0,0,0,0.13)
+    }
+    .wa-bubble.incoming{
+      background:#ffffff; border-bottom-left-radius:0
+    }
+    .wa-bubble.outgoing{
+      background:#d9fdd3; border-bottom-right-radius:0
+    }
+
+    .wa-bubble-text{
+      font-size:14.2px; line-height:19px; word-wrap:break-word; white-space:pre-wrap;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif
+    }
+
+    .wa-bubble-time{
+      font-size:11px; color:#667781; display:flex; align-items:center; gap:3px;
+      margin-top:2px; justify-content:flex-end; min-width:50px
+    }
+    .wa-bubble-status{
+      color:#53bdeb; font-size:16px; line-height:15px
+    }
+
+    .wa-media{
+      background:#f8f9fa; border:1px dashed #ddd; border-radius:8px;
+      padding:12px; text-align:center; margin:4px 0; max-width:200px
+    }
+    .wa-media-icon{
+      font-size:24px; margin-bottom:4px; display:block
+    }
+    .wa-media-text{
+      font-size:12px; color:#666; margin:0
+    }
+
+    @media (max-width:1024px){
+      .main-layout{grid-template-columns:1fr; gap:24px; margin-left:0; padding:24px 16px}
+      .preview-column{position:static}
+      .sidebar{transform:translateX(-100%); transition:transform 0.3s ease}
+      .sidebar.open{transform:translateX(0)}
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <div class="profile-section">
+        <div class="profile-avatar">{{ user.username|first|upper }}</div>
+        <h3 class="profile-name">{{ tenant.name|default:"WhatsApp Campaign" }}</h3>
+        <p class="profile-role">Admin</p>
+      </div>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="{% url 'dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">📊</span>
+        Dashboard
+      </a>
+      <a href="{% url 'blast_groups_list' %}" class="nav-item">
+        <span class="nav-item-icon">📁</span>
+        Customer Groups
+      </a>
+      <a href="{% url 'blast_create_campaign' %}" class="nav-item active">
+        <span class="nav-item-icon">✉️</span>
+        Create Blast
+      </a>
+    </nav>
+  </nav>
+
+  <!-- Back Button -->
+  <a href="{% url 'blast_groups_list' %}" class="back-btn">← Back to Customer Groups</a>
+
+  <!-- Main Layout -->
+  <div class="main-layout">
+    <!-- Form Column -->
+    <div class="form-column">
+      <div class="page-header">
+        <h1 class="page-title">Create WhatsApp Blast</h1>
+        <p class="page-subtitle">Send messages to customer groups</p>
+      </div>
+
+      <form method="POST" action="{% url 'blast_create_campaign' %}">
+        {% csrf_token %}
+
+        <!-- Section 1: Blast Details -->
+        <div class="form-section">
+          <div class="section-header active" onclick="toggleSection(this)">
+            <div class="section-icon">1</div>
+            <div class="section-title">Blast Details</div>
+            <div class="section-toggle">▼</div>
+          </div>
+          <div class="section-content expanded">
+            <div class="form-group">
+              <label class="form-label" for="name">Blast Name <span class="required">*</span></label>
+              <input type="text" id="name" name="name" class="form-input" required placeholder="e.g., New Year Promotion 2024">
+              <p class="help-text">Give your blast a descriptive name for your reference</p>
+            </div>
+
+          <div class="form-group">
+            <label class="form-label" for="whatsapp_connection">WhatsApp Number</label>
+            <input type="text" class="form-input" value="+60162107682 (WABot Demo)" readonly style="background:var(--gray-light); cursor:not-allowed">
+            <p class="help-text">Using demo WhatsApp connection</p>
+          </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Message Content -->
+        <div class="form-section">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-icon">2</div>
+            <div class="section-title">Message Content</div>
+            <div class="section-toggle">▼</div>
+          </div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="form-label" for="message_text">Message Text <span class="required">*</span></label>
+              <textarea id="message_text" name="message_text" class="form-input form-textarea" required placeholder="Hello! We're excited to share..."></textarea>
+              <p class="help-text">Enter your message text (supports emojis and line breaks)</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="message_image_url">Image URL (Optional)</label>
+              <input type="url" id="message_image_url" name="message_image_url" class="form-input" placeholder="https://example.com/image.jpg">
+              <p class="help-text">Add an image URL to send with the message</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Target Audience -->
+        <div class="form-section">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-icon">3</div>
+            <div class="section-title">Target Audience</div>
+            <div class="section-toggle">▼</div>
+          </div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="form-label">📁 Customer Groups (XLSX Imports)</label>
+              {% for group in customer_groups %}
+              <div class="checkbox-group">
+                <input type="checkbox" name="target_groups" value="{{ group.group_id }}" class="checkbox">
+                <label class="checkbox-label">{{ group.name }} ({{ group.member_count }} members)</label>
+              </div>
+              {% empty %}
+              <p class="help-text">No customer groups available. <a href="{% url 'blast_groups_list' %}">Import one first.</a></p>
+              {% endfor %}
+            </div>
+
+            <div class="form-group" style="margin-top:24px">
+              <label class="form-label">🏆 Contest Participants (from Contest Manager)</label>
+              {% for contest in contests %}
+              <div class="checkbox-group">
+                <input type="checkbox" name="target_contests" value="{{ contest.contest_id }}" class="checkbox">
+                <label class="checkbox-label">{{ contest.name }} ({{ contest.participant_count }} participants)</label>
+              </div>
+              {% empty %}
+              <p class="help-text">No active contests available.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <a href="{% url 'blast_groups_list' %}" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary">Create & Send Blast</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Preview Column -->
+    <div class="preview-column">
+      <div class="preview-header">
+        <h2 class="preview-title">WhatsApp Preview</h2>
+        <p class="preview-subtitle">Live preview of your blast message</p>
+      </div>
+
+      <!-- WhatsApp Phone Mockup -->
+      <div class="wa-phone">
+        <div class="wa-screen">
+          <!-- WhatsApp Chat Header -->
+          <div class="wa-chat-header">
+            <div class="wa-chat-avatar">W</div>
+            <div class="wa-chat-info">
+              <p class="wa-chat-name">Customer Name</p>
+              <p class="wa-chat-status">online</p>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div class="wa-messages">
+            <!-- Blast Message -->
+            <div class="wa-message incoming">
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text" id="preview-message">Hello! We're excited to share...</div>
+                <div class="wa-bubble-time">10:30 AM</div>
+              </div>
+            </div>
+
+            <!-- Image Preview (if URL provided) -->
+            <div class="wa-message incoming" id="preview-image-container" style="display:none">
+              <div class="wa-bubble incoming">
+                <div class="wa-media">
+                  <div class="wa-media-icon">🖼️</div>
+                  <div class="wa-media-text">Image will be displayed here</div>
+                </div>
+                <div class="wa-bubble-time">10:30 AM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Toggle sections
+    function toggleSection(header) {
+      const content = header.nextElementSibling;
+      const isActive = header.classList.contains('active');
+      
+      if (isActive) {
+        header.classList.remove('active');
+        content.classList.remove('expanded');
+      } else {
+        header.classList.add('active');
+        content.classList.add('expanded');
+      }
+    }
+
+    // Update preview in real-time
+    function updatePreview() {
+      const messageText = document.getElementById('message_text').value || 'Hello! We\'re excited to share...';
+      const imageUrl = document.getElementById('message_image_url').value;
+      
+      // Update message preview
+      const previewMessage = document.getElementById('preview-message');
+      if (previewMessage) {
+        previewMessage.innerHTML = messageText.replace(/\n/g, '<br>');
+      }
+      
+      // Show/hide image preview
+      const imageContainer = document.getElementById('preview-image-container');
+      if (imageUrl && imageUrl.trim() !== '') {
+        imageContainer.style.display = 'flex';
+      } else {
+        imageContainer.style.display = 'none';
+      }
+    }
+
+    // Add event listeners for real-time preview updates
+    document.getElementById('message_text').addEventListener('input', updatePreview);
+    document.getElementById('message_image_url').addEventListener('input', updatePreview);
+
+    // Initialize preview
+    document.addEventListener('DOMContentLoaded', function() {
+      updatePreview();
+    });
+  </script>
+</body>
+</html>

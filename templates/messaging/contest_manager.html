@@ -66,6 +66,35 @@
     .nav-item-icon{
       margin-right:12px; font-size:16px
     }
+    
+    /* ===== Section Separator ===== */
+    .nav-separator{
+      margin:16px 24px; border-top:1px solid var(--border); position:relative
+    }
+    .nav-separator-label{
+      position:absolute; top:-10px; left:0; background:var(--white);
+      padding:0 8px; font-size:11px; font-weight:600; color:var(--text-muted);
+      text-transform:uppercase; letter-spacing:0.5px
+    }
+    
+    /* ===== External Section Link ===== */
+    .nav-item-external{
+      display:block; padding:12px 24px; text-decoration:none; font-weight:500;
+      color:var(--info); transition:all 0.2s; border-left:3px solid transparent;
+      font-size:14px; background:linear-gradient(90deg, rgba(66, 133, 244, 0.05), transparent);
+      border:1px solid rgba(66, 133, 244, 0.2); margin:8px 16px; border-radius:6px
+    }
+    .nav-item-external:hover{
+      background:rgba(66, 133, 244, 0.1); color:var(--info);
+      border-left-color:var(--info); border-color:var(--info);
+      transform:translateX(2px)
+    }
+    .nav-item-external-icon{
+      margin-right:8px; font-size:16px
+    }
+    .nav-item-external-arrow{
+      float:right; font-size:12px; opacity:0.6
+    }
 
     /* ===== Main Content ===== */
     .main-content{
@@ -361,6 +390,18 @@
       <a href="{% url 'select_winners' %}" class="nav-item">
         <span class="nav-item-icon">🏆</span>
         Select Winners
+      </a>
+      
+      <!-- Separator for different section -->
+      <div class="nav-separator">
+        <span class="nav-separator-label">Quick Access</span>
+      </div>
+      
+      <!-- External section link -->
+      <a href="{% url 'blast_groups_list' %}" class="nav-item-external" title="Go to WhatsApp Blasting section">
+        <span class="nav-item-external-icon">📨</span>
+        WhatsApp Blasting
+        <span class="nav-item-external-arrow">→</span>
       </a>
     </nav>
   </div>

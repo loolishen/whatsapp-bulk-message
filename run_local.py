@@ -39,14 +39,18 @@ def create_superuser_if_needed():
     """Create a superuser if none exists"""
     print("Setting up admin user...")
     try:
-        # Try to create superuser - if it already exists, it will fail gracefully
+        # Try to create superuser and tenant setup
         subprocess.run([
             sys.executable, 'manage_local.py', 'shell', '-c',
+            'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "whatsapp_bulk.settings_local"); '
+            'import django; django.setup(); '
             'from django.contrib.auth.models import User; '
-            'User.objects.get_or_create(username="admin", defaults={"is_superuser": True, "is_staff": True, "email": "admin@example.com"}); '
-            'user = User.objects.get(username="admin"); '
-            'user.set_password("admin123"); '
-            'user.save()'
+            'from messaging.models import Tenant, TenantUser; '
+            'user, created = User.objects.get_or_create(username="admin", defaults={"is_superuser": True, "is_staff": True, "email": "admin@example.com"}); '
+            'user.set_password("admin123"); user.save(); '
+            'tenant, created = Tenant.objects.get_or_create(name="Khind", defaults={"plan": "contest"}); '
+            'TenantUser.objects.get_or_create(user=user, defaults={"tenant": tenant, "role": "owner"}); '
+            'print("Setup complete")'
         ], check=True, capture_output=True)
         print("Admin user ready (admin/admin123)")
         return True

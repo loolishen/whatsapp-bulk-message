@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from .debug_webhook import debug_webhook
 from . import auto_contest_views
+from . import blast_views
 
 # Guard views that may import legacy models before migrations
 def _safe(view_func):
@@ -86,4 +87,18 @@ urlpatterns = [
     path('api/segments/<int:segment_id>/', _safe(views.segment_detail), name='segment_detail'),
     path('api/customers/<int:customer_id>/purchases/', _safe(views.customer_purchases), name='customer_purchases'),
     path('api/ocr/process/', _safe(views.process_ocr), name='process_ocr'),
+    
+    # WhatsApp Blasting (specific paths BEFORE parameterized paths)
+    path('blast/groups/', blast_views.blast_groups_list, name='blast_groups_list'),
+    path('blast/groups/create/', blast_views.blast_create_group, name='blast_create_group'),
+    path('blast/groups/import/', blast_views.blast_import_group, name='blast_import_group'),
+    path('blast/groups/from-contest/', blast_views.blast_create_from_contest, name='blast_create_from_contest'),
+    path('blast/groups/<str:group_id>/', blast_views.blast_group_detail, name='blast_group_detail'),
+    path('blast/groups/<str:group_id>/delete/', blast_views.blast_delete_group, name='blast_delete_group'),
+    path('blast/campaigns/', blast_views.blast_campaigns_list, name='blast_campaigns_list'),
+    path('blast/campaigns/create/', blast_views.blast_create_campaign, name='blast_create_campaign'),
+    path('blast/campaigns/<str:blast_id>/send/', blast_views.blast_send_campaign, name='blast_send_campaign'),
+    path('blast/campaigns/<str:blast_id>/cancel/', blast_views.blast_cancel_campaign, name='blast_cancel_campaign'),
+    path('blast/campaigns/<str:blast_id>/progress/', blast_views.blast_campaign_progress, name='blast_campaign_progress'),
+    path('blast/campaigns/<str:blast_id>/', blast_views.blast_campaign_detail, name='blast_campaign_detail'),
 ]
