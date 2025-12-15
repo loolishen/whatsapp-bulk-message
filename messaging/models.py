@@ -419,6 +419,11 @@ class Contest(models.Model):
     ends_at = models.DateTimeField()
     is_active = models.BooleanField(default=True)
     
+    # Keyword auto-reply (integrated into contest)
+    keywords = models.TextField(blank=True, null=True, help_text='Comma-separated keywords that trigger this contest (e.g., JOIN,MASUK,SERTAI)')
+    auto_reply_message = models.TextField(blank=True, null=True, help_text='Automatic reply sent when someone sends the keyword')
+    auto_reply_priority = models.IntegerField(default=5, help_text='Priority when multiple contests match (higher = checked first)')
+    
     # Contest requirements
     requires_nric = models.BooleanField(default=True, help_text='Require NRIC for participation')
     requires_receipt = models.BooleanField(default=True, help_text='Require proof of purchase')
@@ -465,6 +470,22 @@ class Contest(models.Model):
     def verified_entries(self):
         """Get number of verified entries"""
         return self.entries.filter(is_verified=True).count()
+    
+    def get_keywords_list(self):
+        """Get list of keywords as a Python list."""
+        if not self.keywords:
+            return []
+        return [kw.strip().lower() for kw in self.keywords.split(',') if kw.strip()]
+    
+    def matches_message(self, message_text):
+        """Check if message contains any of the contest keywords."""
+        if not self.keywords or not message_text:
+            return False
+        message_lower = message_text.lower().strip()
+        for keyword in self.get_keywords_list():
+            if keyword in message_lower:
+                return True
+        return False
 
 class ContestEntry(models.Model):
     """Enhanced contest entry with verification and document collection."""
@@ -611,17 +632,6 @@ class ContestFlowState(models.Model):
     def has_message_been_sent(self, message_type):
         """Check if a specific message type has been sent"""
         return any(msg['type'] == message_type for msg in self.messages_sent)
-
-class PromptReply(models.Model):
-    """Saved quick replies for CRM agents."""
-    prompt_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='prompt_replies')
-    name = models.CharField(max_length=120)
-    body = models.TextField()
-    created_at = models.DateTimeField(default=dj_timezone.now)
-    
-    def __str__(self):
-        return self.name
 
 # =============================================================================
 # WHATSAPP BLASTING MODELS

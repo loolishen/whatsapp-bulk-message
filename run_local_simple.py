@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 """
-Local development server runner
-This script sets up and runs the Django development server with local settings
+Simple local development server runner
+This script runs the Django development server without running migrations
+Use this if you're having migration issues
 """
 
 import os
@@ -24,28 +25,6 @@ def setup_local_environment():
     print("Local environment configured")
     return True
 
-def run_migrations():
-    """Run database migrations for local development"""
-    print("Running database migrations...")
-    try:
-        # First try to fake the problematic migration if it exists
-        try:
-            subprocess.run([sys.executable, 'manage_local.py', 'migrate', 'messaging', '0002', '--fake'], 
-                          check=True, capture_output=True)
-            print("Applied fake migration for existing tables")
-        except subprocess.CalledProcessError:
-            # If fake migration fails, continue with normal migration
-            pass
-        
-        # Now run normal migrations
-        subprocess.run([sys.executable, 'manage_local.py', 'migrate'], check=True)
-        print("Migrations completed")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"Migration failed: {e}")
-        print("Trying to continue with existing database...")
-        return True  # Continue even if migrations fail
-
 def create_superuser_if_needed():
     """Create a superuser if none exists"""
     print("Setting up admin user...")
@@ -56,14 +35,15 @@ def create_superuser_if_needed():
             'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE", "whatsapp_bulk.settings_local"); '
             'import django; django.setup(); '
             'from django.contrib.auth.models import User; '
-            'from messaging.models import Tenant, TenantUser; '
+            'from messaging.models import Tenant, TenantUser, WhatsAppConnection; '
             'user, created = User.objects.get_or_create(username="admin", defaults={"is_superuser": True, "is_staff": True, "email": "admin@example.com"}); '
             'user.set_password("admin123"); user.save(); '
             'tenant, created = Tenant.objects.get_or_create(name="Khind", defaults={"plan": "contest"}); '
             'TenantUser.objects.get_or_create(user=user, defaults={"tenant": tenant, "role": "owner"}); '
+            'WhatsAppConnection.objects.get_or_create(tenant=tenant, phone_number="60162107682", defaults={"access_token_ref": "68a0a10422130", "instance_id": "68A0A11A89A8D", "provider": "wabot"}); '
             'print("Setup complete")'
         ], check=True, capture_output=True)
-        print("Admin user ready (admin/admin123)")
+        print("Admin user and WhatsApp connection ready (admin/admin123)")
         return True
     except subprocess.CalledProcessError as e:
         print(f"Admin user setup failed: {e}")
@@ -88,15 +68,13 @@ def run_server():
 
 def main():
     """Main function to set up and run local development"""
-    print("WhatsApp Bulk Message - Local Development Setup")
-    print("=" * 50)
+    print("WhatsApp Bulk Message - Simple Local Development Setup")
+    print("=" * 60)
+    print("Note: This script skips migrations to avoid conflicts")
+    print("=" * 60)
     
     # Setup environment
     if not setup_local_environment():
-        return
-    
-    # Run migrations
-    if not run_migrations():
         return
     
     # Create superuser if needed

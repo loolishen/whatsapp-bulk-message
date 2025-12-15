@@ -5,7 +5,8 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# FLATTENED STRUCTURE - settings are now in root, so BASE_DIR is just parent
+BASE_DIR = Path(__file__).resolve().parent
 
 # Security settings
 DEBUG = False
@@ -39,7 +40,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'whatsapp_bulk.urls'
+ROOT_URLCONF = 'urls'
 
 TEMPLATES = [
     {
@@ -58,19 +59,34 @@ TEMPLATES = [
 ]
 
 # Database - Use PostgreSQL for production
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'whatsapp_bulk',
-        'USER': 'whatsapp_user',
-        'PASSWORD': 'P@##w0rd',
-        'HOST': '/cloudsql/whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db',
-        'PORT': '5432',
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+# Auto-detect environment: Cloud Shell (TCP) vs App Engine (Unix socket)
+if os.getenv('GAE_ENV', '').startswith('standard'):
+    # Running on App Engine - use Unix socket
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'whatsapp_bulk',
+            'USER': 'whatsapp_user',
+            'PASSWORD': 'P@##w0rd',
+            'HOST': '/cloudsql/whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db',
+            'PORT': '5432',
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
+else:
+    # Running in Cloud Shell or locally - use TCP via Cloud SQL Proxy
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'whatsapp_bulk',
+            'USER': 'whatsapp_user',
+            'PASSWORD': 'P@##w0rd',
+            'HOST': '127.0.0.1',  # Cloud SQL Proxy on localhost
+            'PORT': '5432',
+        }
+    }
 
 # TEMPORARY: If Cloud SQL connection fails, uncomment below and comment out above
 # DATABASES = {
@@ -133,6 +149,12 @@ CLOUDINARY = {
     'SECURE': True,
     'FOLDER': 'whatsapp_bulk',
 }
+
+# WABot.my Configuration
+WABOT_WEBHOOK_TOKEN = os.environ.get('WABOT_WEBHOOK_TOKEN', '6bb47e635cd7649c10a503e7032ecff4')
+WABOT_PHONE_NUMBER = os.environ.get('WABOT_PHONE_NUMBER', '60162107682')
+WABOT_API_URL = os.environ.get('WABOT_API_URL', 'https://app.wabot.my/api')
+WABOT_API_TOKEN = os.environ.get('WABOT_API_TOKEN', '')  # Get this from WABot dashboard
 
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

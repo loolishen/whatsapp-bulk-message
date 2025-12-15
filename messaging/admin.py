@@ -3,7 +3,7 @@ from .models import (
     Tenant, WhatsAppConnection, Customer, Consent, Conversation, CoreMessage, 
     MessageAttachment, Receipt, ReceiptItem, TemplateMessage, Segment, 
     Campaign, CampaignVariant, CampaignRun, CampaignRecipient, 
-    CampaignMessage, SendQueue, Contest, ContestEntry, PromptReply, TenantUser,
+    CampaignMessage, SendQueue, Contest, ContestEntry, TenantUser,
     CustomerGroup, GroupMember, BlastCampaign, BlastRecipient
 )
 
@@ -186,11 +186,57 @@ class SendQueueAdmin(admin.ModelAdmin):
 
 @admin.register(Contest)
 class ContestAdmin(admin.ModelAdmin):
-    list_display = ['name', 'tenant', 'starts_at', 'ends_at', 'is_active']
-    search_fields = ['name', 'tenant__name']
+    list_display = ['name', 'tenant', 'keywords_display', 'starts_at', 'ends_at', 'is_active']
+    search_fields = ['name', 'tenant__name', 'keywords']
     list_filter = ['is_active', 'starts_at', 'ends_at']
-    readonly_fields = ['contest_id', 'created_at']
+    readonly_fields = ['contest_id', 'created_at', 'updated_at']
     raw_id_fields = ['tenant']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('contest_id', 'tenant', 'name', 'description', 'is_active')
+        }),
+        ('Schedule', {
+            'fields': ('starts_at', 'ends_at')
+        }),
+        ('Keyword Auto-Reply', {
+            'fields': ('keywords', 'auto_reply_message', 'auto_reply_priority'),
+            'description': 'Set keywords that trigger this contest (e.g., JOIN,MASUK,SERTAI) and the auto-reply message.'
+        }),
+        ('Requirements', {
+            'fields': ('requires_nric', 'requires_receipt', 'min_purchase_amount')
+        }),
+        ('PDPA Messages', {
+            'fields': ('pdpa_message', 'participant_agreement', 'participant_rejection'),
+            'classes': ('collapse',)
+        }),
+        ('Post-PDPA Content', {
+            'fields': ('post_pdpa_text', 'post_pdpa_image_url', 'post_pdpa_gif_url'),
+            'classes': ('collapse',)
+        }),
+        ('Instructions', {
+            'fields': ('contest_instructions', 'verification_instructions', 'eligibility_message'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def keywords_display(self, obj):
+        """Display keywords as badges"""
+        keywords = obj.get_keywords_list()
+        if not keywords:
+            return '-'
+        from django.utils.html import mark_safe
+        badges = []
+        for kw in keywords[:3]:
+            badges.append(f'<span style="background:#28a745;color:white;padding:2px 6px;border-radius:3px;margin-right:3px;font-size:11px;">{kw}</span>')
+        if len(keywords) > 3:
+            badges.append(f'<span style="color:#666;font-size:11px;">+{len(keywords)-3}</span>')
+        return mark_safe(''.join(badges))
+    keywords_display.short_description = 'Keywords'
 
 @admin.register(ContestEntry)
 class ContestEntryAdmin(admin.ModelAdmin):
@@ -199,14 +245,6 @@ class ContestEntryAdmin(admin.ModelAdmin):
     list_filter = ['is_winner', 'submitted_at']
     readonly_fields = ['entry_id']
     raw_id_fields = ['tenant', 'contest', 'customer', 'conversation']
-
-@admin.register(PromptReply)
-class PromptReplyAdmin(admin.ModelAdmin):
-    list_display = ['name', 'tenant', 'created_at']
-    search_fields = ['name', 'body', 'tenant__name']
-    list_filter = ['created_at']
-    readonly_fields = ['prompt_id', 'created_at']
-    raw_id_fields = ['tenant']
 
 # =============================================================================
 # WHATSAPP BLASTING ADMIN

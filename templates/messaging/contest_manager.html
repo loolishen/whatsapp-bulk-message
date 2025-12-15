@@ -371,6 +371,11 @@
     </div>
     
     <nav class="sidebar-nav">
+      <!-- WhatsApp Contest Section -->
+      <div class="nav-separator">
+        <span class="nav-separator-label">WhatsApp Contest</span>
+      </div>
+      
       <a href="{% url 'dashboard' %}" class="nav-item">
         <span class="nav-item-icon">📊</span>
         Dashboard
@@ -392,16 +397,18 @@
         Select Winners
       </a>
       
-      <!-- Separator for different section -->
+      <!-- Blasting Feature Section -->
       <div class="nav-separator">
-        <span class="nav-separator-label">Quick Access</span>
+        <span class="nav-separator-label">Blasting Feature</span>
       </div>
       
-      <!-- External section link -->
-      <a href="{% url 'blast_groups_list' %}" class="nav-item-external" title="Go to WhatsApp Blasting section">
-        <span class="nav-item-external-icon">📨</span>
-        WhatsApp Blasting
-        <span class="nav-item-external-arrow">→</span>
+      <a href="{% url 'blast_groups_list' %}" class="nav-item">
+        <span class="nav-item-icon">📁</span>
+        Customer Groups
+      </a>
+      <a href="{% url 'blast_create_campaign' %}" class="nav-item">
+        <span class="nav-item-icon">✉️</span>
+        Create Blast
       </a>
     </nav>
   </div>

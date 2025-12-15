@@ -1,19 +1,24 @@
+"""
+Main entry point for App Engine Standard.
+This is what App Engine auto-detection looks for.
+"""
 import os
 import sys
+
+# Ensure the current directory is in the Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Set Django settings to use our flattened production settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings_production')
+
+# Import Django's WSGI application
 from django.core.wsgi import get_wsgi_application
 
-# Add the project directory to Python path
-sys.path.insert(0, os.path.dirname(__file__))
-
-# Set Django settings module
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'whatsapp_bulk.settings_production')
-
-# Get the Django WSGI application
+# App Engine Standard looks for 'app' variable
 app = get_wsgi_application()
 
-# Ensure production user exists on startup
-try:
-    from django.core.management import call_command
-    call_command('ensure_production_user')
-except Exception as e:
-    print(f"Warning: Failed to ensure production user: {e}")
+
+
+
+
+

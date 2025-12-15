@@ -1,0 +1,100 @@
+<!-- ===== Sidebar Navigation ===== -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="profile-section">
+      <div class="profile-avatar">{{ user.username|first|upper|default:"K" }}</div>
+      <h3 class="profile-name">{{ tenant.name|default:"Khind" }}</h3>
+      <p class="profile-role">Admin</p>
+    </div>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <!-- WhatsApp Contest Section -->
+    <div class="nav-separator">
+      <span class="nav-separator-label">WhatsApp Contest</span>
+    </div>
+    
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <span class="nav-item-icon">📊</span>
+      Dashboard
+    </a>
+    <a href="{% url 'contest_create' %}" class="nav-item {% if request.resolver_match.url_name == 'contest_create' %}active{% endif %}">
+      <span class="nav-item-icon">➕</span>
+      Contest Creation
+    </a>
+    <a href="{% url 'contest_manager' %}" class="nav-item {% if request.resolver_match.url_name == 'contest_manager' %}active{% endif %}">
+      <span class="nav-item-icon">🎯</span>
+      Contest Manager
+    </a>
+    <a href="{% url 'participants_manager' %}" class="nav-item {% if request.resolver_match.url_name == 'participants_manager' %}active{% endif %}">
+      <span class="nav-item-icon">👥</span>
+      Participants Manager
+    </a>
+    <a href="{% url 'select_winners' %}" class="nav-item {% if request.resolver_match.url_name == 'select_winners' %}active{% endif %}">
+      <span class="nav-item-icon">🏆</span>
+      Select Winners
+    </a>
+    
+    <!-- Blasting Feature Section -->
+    <div class="nav-separator">
+      <span class="nav-separator-label">Blasting Feature</span>
+    </div>
+    
+    <a href="{% url 'blast_groups_list' %}" class="nav-item {% if request.resolver_match.url_name == 'blast_groups_list' %}active{% endif %}">
+      <span class="nav-item-icon">📁</span>
+      Customer Groups
+    </a>
+    <a href="{% url 'blast_create_campaign' %}" class="nav-item {% if request.resolver_match.url_name == 'blast_create_campaign' %}active{% endif %}">
+      <span class="nav-item-icon">✉️</span>
+      Create Blast
+    </a>
+  </nav>
+</div>
+
+<!-- Sidebar Toggle Button (Mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+  <span>☰</span>
+</button>
+
+<!-- Sidebar Overlay (Mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<script>
+  // Sidebar toggle functionality for mobile
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+
+  function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (window.innerWidth <= 768) {
+      if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+        closeSidebar();
+      }
+    }
+  });
+
+  // Handle window resize
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+      closeSidebar();
+    }
+  });
+</script>
+

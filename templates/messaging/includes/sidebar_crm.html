@@ -1,0 +1,135 @@
+<!-- ===== CRM Sidebar ===== -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="profile-section">
+      <div class="profile-avatar">{{ user.username|first|upper|default:"K" }}</div>
+      <h3 class="profile-name">{{ tenant.name|default:"Khind" }}</h3>
+      <p class="profile-role">Admin</p>
+    </div>
+  </div>
+  
+  <nav class="sidebar-nav">
+    <!-- Main Navigation -->
+    <a href="{% url 'dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+      <span class="nav-item-icon">📊</span>
+      Dashboard
+    </a>
+    
+    <!-- CRM Section -->
+    <div class="nav-separator">
+      <span class="nav-separator-label">Customer Management</span>
+    </div>
+    
+    <a href="{% url 'crm_home' %}" class="nav-item {% if request.resolver_match.url_name == 'crm_home' %}active{% endif %}">
+      <span class="nav-item-icon">🏠</span>
+      CRM Home
+    </a>
+    <a href="{% url 'manage_customers' %}" class="nav-item {% if request.resolver_match.url_name == 'manage_customers' %}active{% endif %}">
+      <span class="nav-item-icon">👥</span>
+      Manage Customers
+    </a>
+    <a href="{% url 'crm_analytics' %}" class="nav-item {% if request.resolver_match.url_name == 'crm_analytics' %}active{% endif %}">
+      <span class="nav-item-icon">📈</span>
+      Analytics
+    </a>
+    <a href="{% url 'crm_campaigns' %}" class="nav-item {% if request.resolver_match.url_name == 'crm_campaigns' %}active{% endif %}">
+      <span class="nav-item-icon">📢</span>
+      Campaigns
+    </a>
+    <a href="{% url 'crm_schedule' %}" class="nav-item {% if request.resolver_match.url_name == 'crm_schedule' %}active{% endif %}">
+      <span class="nav-item-icon">📅</span>
+      Schedule
+    </a>
+    <a href="{% url 'crm_prompt_replies' %}" class="nav-item {% if request.resolver_match.url_name == 'crm_prompt_replies' %}active{% endif %}">
+      <span class="nav-item-icon">💬</span>
+      Prompt Replies
+    </a>
+    
+    <!-- Contest Management -->
+    <div class="nav-separator">
+      <span class="nav-separator-label">Contest Management</span>
+    </div>
+    
+    <a href="{% url 'contest_create' %}" class="nav-item {% if request.resolver_match.url_name == 'contest_create' %}active{% endif %}">
+      <span class="nav-item-icon">➕</span>
+      Contest Creation
+    </a>
+    <a href="{% url 'contest_manager' %}" class="nav-item {% if request.resolver_match.url_name == 'contest_manager' %}active{% endif %}">
+      <span class="nav-item-icon">🎯</span>
+      Contest Manager
+    </a>
+    <a href="{% url 'participants_manager' %}" class="nav-item {% if request.resolver_match.url_name == 'participants_manager' %}active{% endif %}">
+      <span class="nav-item-icon">👥</span>
+      Participants Manager
+    </a>
+    <a href="{% url 'select_winners' %}" class="nav-item {% if request.resolver_match.url_name == 'select_winners' %}active{% endif %}">
+      <span class="nav-item-icon">🏆</span>
+      Select Winners
+    </a>
+    
+    <!-- Other Sections -->
+    <div class="nav-separator">
+      <span class="nav-separator-label">Other</span>
+    </div>
+    
+    <a href="{% url 'blast_groups_list' %}" class="nav-item-external" title="Go to WhatsApp Blasting section">
+      <span class="nav-item-external-icon">📨</span>
+      WhatsApp Blasting
+      <span class="nav-item-external-arrow">→</span>
+    </a>
+    
+    <a href="{% url 'whatsapp_settings' %}" class="nav-item-external" title="Go to Settings">
+      <span class="nav-item-external-icon">⚙️</span>
+      Settings
+      <span class="nav-item-external-arrow">→</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Sidebar Toggle Button (Mobile) -->
+<button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
+  <span>☰</span>
+</button>
+
+<!-- Sidebar Overlay (Mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<script>
+  // Sidebar toggle functionality for mobile
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('open');
+  }
+
+  function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.remove('open');
+    overlay.classList.remove('open');
+  }
+
+  // Close sidebar when clicking outside on mobile
+  document.addEventListener('click', function(event) {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebarToggle');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (window.innerWidth <= 768) {
+      if (!sidebar.contains(event.target) && !toggle.contains(event.target)) {
+        closeSidebar();
+      }
+    }
+  });
+
+  // Handle window resize
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+      closeSidebar();
+    }
+  });
+</script>
+

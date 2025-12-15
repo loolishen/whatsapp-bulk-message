@@ -1,28 +1,58 @@
-# Cloud Build configuration for automatic deployment
+# Cloud Build configuration for deploying with migrations
 steps:
-  # Install dependencies
-  - name: 'python:3.9'
-    entrypoint: 'pip'
-    args: ['install', '-r', 'requirements.txt']
-
-  # Collect static files
-  - name: 'python:3.9'
-    entrypoint: 'python'
-    args: ['manage.py', 'collectstatic', '--noinput', '--settings=whatsapp_bulk.settings_gcp']
-
-  # Deploy to App Engine
+  # Step 1: Build and deploy the app
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['app', 'deploy', '--quiet']
+    id: 'deploy-app'
+    args:
+      - 'app'
+      - 'deploy'
+      - 'app.yaml'
+      - '--quiet'
+      - '--project=${PROJECT_ID}'
+    timeout: 900s
 
-  # Run database migrations (optional - can be done manually)
+  # Step 2: Run database migrations via Cloud Run Job
+  # Note: This requires Cloud SQL Proxy
   - name: 'gcr.io/cloud-builders/gcloud'
-    args: ['app', 'deploy', '--quiet', '--version=${SHORT_SHA}-migration', '--no-promote']
+    id: 'run-migrations'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "Setting up Cloud SQL Proxy..."
+        
+        # Download Cloud SQL Proxy
+        wget -q https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O cloud_sql_proxy
+        chmod +x cloud_sql_proxy
+        
+        # Start Cloud SQL Proxy in background
+        ./cloud_sql_proxy -instances=${_CLOUD_SQL_CONNECTION}=tcp:5432 &
+        PROXY_PID=$!
+        
+        # Wait for proxy to be ready
+        sleep 10
+        
+        # Install dependencies
+        pip3 install --user Django psycopg2-binary
+        
+        # Set environment variables for production settings
+        export DJANGO_SETTINGS_MODULE=settings_production
+        export DB_PASSWORD=${_DB_PASSWORD}
+        export CLOUD_SQL_CONNECTION_NAME=${_CLOUD_SQL_CONNECTION}
+        export SECRET_KEY=${_SECRET_KEY}
+        
+        # Run migrations
+        python3 migrate_db.py
+        
+        # Stop proxy
+        kill $PROXY_PID || true
+        
+        echo "✅ Migrations completed!"
+    timeout: 300s
 
-# Options
-options:
-  machineType: 'E2_HIGHCPU_8'
-  diskSizeGb: 100
-  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _CLOUD_SQL_CONNECTION: 'whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db'
+  _DB_PASSWORD: 'P@##w0rd'
+  _SECRET_KEY: '7fd*=c%(w6!r%!+9f@viipb8u!-ra15-fjl8&71nz)m@gch=mp'
 
-# Timeout
-timeout: '1600s'
+timeout: 1200s

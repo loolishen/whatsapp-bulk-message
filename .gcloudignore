@@ -1,19 +1,73 @@
 # This file specifies files that are *not* uploaded to Google Cloud
-# using gcloud. It follows the same syntax as .gitignore, with the addition of
-# "#!include" directives (which insert the entries of the given .gitignore-style
-# file at that point).
-#
-# For more information, run:
-#   $ gcloud topic gcloudignore
-#
-.gcloudignore
-# If you would like to upload your .git directory, .gitignore file or files
-# from your .gitignore file, remove the corresponding line
-# below:
-.git
+# using gcloud. It follows the same syntax as .gitignore
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Database files
+*.sqlite3
+db.sqlite3
+
+# Git
+.git/
 .gitignore
 
-# Python pycache:
-__pycache__/
-# Ignored by the build system
-/setup.cfg
+# Data files (not needed for deployment)
+*.csv
+*.xlsx
+*.xls
+
+# Static files (collected during deployment)
+static/
+staticfiles/
+
+# Media files
+media/
+
+# Logs
+*.log
+
+# Documentation
+*.md
+README*
+LICENSE
+
+# Test files (SPECIFIC NAMES ONLY - be careful here!)
+test_database.py
+simple_test.py
+
+# Local development scripts (SPECIFIC NAMES ONLY)
+run_local_simple.py
+run_local_production.py
+check_gcp_status.py
+
+# Docker (not using)
+Dockerfile
+docker-compose.yml
+cloudbuild.yaml
+
+# cPanel specific
+cpanel_wsgi.py
+passenger_wsgi.py
+
+# Temporary deployment files
+deploy_timestamp.txt
+force_deploy*.txt
+debug_deploy.txt

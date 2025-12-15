@@ -384,6 +384,11 @@
     </div>
     
     <nav class="sidebar-nav">
+      <!-- WhatsApp Contest Section -->
+      <div class="nav-separator">
+        <span class="nav-separator-label">WhatsApp Contest</span>
+      </div>
+      
       <a href="{% url 'dashboard' %}" class="nav-item">
         <span class="nav-item-icon">📊</span>
         Dashboard
@@ -405,16 +410,18 @@
         Select Winners
       </a>
       
-      <!-- Separator for different section -->
+      <!-- Blasting Feature Section -->
       <div class="nav-separator">
-        <span class="nav-separator-label">Quick Access</span>
+        <span class="nav-separator-label">Blasting Feature</span>
       </div>
       
-      <!-- External section link -->
-      <a href="{% url 'blast_groups_list' %}" class="nav-item-external" title="Go to WhatsApp Blasting section">
-        <span class="nav-item-external-icon">📨</span>
-        WhatsApp Blasting
-        <span class="nav-item-external-arrow">→</span>
+      <a href="{% url 'blast_groups_list' %}" class="nav-item">
+        <span class="nav-item-icon">📁</span>
+        Customer Groups
+      </a>
+      <a href="{% url 'blast_create_campaign' %}" class="nav-item">
+        <span class="nav-item-icon">✉️</span>
+        Create Blast
       </a>
     </nav>
   </div>
@@ -464,6 +471,38 @@
               </div>
             </div>
             
+          </div>
+        </div>
+
+        <!-- Keyword Auto-Reply -->
+        <div class="form-section">
+          <div class="section-header" onclick="toggleSection(this)">
+            <div class="section-icon">🤖</div>
+            <div class="section-title">Keyword Auto-Reply</div>
+            <div class="section-toggle">▼</div>
+          </div>
+          
+          <div class="section-content">
+            <div class="form-group">
+              <label for="keywords" class="form-label">Keywords (comma-separated) <span class="required">*</span></label>
+              <input type="text" id="keywords" name="keywords" class="form-input" 
+                     placeholder="JOIN,MASUK,SERTAI,START,HI,HELLO" required>
+              <div class="help-text">When someone sends any of these keywords via WhatsApp, they'll automatically receive your reply message</div>
+            </div>
+            
+            <div class="form-group">
+              <label for="auto_reply_message" class="form-label">Auto-Reply Message <span class="required">*</span></label>
+              <textarea id="auto_reply_message" name="auto_reply_message" class="form-input form-textarea" 
+                        placeholder="🎉 Thank you for your interest! Welcome to our contest..." required></textarea>
+              <div class="help-text">This message will be sent automatically when someone sends a keyword</div>
+            </div>
+            
+            <div class="form-group">
+              <label for="auto_reply_priority" class="form-label">Priority</label>
+              <input type="number" id="auto_reply_priority" name="auto_reply_priority" class="form-input" 
+                     value="5" min="1" max="10">
+              <div class="help-text">Higher priority contests are checked first if keywords overlap (1-10)</div>
+            </div>
           </div>
         </div>
 

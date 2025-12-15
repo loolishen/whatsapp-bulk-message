@@ -16,6 +16,7 @@ from .ocr_service import OCRService
 from .whatsapp_service import WhatsAppAPIService
 from .pdpa_service import PDPAConsentService
 from .step_by_step_contest_service import StepByStepContestService
+from .keyword_autoreply_service import KeywordAutoReplyService
 import requests
 
 logger = logging.getLogger(__name__)
@@ -511,8 +512,21 @@ class WhatsAppWebhookView(View):
             if contest_results['flows_processed'] > 0:
                 logger.info(f"Step-by-step contest processing: {contest_results}")
             
-            # If PDPA didn't handle the message, use normal auto-response
-            if not pdpa_handled:
+            # Process keyword-based auto-replies
+            keyword_service = KeywordAutoReplyService()
+            keyword_results = keyword_service.process_message(
+                customer=contact,
+                message_text=message_text,
+                tenant=tenant,
+                conversation=conversation
+            )
+            
+            # Log keyword matching results
+            if keyword_results['matched']:
+                logger.info(f"Keyword auto-reply: {keyword_results['replies_sent']} replies sent for keywords: {keyword_results['keywords_matched']}")
+            
+            # If nothing handled the message, use fallback auto-response
+            if not pdpa_handled and not keyword_results['matched']:
                 self._auto_respond_to_message(contact, message_text)
             
             # Update contact's last interaction

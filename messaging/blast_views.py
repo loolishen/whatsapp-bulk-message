@@ -407,7 +407,7 @@ def blast_create_campaign(request):
     
     context = {
         'tenant': tenant,
-        'groups': groups,
+        'customer_groups': groups,
         'contests': contests,
         'user': request.user,
     }
