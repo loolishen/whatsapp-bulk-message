@@ -320,12 +320,23 @@ class PDPAConsentService:
     def _process_ic_number(self, tenant, customer, ic_number):
         """Process IC number and extract information"""
         try:
-            # Parse IC number to extract birth date, gender, state
-            birth_year = int(ic_number[:2])
-            birth_month = int(ic_number[2:4])
-            birth_day = int(ic_number[4:6])
-            gender_code = int(ic_number[7:8])
-            state_code = int(ic_number[8:10])
+            import re
+            from datetime import date
+
+            # Normalize: allow `YYMMDD-GG-####` or `YYMMDDGG####` (and ignore any other separators)
+            digits = re.sub(r"\D", "", ic_number or "")
+            if len(digits) != 12:
+                raise ValueError(f"IC must have 12 digits, got {len(digits)}")
+
+            # Store in canonical dashed format
+            ic_number = f"{digits[:6]}-{digits[6:8]}-{digits[8:]}"
+
+            # Parse birth date from YYMMDD
+            birth_year = int(digits[:2])
+            birth_month = int(digits[2:4])
+            birth_day = int(digits[4:6])
+            place_code = int(digits[6:8])  # not a true state code, but we keep a simple mapping for 01-15
+            gender_digit = int(digits[-1])  # last digit odd=male, even=female
             
             # Convert 2-digit year to 4-digit
             current_year = datetime.now().year
@@ -334,13 +345,13 @@ class PDPAConsentService:
             else:
                 birth_year += 2000
             
-            # Calculate age
-            from datetime import date
+            # Validate the date and calculate age
+            dob = date(birth_year, birth_month, birth_day)
             today = date.today()
-            age = today.year - birth_year - ((today.month, today.day) < (birth_month, birth_day))
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
             
             # Determine gender
-            gender = 'F' if gender_code % 2 == 0 else 'M'
+            gender = 'F' if gender_digit % 2 == 0 else 'M'
             
             # Determine state (simplified mapping)
             state_mapping = {
@@ -348,7 +359,7 @@ class PDPAConsentService:
                 6: 'PHG', 7: 'PNG', 8: 'PRK', 9: 'SBH', 10: 'SWK',
                 11: 'SEL', 12: 'TRG', 13: 'KUL', 14: 'LBN', 15: 'PJY'
             }
-            state = state_mapping.get(state_code, 'N/A')
+            state = state_mapping.get(place_code, 'N/A')
             
             # Update customer information
             customer.ic_number = ic_number
@@ -374,7 +385,7 @@ Your information has been updated. Thank you!"""
         except Exception as e:
             logger.error(f"Error processing IC number: {str(e)}")
             # Send error message
-            error_response = "❌ Sorry, I couldn't process your IC number. Please make sure it's in the correct format (e.g., 901231-01-1234) and try again."
+            error_response = "❌ Sorry, I couldn't process your IC number. Please send 12 digits (e.g., 901231011234) or with dashes (e.g., 901231-01-1234) and try again."
             self._send_message_to_customer(tenant, customer, error_response)
             return False
     

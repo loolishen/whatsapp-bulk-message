@@ -424,6 +424,9 @@ class Contest(models.Model):
     auto_reply_message = models.TextField(blank=True, null=True, help_text='Automatic reply sent when someone sends the keyword')
     auto_reply_priority = models.IntegerField(default=5, help_text='Priority when multiple contests match (higher = checked first)')
     
+    # Introduction message (sent first before PDPA)
+    introduction_message = models.TextField(blank=True, null=True, help_text='Welcome/introduction message sent when user joins contest (before PDPA)')
+    
     # Contest requirements
     requires_nric = models.BooleanField(default=True, help_text='Require NRIC for participation')
     requires_receipt = models.BooleanField(default=True, help_text='Require proof of purchase')
@@ -521,6 +524,14 @@ class ContestEntry(models.Model):
     receipt_date = models.DateTimeField(blank=True, null=True, help_text='Receipt date')
     receipt_store = models.CharField(max_length=200, blank=True, null=True, help_text='Store name from receipt')
     
+    # OCR extracted data
+    store_name = models.CharField(max_length=300, blank=True, null=True, help_text='Store name extracted by OCR')
+    store_location = models.CharField(max_length=300, blank=True, null=True, help_text='Store location extracted by OCR')
+    products_purchased = models.JSONField(default=list, blank=True, help_text='Products extracted by OCR: [{"name": "...", "quantity": 1}, ...]')
+    
+    # Rejection reason
+    rejection_reason = models.TextField(blank=True, null=True, help_text='Reason for rejection if status is rejected')
+    
     # Additional documents
     additional_documents = models.JSONField(default=list, blank=True, help_text='Additional document URLs')
     
@@ -528,6 +539,10 @@ class ContestEntry(models.Model):
     verified_at = models.DateTimeField(blank=True, null=True)
     verified_by = models.CharField(max_length=200, blank=True, null=True, help_text='Who verified this entry')
     verification_notes = models.TextField(blank=True, null=True, help_text='Verification notes')
+
+    # Customer notification tracking (prevents double-sending)
+    last_customer_notification_status = models.CharField(max_length=20, blank=True, null=True)
+    last_customer_notification_at = models.DateTimeField(blank=True, null=True)
     
     # Timestamps
     submitted_at = models.DateTimeField(default=dj_timezone.now)
@@ -561,6 +576,107 @@ class ContestEntry(models.Model):
         
         return True
 
+class ContestConversationStep(models.Model):
+    """
+    Multi-step conversation flow for contests.
+    Each step has its own keywords and auto-reply message.
+    """
+    step_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='conversation_steps')
+    step_order = models.IntegerField(default=1, help_text='Order of this step in the conversation (1, 2, 3...)')
+    step_name = models.CharField(max_length=200, help_text='Name of this step (e.g., "Welcome", "NRIC Request")')
+    
+    # Keywords and reply for this step
+    keywords = models.TextField(help_text='Comma-separated keywords that trigger this step (e.g., JOIN,START)')
+    auto_reply_message = models.TextField(help_text='Message sent when keywords match')
+    
+    # Optional: Next step configuration
+    auto_advance_to_next = models.BooleanField(default=True, help_text='Automatically advance to next step after this reply')
+    wait_for_response = models.BooleanField(default=True, help_text='Wait for user response before showing next step')
+    
+    created_at = models.DateTimeField(default=dj_timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['contest', 'step_order']
+        unique_together = ['contest', 'step_order']
+    
+    def __str__(self):
+        return f"{self.contest.name} - Step {self.step_order}: {self.step_name}"
+    
+    def get_keywords_list(self):
+        """Get list of keywords as a Python list."""
+        if not self.keywords:
+            return []
+        return [kw.strip().lower() for kw in self.keywords.split(',') if kw.strip()]
+    
+    def matches_message(self, message_text):
+        """Check if message contains any of the keywords for this step."""
+        if not self.keywords or not message_text:
+            return False
+        message_lower = message_text.lower().strip()
+        for keyword in self.get_keywords_list():
+            if keyword in message_lower:
+                return True
+        return False
+
+class UserConversationProgress(models.Model):
+    """
+    Tracks where a user is in a contest's conversation flow.
+    """
+    progress_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='conversation_progress')
+    contest = models.ForeignKey(Contest, on_delete=models.CASCADE, related_name='user_progress')
+    current_step = models.ForeignKey(ContestConversationStep, on_delete=models.SET_NULL, null=True, blank=True, related_name='current_users')
+    
+    # Tracking
+    started_at = models.DateTimeField(default=dj_timezone.now)
+    last_interaction_at = models.DateTimeField(auto_now=True)
+    completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['customer', 'contest']
+        ordering = ['-last_interaction_at']
+    
+    def __str__(self):
+        return f"{self.customer.name} @ {self.contest.name} (Step {self.current_step.step_order if self.current_step else 'None'})"
+    
+    def advance_to_next_step(self):
+        """Move user to the next step in the conversation."""
+        if not self.current_step:
+            # Start at step 1
+            first_step = self.contest.conversation_steps.filter(step_order=1).first()
+            if first_step:
+                self.current_step = first_step
+                self.save()
+                return first_step
+            return None
+        
+        # Get next step
+        next_step = self.contest.conversation_steps.filter(
+            step_order__gt=self.current_step.step_order
+        ).order_by('step_order').first()
+        
+        if next_step:
+            self.current_step = next_step
+            self.save()
+            return next_step
+        else:
+            # No more steps - mark as completed
+            self.completed = True
+            self.completed_at = dj_timezone.now()
+            self.save()
+            return None
+    
+    def reset_progress(self):
+        """Reset user back to step 1."""
+        first_step = self.contest.conversation_steps.filter(step_order=1).first()
+        self.current_step = first_step
+        self.completed = False
+        self.completed_at = None
+        self.save()
+
 class ContestFlowState(models.Model):
     """
     Tracks the current state of a customer's contest entry flow
@@ -569,6 +685,8 @@ class ContestFlowState(models.Model):
         ('initial', 'Initial Contact'),
         ('pdpa_sent', 'PDPA Message Sent'),
         ('pdpa_response', 'PDPA Response Received'),
+        ('awaiting_nric', 'Awaiting NRIC/Details'),
+        ('awaiting_receipt', 'Awaiting Receipt'),
         ('instructions_sent', 'Instructions Sent'),
         ('awaiting_submission', 'Awaiting Submission'),
         ('submitted', 'Submitted'),

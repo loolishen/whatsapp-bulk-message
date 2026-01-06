@@ -79,16 +79,16 @@ def create_default_user():
         
         # Create or get user
         user, created_user = User.objects.get_or_create(
-            username='tenant',
-            defaults={'email': 'tenant@example.com'}
+            username='khinddemo',
+            defaults={'email': 'khinddemo@example.com'}
         )
         
         if created_user:
-            user.set_password('Tenant123!')
+            user.set_password('d3mo.123')
             user.save()
             print(f"✓ Created user: {user.username}")
         else:
-            user.set_password('Tenant123!')
+            user.set_password('d3mo.123')
             user.save()
             print(f"✓ Updated user: {user.username}")
         

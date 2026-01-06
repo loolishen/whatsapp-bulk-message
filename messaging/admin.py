@@ -4,7 +4,8 @@ from .models import (
     MessageAttachment, Receipt, ReceiptItem, TemplateMessage, Segment, 
     Campaign, CampaignVariant, CampaignRun, CampaignRecipient, 
     CampaignMessage, SendQueue, Contest, ContestEntry, TenantUser,
-    CustomerGroup, GroupMember, BlastCampaign, BlastRecipient
+    CustomerGroup, GroupMember, BlastCampaign, BlastRecipient,
+    ContestConversationStep, UserConversationProgress
 )
 
 # =============================================================================
@@ -245,6 +246,42 @@ class ContestEntryAdmin(admin.ModelAdmin):
     list_filter = ['is_winner', 'submitted_at']
     readonly_fields = ['entry_id']
     raw_id_fields = ['tenant', 'contest', 'customer', 'conversation']
+
+@admin.register(ContestConversationStep)
+class ContestConversationStepAdmin(admin.ModelAdmin):
+    list_display = ['contest', 'step_order', 'step_name', 'keywords_preview', 'created_at']
+    search_fields = ['contest__name', 'step_name', 'keywords']
+    list_filter = ['contest', 'step_order', 'auto_advance_to_next']
+    readonly_fields = ['step_id', 'created_at', 'updated_at']
+    raw_id_fields = ['contest']
+    ordering = ['contest', 'step_order']
+    
+    def keywords_preview(self, obj):
+        """Display first few keywords"""
+        keywords = obj.get_keywords_list()
+        if not keywords:
+            return '-'
+        preview = ', '.join(keywords[:3])
+        if len(keywords) > 3:
+            preview += f' (+{len(keywords)-3} more)'
+        return preview
+    keywords_preview.short_description = 'Keywords'
+
+@admin.register(UserConversationProgress)
+class UserConversationProgressAdmin(admin.ModelAdmin):
+    list_display = ['customer', 'contest', 'current_step_info', 'completed', 'last_interaction_at']
+    search_fields = ['customer__name', 'customer__phone_number', 'contest__name']
+    list_filter = ['completed', 'contest', 'last_interaction_at']
+    readonly_fields = ['progress_id', 'started_at', 'last_interaction_at']
+    raw_id_fields = ['customer', 'contest', 'current_step']
+    ordering = ['-last_interaction_at']
+    
+    def current_step_info(self, obj):
+        """Display current step information"""
+        if not obj.current_step:
+            return 'Not started'
+        return f'Step {obj.current_step.step_order}: {obj.current_step.step_name}'
+    current_step_info.short_description = 'Current Step'
 
 # =============================================================================
 # WHATSAPP BLASTING ADMIN

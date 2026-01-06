@@ -287,10 +287,10 @@
     .overlay{
       position:fixed; top:0; left:0; width:100%; height:100%;
       background:rgba(0,0,0,0.5); z-index:1500; opacity:0; visibility:hidden;
-      transition:all 0.3s ease
+      transition:all 0.3s ease; pointer-events:none
     }
     .overlay.open{
-      opacity:1; visibility:visible
+      opacity:1; visibility:visible; pointer-events:auto
     }
 
     /* ===== Responsive Design ===== */
@@ -396,12 +396,14 @@
     <div class="filter-bar">
       <div class="filter-group">
         <label class="filter-label">Contest</label>
+        <!-- Debug: contests count = {{ contests|length }} -->
         <select class="filter-select" onchange="handleContestFilter(this.value)">
           <option value="">All Contests</option>
-          <option value="merdeka_w1" {% if contest_filter == 'merdeka_w1' %}selected{% endif %}>Khind Merdeka W1</option>
-          <option value="merdeka_w2" {% if contest_filter == 'merdeka_w2' %}selected{% endif %}>Khind Merdeka W2</option>
-          <option value="merdeka_w3" {% if contest_filter == 'merdeka_w3' %}selected{% endif %}>Khind Merdeka W3</option>
-          <option value="merdeka" {% if contest_filter == 'merdeka' %}selected{% endif %}>All Merdeka Contests</option>
+          {% for contest in contests %}
+          <option value="{{ contest.id }}" {% if contest_filter == contest.id %}selected{% endif %}>{{ contest.name }}</option>
+          {% empty %}
+          <option value="" disabled>No contests available</option>
+          {% endfor %}
         </select>
       </div>
       
@@ -437,6 +439,7 @@
             <th>Status</th>
             <th>Errors</th>
             <th>Submission Date</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -448,10 +451,16 @@
             <td><span class="cell-status {{ participant.status }}">{{ participant.status|upper }}</span></td>
             <td class="cell-errors">{{ participant.errors }}</td>
             <td>{{ participant.submission_date }}</td>
+            <td onclick="event.stopPropagation();">
+              <div style="display:flex; gap:4px;">
+                <button class="btn btn-sm btn-warning" onclick="resetSubmission('{{ participant.id }}', '{{ participant.name|escapejs }}')" style="background: var(--warning); color: white; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Reset submission for testing">🔄 Reset</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteParticipant('{{ participant.id }}', '{{ participant.name|escapejs }}')" style="background: var(--danger); color: white; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px;" title="Delete participant permanently">🗑️ Delete</button>
+              </div>
+            </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="6" class="text-center">No participants found</td>
+            <td colspan="7" class="text-center">No participants found</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -465,7 +474,7 @@
   <!-- Slide-in Detail Panel -->
   <div class="detail-panel" id="detailPanel">
     <div class="detail-panel-header">
-      <h2 class="detail-panel-title" id="participantName">Gurdial Singh A/L Natha Singh</h2>
+      <h2 class="detail-panel-title" id="participantNameHeader">Participant Details</h2>
       <button class="detail-panel-close" onclick="closeParticipantDetails()">×</button>
     </div>
     
@@ -637,20 +646,16 @@
         
         <!-- Purchase Details -->
         <div style="background: var(--gray-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
-          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+          <div style="font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 18px;">🛍️</span> Purchase Details
           </div>
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px;">
-            <div>
-              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Product Purchased *</label>
-              <input type="text" id="manualProduct" placeholder="e.g., VC9678MS Vacuum Cleaner" 
-                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+            <button onclick="addProductRow()" style="padding: 6px 12px; background: var(--primary); color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">+ Add Product</button>
             </div>
-            <div>
-              <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Quantity *</label>
-              <input type="number" id="manualQuantity" placeholder="1" value="1" min="1"
-                     style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+          <div id="productsContainer">
+            <!-- Product rows will be added here -->
             </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
             <div>
               <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Total Amount *</label>
               <div style="position: relative;">
@@ -704,31 +709,37 @@
         <div class="detail-info">
           <div class="detail-item">
             <span class="detail-label">Store</span>
-            <span class="detail-value">Khind Customer Service SDN BHD</span>
+            <span class="detail-value" id="participantStore">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Store Location</span>
-            <span class="detail-value">Shah Alam</span>
+            <span class="detail-value" id="participantLocation">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Product Purchased</span>
-            <span class="detail-value">VC9678MS</span>
+            <span class="detail-value" id="participantProduct">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Quantity</span>
-            <span class="detail-value">1</span>
+            <span class="detail-value" id="participantAmount">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Amount Spent</span>
-            <span class="detail-value">RM98.00</span>
+            <span class="detail-value" id="participantSpent">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">Purchase Date</span>
-            <span class="detail-value">2025-08-01</span>
+            <span class="detail-value" id="participantSubmissionDate">Not provided</span>
           </div>
           <div class="detail-item">
             <span class="detail-label">How Heard About Contest</span>
-            <span class="detail-value">Social Media/Online Advertisement, Friends/Family Recommendation, In-store Display</span>
+            <span class="detail-value" id="participantHowHeard">Not provided</span>
+          </div>
+          <div class="detail-item" id="receiptImageItem" style="display: none;">
+            <span class="detail-label">Receipt Image</span>
+            <div style="margin-top: 8px;">
+              <img id="participantReceiptImg" src="" alt="Receipt" style="max-width: 100%; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;" onclick="window.open(this.src, '_blank')">
+            </div>
           </div>
         </div>
       </div>
@@ -736,115 +747,23 @@
       <!-- Participant Conversation -->
       <div class="detail-section">
         <h3 class="detail-section-title">Participant Conversation</h3>
-        <div style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; position: relative;">
-          <!-- WhatsApp-style conversation based on contest creation preview -->
-          <div style="margin-bottom: 12px;">
-            <!-- Introduction -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
-              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">Hi Gurdial! Welcome to our contest...</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:25 AM</p>
-              </div>
-            </div>
-
-            <!-- PDPA Agreement -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
-              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">Please read our privacy policy: <a href="#" style="color: #0088ff;">https://khind.com.my/pages/privacy-policy</a></p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:26 AM</p>
-              </div>
-            </div>
-
-            <!-- User Agreement -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
-              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">I agree to the terms</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:27 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
-              </div>
-            </div>
-
-            <!-- Contest Welcome -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
-              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">🎉 Welcome to our contest! Thank you for your consent...</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:28 AM</p>
-              </div>
-            </div>
-
-            <!-- Instructions -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
-              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">📸 Please upload your purchase receipt photo now. Follow these steps for a clear image:</p>
-                <p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">1. Place receipt on flat surface<br>2. Ensure good lighting<br>3. Hold phone steady<br>4. Capture entire receipt<br>5. Check text is readable</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:29 AM</p>
-              </div>
-            </div>
-
-            <!-- User Response with Receipt Image -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
-              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">Here's my receipt from Khind Customer Service! 🧾</p>
-                <!-- Receipt Image Preview -->
-                <div style="margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f9f9f9;">
-                  <div style="padding: 8px; background: #fff; border-bottom: 1px solid #eee;">
-                    <div style="font-size: 12px; color: #666; font-weight: 600;">📄 Receipt Image</div>
-                  </div>
-                  <div style="padding: 8px; text-align: center;">
-                    <img src="{% static 'img/Gurdial_Singh_AL_Natha_Singh.jpg' %}" 
-                         style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" 
-                         alt="Gurdial Singh Receipt"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                    <div style="display: none; padding: 20px; background: #f0f0f0; border-radius: 4px; color: #666; font-size: 13px;">
-                      📄 Receipt Image Preview<br>
-                      🏪 KHIND CUSTOMER SERVICES SDN. BHD.<br>
-                      📋 Invoice #17241<br>
-                      📅 Date: 11/8/2028<br>
-                      🛍️ VC9678MS - RM98.00<br>
-                      ✅ 6 MONTHS WARRANTY
-                    </div>
-                  </div>
-                </div>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:30 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
-              </div>
-            </div>
-
-            <!-- Bot Response with Receipt Analysis -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
-              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
-              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">✅ Perfect! I can see your receipt clearly:</p>
-                <p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">• Invoice #17241 from Khind Customer Service<br>• VC9678MS product for RM98.00<br>• Date: 11/8/2028<br>• 6 Months Warranty included<br>Your entry is valid! Good luck 🍀</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:31 AM</p>
-              </div>
-            </div>
-
-            <!-- Follow-up Message -->
-            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
-              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
-                <p style="margin: 0; font-size: 14px; color: #111;">Thank you! I heard about this contest through social media and friends. Looking forward to the results! 🙏</p>
-                <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">11:32 AM <span style="font-size: 11px; color: #999;">✓✓</span></p>
-              </div>
-            </div>
-          </div>
+        <div id="conversationContainer" style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; position: relative; text-align: left;">
+          <div style="color: #999; font-size: 14px; text-align: center;">Select a participant to view conversation history</div>
         </div>
       </div>
-    </div>
-  </div>
+              </div>
+            </div>
 
   <script>
     // Participant data from Django
     const participantsData = {{ participants_json|safe }};
+    const chatHistoryData = {{ chat_history_json|safe }};
     
     // Show participant details
     function showParticipantDetails(participantId) {
-      const overlay = document.getElementById('overlay');
       const detailPanel = document.getElementById('detailPanel');
       
-      overlay.classList.add('open');
+      // Don't show overlay for slide-in panel - it blocks clicks
       detailPanel.classList.add('open');
       
       // Update participant data based on ID
@@ -853,10 +772,8 @@
 
     // Close participant details
     function closeParticipantDetails() {
-      const overlay = document.getElementById('overlay');
       const detailPanel = document.getElementById('detailPanel');
       
-      overlay.classList.remove('open');
       detailPanel.classList.remove('open');
     }
 
@@ -866,33 +783,87 @@
       const participant = participantsData.find(p => p.id === participantId);
       
       if (participant) {
-        // Update participant name
-        document.getElementById('participantName').textContent = participant.name;
+        // Update participant name in header
+        const titleElement = document.querySelector('.detail-panel-title');
+        if (titleElement) {
+          titleElement.textContent = participant.name || 'Unknown Participant';
+        }
+        const headerName = document.getElementById('participantNameHeader');
+        if (headerName) {
+          headerName.textContent = participant.name || 'Participant Details';
+        }
         
-        // Update all detail fields
-        updateDetailField('participantName', participant.name);
-        updateDetailField('participantPhone', participant.phone);
-        updateDetailField('participantEmail', participant.email);
+        // Update all detail fields with real data
+        updateDetailField('participantName', participant.name || 'Not provided');
+        updateDetailField('participantPhone', participant.phone || 'Not provided');
+        updateDetailField('participantEmail', participant.email || 'Not provided');
         updateDetailField('participantIc', participant.ic || 'Not provided');
-        updateDetailField('participantContest', participant.contest);
-        updateDetailField('participantStatus', participant.status.toUpperCase());
-        updateDetailField('participantErrors', participant.errors);
-        updateDetailField('participantStore', participant.store);
+        updateDetailField('participantContest', participant.contest || 'Unknown Contest');
+        
+        // Update status with proper styling
+        const statusElement = document.getElementById('participantStatus');
+        if (statusElement) {
+          const statusUpper = (participant.status || 'pending').toUpperCase();
+          statusElement.textContent = statusUpper;
+          if (statusUpper === 'APPROVED' || statusUpper === 'VALID') {
+            statusElement.style.color = 'var(--success)';
+          } else if (statusUpper === 'FLAGGED' || statusUpper === 'REJECTED') {
+            statusElement.style.color = 'var(--danger)';
+          } else {
+            statusElement.style.color = 'var(--warning)';
+          }
+        }
+        
+        updateDetailField('participantErrors', participant.errors || 'None');
+        updateDetailField('participantStore', participant.store || 'Not provided');
         updateDetailField('participantCompanyNo', participant.company_no || 'Not provided');
-        updateDetailField('participantLocation', participant.location);
-        updateDetailField('participantProduct', participant.product);
-        updateDetailField('participantAmount', participant.amount);
-        updateDetailField('participantSpent', participant.spent);
-        updateDetailField('participantAddress', participant.address);
-        updateDetailField('participantPostcode', participant.postcode);
-        updateDetailField('participantCity', participant.city);
-        updateDetailField('participantState', participant.state);
-        updateDetailField('participantHowHeard', participant.how_heard);
-        updateDetailField('participantSubmissionDate', participant.submission_date);
+        updateDetailField('participantLocation', participant.location || 'Not provided');
+        updateDetailField('participantProduct', participant.product || 'Not provided');
+        updateDetailField('participantAmount', participant.amount || 'Not provided');
+        updateDetailField('participantSpent', participant.spent || 'Not provided');
+        updateDetailField('participantAddress', participant.address || 'Not provided');
+        updateDetailField('participantPostcode', participant.postcode || 'Not provided');
+        updateDetailField('participantCity', participant.city || 'Not provided');
+        updateDetailField('participantState', participant.state || 'Not provided');
+        updateDetailField('participantHowHeard', participant.how_heard || 'Not provided');
+        updateDetailField('participantSubmissionDate', participant.submission_date || 'Not provided');
+        
+        // Update receipt image if available
+        const receiptImg = document.getElementById('participantReceiptImg');
+        const receiptImageItem = document.getElementById('receiptImageItem');
+        if (participant.receipt_url && participant.receipt_url.trim() !== '') {
+          if (receiptImg && receiptImageItem) {
+            // Handle both full URLs and relative paths
+            let imageUrl = participant.receipt_url;
+            if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://') && !imageUrl.startsWith('/')) {
+              imageUrl = '/' + imageUrl;
+            }
+            receiptImg.src = imageUrl;
+            receiptImg.onerror = function() {
+              // Try with static path if direct URL fails
+              if (!imageUrl.includes('/static/') && !imageUrl.includes('/media/')) {
+                receiptImg.src = '/static/' + participant.receipt_url;
+              } else {
+                receiptImageItem.style.display = 'none';
+              }
+            };
+            receiptImageItem.style.display = 'block';
+          }
+        } else {
+          if (receiptImageItem) {
+            receiptImageItem.style.display = 'none';
+          }
+        }
+        
+        // Update submission checklist based on actual data
+        updateSubmissionChecklist(participant);
+        
+        // Update conversation with real chat history
+        updateConversation(participantId);
         
         // Show/hide flagged actions based on status
         const flaggedActions = document.getElementById('flaggedActions');
-        if (participant.status === 'flagged') {
+        if (participant.status === 'flagged' || participant.status === 'rejected') {
           flaggedActions.style.display = 'block';
         } else {
           flaggedActions.style.display = 'none';
@@ -901,6 +872,254 @@
         // Hide manual entry by default
         document.getElementById('manualReceiptEntry').style.display = 'none';
       }
+    }
+    
+    // Update conversation with standardized flow (receipt-first)
+    function updateConversation(participantId) {
+      const conversationDiv = document.getElementById('conversationContainer');
+      if (!conversationDiv) return;
+      
+      const participant = participantsData.find(p => p.id === participantId);
+      if (!participant) {
+        conversationDiv.innerHTML = `
+          <div style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; text-align: center; display: flex; align-items: center; justify-content: center;">
+            <div style="color: #999; font-size: 14px;">No conversation history available</div>
+          </div>
+        `;
+        return;
+      }
+      
+      const messages = chatHistoryData[participantId] || [];
+
+      // Extract actual user responses from messages (best-effort)
+      const userAgreeMsg =
+        messages.find(m => m.direction === 'inbound' && (m.text || '').toUpperCase().includes('AGREE'))?.text ||
+        'I agree';
+
+      // Receipt-first: the first meaningful inbound is usually an image
+      const userReceiptMsg = messages.find(m => m.is_image || m.text === '[image]') || null;
+
+      // Details (fallback to participant fields)
+      const userNameMsg =
+        messages.find(m => m.direction === 'inbound' && (m.text || '').trim().length >= 2 && !(m.text || '').toUpperCase().includes('AGREE'))?.text ||
+        participant.name ||
+        '[Full Name]';
+
+      const userEmailMsg =
+        messages.find(m => m.direction === 'inbound' && /@/.test(m.text || ''))?.text ||
+        participant.email ||
+        '[Email]';
+
+      const userNricMsg =
+        messages.find(m => m.direction === 'inbound' && (m.text || '').replace(/\D/g, '').length === 12)?.text ||
+        participant.ic ||
+        '[NRIC]';
+
+      const entryNumber = participant.entry_id ? participant.entry_id.substring(0, 8).toUpperCase() : participant.submission_no || '12345';
+
+      // Messages (with fallbacks)
+      const pdpaMsg = participant.contest_pdpa || (
+        "Great! One small step before we register your entry.\n\n" +
+        "Please read our privacy policy here:\nhttps://khind.com.my/pages/privacy-policy\n\n" +
+        "Reply 'I agree' to continue or 'No' to opt out."
+      );
+      const finalThanksMsg = participant.contest_eligibility || `✅ Thank you! Your contest entry is recorded.\nEntry Number: ${entryNumber}`;
+      
+      let conversationHTML = '<div style="background: #efeae2; padding: 16px; border-radius: var(--radius); min-height: 300px; max-height: 400px; overflow-y: auto; position: relative;">';
+
+      // Step 1: User sends receipt image (first message)
+      conversationHTML += `
+        <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+          <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            ${participant.receipt_url ? `
+              <div style="margin: 8px 0; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; background: #f9f9f9;">
+                <img src="${participant.receipt_url}" style="max-width: 100%; height: auto; border-radius: 4px;" alt="Receipt" onerror="this.style.display='none';">
+              </div>
+            ` : '<p style="margin: 4px 0 0 0; font-size: 13px; color: #111;">📷 [Receipt Photo]</p>'}
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">✓✓</p>
+          </div>
+        </div>
+      `;
+
+      // Step 2: Bot sends PDPA message (no processing notification)
+
+      // Step 3: Bot sends PDPA message after receipt
+      conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111; white-space: pre-wrap;">${escapeHtml(pdpaMsg)}</p>
+              </div>
+            </div>
+      `;
+
+      // Step 4: User agrees
+      conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111; font-weight: 600;">${escapeHtml(userAgreeMsg)}</p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">✓✓</p>
+              </div>
+            </div>
+      `;
+
+      // Step 5: Bot sends agreement response (immediate)
+      const agreementResponse = participant.contest_agreement || '✅ Thank you for your consent!';
+      conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111;">${escapeHtml(agreementResponse)}</p>
+              </div>
+            </div>
+      `;
+
+      // Step 6: Bot sends "one final step" message (after 3 seconds - shown immediately in preview)
+      const infoRequestMsg = participant.contest_info_request || 'One final step before we continue and enter you into the contest.\n\nWe need your:\n• Full name\n• Email address\n• IC/NRIC number\n\nPlease reply with your **full name** to start.';
+      conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111; white-space: pre-wrap;">${escapeHtml(infoRequestMsg)}</p>
+              </div>
+            </div>
+      `;
+
+      // Step 7: User sends name
+      conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111;">${escapeHtml(userNameMsg)}</p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">✓✓</p>
+                  </div>
+                    </div>
+      `;
+
+      // Step 8: Bot asks email + user replies
+      conversationHTML += `
+        <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+          <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+          <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111;">Thanks, ${escapeHtml(userNameMsg.split(' ')[0])}! Now please reply with your **email address**.</p>
+                  </div>
+                </div>
+        <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+          <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111;">${escapeHtml(userEmailMsg)}</p>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">✓✓</p>
+              </div>
+            </div>
+      `;
+
+      // Step 9: Bot asks NRIC + user replies (if required)
+      if (participant.ic && participant.ic !== 'Not provided') {
+        conversationHTML += `
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+              <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+              <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+              <p style="margin: 0; font-size: 14px; color: #111;">Great. Finally, please reply with your **IC/NRIC** (e.g., 901231-01-1234).</p>
+              </div>
+            </div>
+            <div style="display: flex; align-items: flex-end; margin-bottom: 8px; justify-content: flex-end;">
+              <div style="background: #dcf8c6; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+              <p style="margin: 0; font-size: 14px; color: #111;">${escapeHtml(userNricMsg)}</p>
+              <p style="margin: 2px 0 0 0; font-size: 11px; color: #999; text-align: right;">✓✓</p>
+              </div>
+            </div>
+        `;
+      }
+
+      // Step 10: Final acknowledgment with receipt result + entry confirmation
+      const hasStore = participant.store && participant.store !== 'Not provided' && participant.store.trim() !== '';
+      const hasLocation = participant.location && participant.location !== 'Not provided' && participant.location.trim() !== '';
+      const hasAmount = participant.spent && participant.spent !== 'Not provided' && participant.spent !== 'RM' && participant.spent.trim() !== '';
+      const hasProduct = participant.product && participant.product !== 'Not provided' && participant.product.trim() !== '';
+      
+      let finalMsg = '';
+      
+      // Show receipt details if available
+      if (hasStore || hasLocation || hasAmount) {
+        finalMsg += '✅ Receipt details extracted:\n\n';
+        if (hasStore) finalMsg += `🏪 Store: ${participant.store || 'N/A'}\n`;
+        if (hasLocation) finalMsg += `📍 Location: ${participant.location || 'N/A'}\n`;
+        if (hasAmount) finalMsg += `💰 Amount: ${participant.spent || 'N/A'}\n`;
+        if (hasProduct) {
+          finalMsg += `🛍️ Product: ${participant.product}`;
+          if (participant.amount && participant.amount !== 'Not provided') {
+            finalMsg += ` (Qty: ${participant.amount})`;
+          }
+          finalMsg += '\n';
+        }
+        finalMsg += '\n';
+      }
+      
+      // Show entry details
+      finalMsg += '📋 Your Entry Details:\n';
+      finalMsg += `👤 Name: ${participant.name || 'N/A'}\n`;
+      finalMsg += `📧 Email: ${participant.email || 'N/A'}\n`;
+      if (participant.ic && participant.ic !== 'Not provided') {
+        finalMsg += `🆔 IC/NRIC: ${participant.ic}\n`;
+      }
+      
+      // Add entry confirmation
+      finalMsg += '\n🎉 Congratulations! You have been entered into the contest!\n\n';
+      finalMsg += `🎫 Entry Number: ${entryNumber}\n\n`;
+      finalMsg += "Your contest entry has been successfully registered. We'll contact you on WhatsApp if you're selected as a winner.\n\n";
+      finalMsg += 'Good luck! 🍀';
+      
+      conversationHTML += `
+        <div style="display: flex; align-items: flex-end; margin-bottom: 8px;">
+          <div style="width: 24px; height: 24px; border-radius: 50%; background: #34b7f1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-right: 6px; flex-shrink: 0;">🤖</div>
+          <div style="background: #fff; padding: 8px 12px; border-radius: 7.5px; max-width: 75%; box-shadow: 0 1px 1px rgba(0,0,0,0.06);">
+            <p style="margin: 0; font-size: 14px; color: #111; white-space: pre-wrap;">${escapeHtml(finalMsg)}</p>
+          </div>
+        </div>
+      `;
+      
+      conversationHTML += '</div>';
+      conversationDiv.innerHTML = conversationHTML;
+    }
+    
+    // Update submission checklist based on actual data
+    function updateSubmissionChecklist(participant) {
+      const checklist = document.querySelector('.detail-checklist');
+      if (!checklist) return;
+      
+      const hasReceipt = participant.receipt_url || participant.spent;
+      const hasName = participant.name && participant.name !== 'Not provided';
+      const hasIc = participant.ic && participant.ic !== 'Not provided';
+      const hasPhone = participant.phone && participant.phone !== 'Not provided';
+      const hasEmail = participant.email && participant.email !== 'Not provided';
+      
+      checklist.innerHTML = `
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: ${hasReceipt ? 'var(--success)' : 'var(--danger)'}">${hasReceipt ? '✓' : '✗'}</span>
+          <span>Receipt</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: ${hasName ? 'var(--success)' : 'var(--danger)'}">${hasName ? '✓' : '✗'}</span>
+          <span>Name</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: ${hasIc ? 'var(--success)' : 'var(--danger)'}">${hasIc ? '✓' : '✗'}</span>
+          <span>IC</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: ${hasPhone ? 'var(--success)' : 'var(--danger)'}">${hasPhone ? '✓' : '✗'}</span>
+          <span>Phone</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-check" style="color: ${hasEmail ? 'var(--success)' : 'var(--danger)'}">${hasEmail ? '✓' : '✗'}</span>
+          <span>Email</span>
+        </div>
+      `;
+        }
+        
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
     
     // Helper function to update detail fields
@@ -916,6 +1135,7 @@
       const manualEntry = document.getElementById('manualReceiptEntry');
       if (manualEntry.style.display === 'none') {
         manualEntry.style.display = 'block';
+        initializeProductRows();
       } else {
         manualEntry.style.display = 'none';
       }
@@ -939,38 +1159,121 @@
       }
     }
 
+    // Add product row
+    let productRowCount = 0;
+    function addProductRow() {
+      productRowCount++;
+      const container = document.getElementById('productsContainer');
+      const row = document.createElement('div');
+      row.id = `productRow_${productRowCount}`;
+      row.style.cssText = 'display: grid; grid-template-columns: 2fr 1fr auto; gap: 12px; margin-bottom: 12px; align-items: end;';
+      row.innerHTML = `
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Product Purchased *</label>
+          <input type="text" class="manual-product" placeholder="e.g., VC9678MS Vacuum Cleaner" 
+                 style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+        </div>
+        <div>
+          <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px;">Quantity *</label>
+          <input type="number" class="manual-quantity" placeholder="1" value="1" min="1"
+                 style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white;">
+        </div>
+        <div>
+          <button onclick="removeProductRow('productRow_${productRowCount}')" style="padding: 10px 12px; background: var(--danger); color: white; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap;">🗑️</button>
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    // Remove product row
+    function removeProductRow(rowId) {
+      const row = document.getElementById(rowId);
+      if (row) {
+        row.remove();
+      }
+    }
+
+    // Initialize with one product row when manual entry is opened
+    function initializeProductRows() {
+      const container = document.getElementById('productsContainer');
+      if (container && container.children.length === 0) {
+        addProductRow();
+      }
+    }
+
     // Save manual entry
-    function saveManualEntry() {
+    async function saveManualEntry() {
       const store = document.getElementById('manualStore').value;
       const companyNo = document.getElementById('manualCompanyNo').value;
       const location = document.getElementById('manualLocation').value;
-      const product = document.getElementById('manualProduct').value;
-      const quantity = document.getElementById('manualQuantity').value;
       const amount = document.getElementById('manualAmount').value;
       const date = document.getElementById('manualDate')?.value;
       
+      // Collect all products
+      const productInputs = document.querySelectorAll('.manual-product');
+      const quantityInputs = document.querySelectorAll('.manual-quantity');
+      const products = [];
+      
+      for (let i = 0; i < productInputs.length; i++) {
+        const product = productInputs[i].value.trim();
+        const quantity = quantityInputs[i].value.trim();
+        if (product && quantity) {
+          products.push({ name: product, quantity: parseInt(quantity) || 1 });
+        }
+      }
+      
       // Check required fields
-      if (!store || !location || !product || !quantity || !amount) {
-        showNotification('⚠️ Please fill in all required fields (marked with *)', 'warning');
+      if (!store || !location || !amount || products.length === 0) {
+        showNotification('⚠️ Please fill in all required fields (marked with *) and add at least one product', 'warning');
+        return;
+      }
+      
+      // Get current participant ID from the participantsData
+      const participantName = document.getElementById('participantName')?.textContent;
+      const participant = participantsData.find(p => p.name === participantName);
+      const participantId = participant?.id;
+      
+      if (!participantId) {
+        showNotification('⚠️ Unable to identify participant. Please refresh and try again.', 'warning');
         return;
       }
       
       // Show saving notification
       showNotification('💾 Saving manual entry...', 'info');
       
-      // Simulate save delay
-      setTimeout(() => {
-        showNotification(`✅ Entry saved successfully!
-Store: ${store}
-Product: ${product}
-Amount: RM${amount}`, 'success');
+      try {
+        const csrftoken = getCookie('csrftoken');
+        const response = await fetch(`/participants/${participantId}/update-manual-entry/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || ''
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            store: store,
+            company_no: companyNo,
+            location: location,
+            products: products,
+            amount: parseFloat(amount),
+            date: date,
+            invoice_no: document.getElementById('manualInvoiceNo')?.value || '',
+            warranty: document.getElementById('manualWarranty')?.value || ''
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          showNotification(`✅ Entry saved successfully! Status updated to VALID.`, 'success');
         
         // Update the detail panel with the new data
         updateDetailField('participantStore', store);
         updateDetailField('participantCompanyNo', companyNo || 'N/A');
         updateDetailField('participantLocation', location);
-        updateDetailField('participantProduct', product);
-        updateDetailField('participantAmount', `RM${amount}`);
+          updateDetailField('participantProduct', products.map(p => `${p.name} (Qty: ${p.quantity})`).join(', '));
+          updateDetailField('participantAmount', products.length > 1 ? `${products.length} products` : `Qty: ${products[0].quantity}`);
+          updateDetailField('participantSpent', `RM${amount}`);
         
         // Update status to valid
         const statusElement = document.getElementById('participantStatus');
@@ -978,6 +1281,20 @@ Amount: RM${amount}`, 'success');
           statusElement.textContent = 'VALID';
           statusElement.style.color = 'var(--success)';
         }
+          
+          // Update status in table row
+          if (participant) {
+            participant.status = 'valid';
+            // Update the table row status badge
+            const row = document.querySelector(`tr[onclick*="${participantId}"]`);
+            if (row) {
+              const statusCell = row.querySelector('.cell-status');
+              if (statusCell) {
+                statusCell.textContent = 'VALID';
+                statusCell.className = 'cell-status valid';
+              }
+            }
+          }
         
         // Hide flagged actions
         const flaggedActions = document.getElementById('flaggedActions');
@@ -986,7 +1303,17 @@ Amount: RM${amount}`, 'success');
         }
         
         cancelManualEntry();
-      }, 1000);
+          
+          // Reload after a delay to refresh data
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        } else {
+          showNotification(`Error saving entry: ${data.error || 'Unknown error'}`, 'danger');
+        }
+      } catch (error) {
+        showNotification(`Error saving entry: ${error.message}`, 'danger');
+      }
     }
 
     // Cancel manual entry
@@ -996,9 +1323,17 @@ Amount: RM${amount}`, 'success');
       document.getElementById('manualStore').value = '';
       document.getElementById('manualCompanyNo').value = '';
       document.getElementById('manualLocation').value = '';
-      document.getElementById('manualProduct').value = '';
-      document.getElementById('manualQuantity').value = '';
       document.getElementById('manualAmount').value = '';
+      document.getElementById('manualDate').value = '';
+      document.getElementById('manualInvoiceNo').value = '';
+      document.getElementById('manualWarranty').value = '';
+      // Clear products
+      const container = document.getElementById('productsContainer');
+      if (container) {
+        container.innerHTML = '';
+        productRowCount = 0;
+        addProductRow();
+      }
     }
 
     // Filter functions
@@ -1034,6 +1369,101 @@ Amount: RM${amount}`, 'success');
         }
         window.location.href = url.toString();
       }, 500); // 500ms delay
+    }
+
+    // Reset submission for testing
+    async function resetSubmission(entryId, participantName) {
+      if (!confirm(`Are you sure you want to reset submission for "${participantName}"?\n\nThis will clear all submission data and set status to pending. The entry will remain but all data will be cleared.`)) {
+        return;
+      }
+
+      try {
+        const csrftoken = getCookie('csrftoken');
+        const response = await fetch(`/participants/${entryId}/reset/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || ''
+          },
+          credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          showNotification(`Submission for "${participantName}" reset successfully.`, 'success');
+          
+          // Reload page after a short delay to refresh the list
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          showNotification(`Error resetting submission: ${data.error || 'Unknown error'}`, 'danger');
+        }
+      } catch (error) {
+        showNotification(`Error resetting submission: ${error.message}`, 'danger');
+      }
+    }
+
+    // Delete participant
+    async function deleteParticipant(entryId, participantName) {
+      if (!confirm(`Are you sure you want to delete "${participantName}"?\n\nThis action cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const csrftoken = getCookie('csrftoken');
+        const response = await fetch(`/participants/${entryId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || ''
+          },
+          credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Remove the row from the table
+          const row = document.querySelector(`tr[onclick*="${entryId}"]`);
+          if (row) {
+            row.style.transition = 'opacity 0.3s';
+            row.style.opacity = '0';
+            setTimeout(() => {
+              row.remove();
+            }, 300);
+          }
+          
+          // Show success message
+          showNotification(`Participant "${participantName}" deleted successfully.`, 'success');
+          
+          // Reload page after a short delay to refresh the list
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          showNotification(`Error deleting participant: ${data.error || 'Unknown error'}`, 'danger');
+        }
+      } catch (error) {
+        showNotification(`Error deleting participant: ${error.message}`, 'danger');
+      }
+    }
+
+    // Get CSRF token from cookies
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
     }
 
     // Close panel when clicking outside

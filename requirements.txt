@@ -43,6 +43,7 @@ yarl>=1.20.1
 
 # GCP Services
 google-cloud-storage>=2.10.0
+google-cloud-vision>=3.4.0
 django-storages>=1.14.2
 google-api-core>=2.25.1
 google-auth>=2.40.3
@@ -66,11 +67,11 @@ openai>=1.100.1
 tiktoken>=0.11.0
 tokenizers>=0.21.4
 
-# OCR Packages (may cause issues in App Engine - optional)
-paddleocr>=3.2.0
-paddlepaddle>=3.1.1
-paddlex>=3.2.1
-pytesseract>=0.3.13
+# OCR Packages - Using DeepSeek API instead (via openai package)
+# paddleocr>=3.2.0  # REMOVED - Using DeepSeek API
+# paddlepaddle>=3.1.1  # REMOVED - Using DeepSeek API
+# paddlex>=3.2.1  # REMOVED - Using DeepSeek API
+# pytesseract>=0.3.13  # REMOVED - Not needed
 
 # Background Tasks
 celery>=5.5.3

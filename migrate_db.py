@@ -44,16 +44,16 @@ try:
     
     # Get or create user
     user, user_created = User.objects.get_or_create(
-        username='tenant',
+        username='khinddemo',
         defaults={
-            'email': 'tenant@example.com',
+            'email': 'khinddemo@example.com',
             'is_staff': True,
             'is_superuser': True
         }
     )
     
     # Set password
-    user.set_password('Tenant123!')
+    user.set_password('d3mo.123')
     user.is_active = True
     user.save()
     

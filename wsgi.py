@@ -5,6 +5,11 @@ FLATTENED STRUCTURE - settings are now in root.
 import os
 import sys
 
+# Disable model checks that can cause hangs in App Engine
+os.environ.setdefault('DISABLE_MODEL_SOURCE_CHECK', 'True')
+os.environ.setdefault('HF_HUB_OFFLINE', '1')
+os.environ.setdefault('TRANSFORMERS_OFFLINE', '1')
+
 # Add current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

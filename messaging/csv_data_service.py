@@ -4,27 +4,62 @@ Reads actual CSV/XLSX data instead of hardcoded data
 """
 import pandas as pd
 import os
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class CSVDataService:
     """Service to handle actual CSV/XLSX data from files"""
     
     def __init__(self):
         self.project_root = Path(__file__).parent.parent
-        self.w1_csv_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W1 Submissions - CU Edited_export_options.csv"
-        self.w2_csv_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W2 Submissions - CU_Edited submissions.csv"
+        
+        # Try multiple possible locations for CSV files
+        possible_paths = [
+            self.project_root,  # Project root
+            Path('/srv'),  # App Engine root
+            Path('/srv') / self.project_root.name,  # App Engine with project name
+        ]
+        
+        # Find CSV files in any of the possible locations
+        self.w1_csv_path = None
+        self.w2_csv_path = None
+        
+        for base_path in possible_paths:
+            w1_path = base_path / "[WIP] KHIND Merdeka Campaign 2025_W1 Submissions - CU Edited_export_options.csv"
+            w2_path = base_path / "[WIP] KHIND Merdeka Campaign 2025_W2 Submissions - CU_Edited submissions.csv"
+            
+            if w1_path.exists() and not self.w1_csv_path:
+                self.w1_csv_path = w1_path
+            if w2_path.exists() and not self.w2_csv_path:
+                self.w2_csv_path = w2_path
+        
+        # If not found, use default paths (will return empty data)
+        if not self.w1_csv_path:
+            self.w1_csv_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W1 Submissions - CU Edited_export_options.csv"
+        if not self.w2_csv_path:
+            self.w2_csv_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W2 Submissions - CU_Edited submissions.csv"
+        
         self.w1_xlsx_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W1 Submissions.xlsx"
         self.w2_xlsx_path = self.project_root / "[WIP] KHIND Merdeka Campaign 2025_W2 Submissions.xlsx"
         
-        # Load data from CSV files
+        # Load data from CSV files (gracefully handles missing files)
         self.w1_data = self._load_csv_data(self.w1_csv_path)
         self.w2_data = self._load_csv_data(self.w2_csv_path)
+        
+        # If CSV files are empty, try loading from XLSX files
+        if not self.w1_data and self.w1_xlsx_path.exists():
+            self.w1_data = self._load_xlsx_data(self.w1_xlsx_path)
+        if not self.w2_data and self.w2_xlsx_path.exists():
+            self.w2_data = self._load_xlsx_data(self.w2_xlsx_path)
+        
         self.all_data = self.w1_data + self.w2_data
     
     def _load_csv_data(self, csv_path):
         """Load data from CSV file"""
-        if not csv_path.exists():
-            print(f"Warning: CSV file not found: {csv_path}")
+        if not csv_path or not csv_path.exists():
+            logger.debug(f"CSV file not found (optional): {csv_path}")
             return []
         
         try:
@@ -69,6 +104,58 @@ class CSVDataService:
             
         except Exception as e:
             print(f"Error loading CSV file {csv_path}: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+    
+    def _load_xlsx_data(self, xlsx_path):
+        """Load data from XLSX file"""
+        if not xlsx_path or not xlsx_path.exists():
+            logger.debug(f"XLSX file not found (optional): {xlsx_path}")
+            return []
+        
+        try:
+            # Read XLSX file
+            df = pd.read_excel(xlsx_path, engine='openpyxl')
+            
+            # Convert to list of dictionaries (same format as CSV)
+            data = []
+            for _, row in df.iterrows():
+                # Clean and format the data
+                entry = {
+                    'submission_no': str(row.get('Submission No', '')).strip(),
+                    'validity': str(row.get('Validity', '')).strip().lower(),
+                    'reason': str(row.get('Reason for invalidity/ remarks', '')).strip(),
+                    'amount_spent': str(row.get('Amount spend', '')).strip(),
+                    'store': str(row.get('Store', '')).strip(),
+                    'store_location': str(row.get('Store Location', '')).strip(),
+                    'product_purchased_1': str(row.get('Product purchased 1', '')).strip(),
+                    'amount_purchased_1': str(row.get('Amount purchased', '')).strip(),
+                    'product_purchased_2': str(row.get('Product purchased 2', '')).strip(),
+                    'amount_purchased_2': str(row.get('Amount purchased 2', '')).strip(),
+                    'product_purchased_3': str(row.get('Product purchased 3', '')).strip(),
+                    'amount_purchased_3': str(row.get('Amount purchased 3', '')).strip(),
+                    'full_name': str(row.get('Full Name (as per stated in IC)', '')).strip(),
+                    'phone_number': str(row.get('Phone Number', '')).strip(),
+                    'email': str(row.get('Email Address', '')).strip(),
+                    'address': str(row.get('Address', '')).strip(),
+                    'postcode': str(row.get('Postcode', '')).strip(),
+                    'city': str(row.get('City', '')).strip(),
+                    'state': str(row.get('State', '')).strip(),
+                    'receipt_url': str(row.get('Upload Receipt/Invoice                                     (.jpg, .jpeg, .png, .svg)', '')).strip(),
+                    'how_heard': str(row.get('How did you first hear about KHIND brand? (multiple choice)', '')).strip(),
+                    'submitted_date': str(row.get('Submitted Date', '')).strip()
+                }
+                
+                # Only add entries that have required fields
+                if entry['submission_no'] and entry['full_name']:
+                    data.append(entry)
+            
+            print(f"Loaded {len(data)} entries from {xlsx_path.name}")
+            return data
+            
+        except Exception as e:
+            print(f"Error loading XLSX file {xlsx_path}: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -229,3 +316,41 @@ class CSVDataService:
         import re
         numbers = re.findall(r'\d+', submission_no)
         return int(numbers[0]) if numbers else 0
+
+    def get_popular_products(self, limit=5):
+        """Get popular products from valid submissions"""
+        product_counts = {}
+        for entry in self.all_data:
+            if entry.get('validity') == 'valid':
+                for i in range(1, 4):
+                    product_key = f'product_purchased_{i}'
+                    if entry.get(product_key) and entry[product_key].strip():
+                        product = entry[product_key].strip()
+                        product_counts[product] = product_counts.get(product, 0) + 1
+
+        sorted_products = sorted(product_counts.items(), key=lambda x: x[1], reverse=True)
+        return [{'name': name, 'count': count} for name, count in sorted_products[:limit]]
+
+    def get_popular_stores(self, limit=5):
+        """Get popular stores from valid submissions"""
+        store_counts = {}
+        for entry in self.all_data:
+            if entry.get('validity') == 'valid' and entry.get('store'):
+                store = entry['store'].strip()
+                if store:
+                    store_counts[store] = store_counts.get(store, 0) + 1
+
+        sorted_stores = sorted(store_counts.items(), key=lambda x: x[1], reverse=True)
+        return [{'name': name, 'count': count} for name, count in sorted_stores[:limit]]
+
+    def get_popular_locations(self, limit=5):
+        """Get popular store locations from valid submissions"""
+        location_counts = {}
+        for entry in self.all_data:
+            if entry.get('validity') == 'valid' and entry.get('store_location'):
+                location = entry['store_location'].strip()
+                if location:
+                    location_counts[location] = location_counts.get(location, 0) + 1
+
+        sorted_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)
+        return [{'name': name, 'count': count} for name, count in sorted_locations[:limit]]

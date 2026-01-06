@@ -56,17 +56,17 @@ def create_default_user():
         
         # Create or get user
         user, created_user = User.objects.get_or_create(
-            username='tenant',
-            defaults={'email': 'tenant@example.com'}
+            username='khinddemo',
+            defaults={'email': 'khinddemo@example.com'}
         )
         
         if created_user:
-            user.set_password('Tenant123!')
+            user.set_password('d3mo.123')
             user.save()
             print(f"✓ Created user: {user.username}")
         else:
             # Update password for existing user
-            user.set_password('Tenant123!')
+            user.set_password('d3mo.123')
             user.save()
             print(f"✓ Updated password for existing user: {user.username}")
         
@@ -106,8 +106,8 @@ def main():
     print("🎉 SUCCESS! Production setup completed!")
     print("=" * 50)
     print("Login Credentials:")
-    print("  Username: tenant")
-    print("  Password: Tenant123!")
+    print("  Username: khinddemo")
+    print("  Password: d3mo.123")
     print("=" * 50)
     
     return True

@@ -49,6 +49,11 @@ media/
 README*
 LICENSE
 
+# OCR test image fixtures (if any)
+*.jpg
+*.jpeg
+*.png
+
 # Test files (SPECIFIC NAMES ONLY - be careful here!)
 test_database.py
 simple_test.py

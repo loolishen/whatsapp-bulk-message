@@ -8,9 +8,9 @@ class Command(BaseCommand):
     help = 'Seed a tenant and a user linked via TenantUser for login tests.'
 
     def add_arguments(self, parser):
-        parser.add_argument('--username', type=str, default='tenant')
-        parser.add_argument('--password', type=str, default='Tenant123!')
-        parser.add_argument('--email', type=str, default='tenant@example.com')
+        parser.add_argument('--username', type=str, default='khinddemo')
+        parser.add_argument('--password', type=str, default='d3mo.123')
+        parser.add_argument('--email', type=str, default='khinddemo@example.com')
         parser.add_argument('--tenant', type=str, default='Demo Tenant')
         parser.add_argument('--plan', type=str, default='pro')
 

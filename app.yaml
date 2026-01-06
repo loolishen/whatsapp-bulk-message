@@ -6,6 +6,9 @@ env_variables:
   # FLATTENED STRUCTURE - settings are now in root
   DJANGO_SETTINGS_MODULE: "settings_production"
   
+  # Force UTF-8 encoding to prevent UnicodeEncodeError with print statements
+  PYTHONIOENCODING: "utf-8"
+  
   # Security & Config
   SECRET_KEY: "7fd*=c%(w6!r%!+9f@viipb8u!-ra15-fjl8&71nz)m@gch=mp"
   DEBUG: "False"
@@ -20,26 +23,38 @@ env_variables:
   WABOT_API_URL: "https://app.wabot.my/api"
   WABOT_API_TOKEN: "68a0a10422130"
   WABOT_INSTANCE_ID: "68A0A11A89A8D"
+  # IMPORTANT: This was only for a legacy "Echo:" test path in `messaging/whatsapp_webhook.py`.
+  # Keep it off in production to avoid extra outbound sends / confusion.
+  WABOT_ENABLE_AUTOREPLY: "false"
 
   
-  # API Keys (Optional)
+  # API Keys
   WHATSAPP_API_KEY: ""
   CLOUDINARY_CLOUD_NAME: ""
   CLOUDINARY_API_KEY: ""
   CLOUDINARY_API_SECRET: ""
+  
+  # OCR Configuration - Google Cloud Vision (uses service account, no API key needed)
+  # Vision API is automatically enabled for App Engine apps
+  # If you need to enable it manually: gcloud services enable vision.googleapis.com
+  
+  # Disable model checks that cause hangs
+  DISABLE_MODEL_SOURCE_CHECK: "True"
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
 
 beta_settings:
   cloud_sql_instances: "whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db"
 
 automatic_scaling:
-  min_instances: 0
-  max_instances: 3
-  target_cpu_utilization: 0.6
-  target_throughput_utilization: 0.6
+  min_instances: 1
+  max_instances: 5
+  target_cpu_utilization: 0.65
+  target_throughput_utilization: 0.65
 
 resources:
-  cpu: 0.5
-  memory_gb: 0.5
+  cpu: 2
+  memory_gb: 2
 
 handlers:
 - url: /static
@@ -49,3 +64,18 @@ handlers:
 - url: /.*
   script: auto
   secure: always
+
+# Add health check configuration
+readiness_check:
+  path: "/health"
+  check_interval_sec: 10
+  timeout_sec: 10
+  failure_threshold: 3
+  success_threshold: 1
+
+liveness_check:
+  path: "/health"
+  check_interval_sec: 30
+  timeout_sec: 10
+  failure_threshold: 4
+  success_threshold: 1

@@ -30,6 +30,15 @@ from .ocr_service import OCRService
 from safe_demographics import process_demographics, get_race_code, get_gender_code
 from .khind_merdeka_w1_data import KHIND_MERDEKA_W1_DATA
 from .khind_merdeka_w2_data import KHIND_MERDEKA_W2_DATA
+# Import new hardcoded data from CSV files
+try:
+    from .khind_merdeka_w1_data_hardcoded import KHIND_MERDEKA_W1_DATA_HARDCODED
+except ImportError:
+    KHIND_MERDEKA_W1_DATA_HARDCODED = []
+try:
+    from .khind_merdeka_w2_data_hardcoded import KHIND_MERDEKA_W2_DATA_HARDCODED
+except ImportError:
+    KHIND_MERDEKA_W2_DATA_HARDCODED = []
 from .merdeka_data_service import MerdekaDataService
 from .csv_data_service import CSVDataService
 from .chat_history_service import ChatHistoryService
@@ -41,12 +50,13 @@ logger = logging.getLogger(__name__)
 # Auth & Plan-Gated Dashboards
 # =========================
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django.utils import timezone as dj_timezone
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from .models import (
     Tenant, TenantUser, Customer, CoreMessage, Conversation, WhatsAppConnection,
-    PromptReply, Contest, ContestEntry, TemplateMessage, Segment,
+    Contest, ContestEntry, TemplateMessage, Segment,
     Campaign as NewCampaign, CampaignRun, CampaignRecipient, CampaignVariant,
     CampaignMessage, SendQueue, Consent
 )
@@ -274,7 +284,12 @@ def contest_home(request):
             'description': contest.description or '',
             'starts_at': contest.starts_at,
             'ends_at': contest.ends_at,
-            'is_active': contest.is_currently_active,
+            # IMPORTANT:
+            # - `is_active` should reflect the persisted DB toggle only.
+            # - `is_currently_active` reflects the effective "running now" state (toggle + time window).
+            # The UI needs both; otherwise toggles appear to "reset" after refresh.
+            'is_active': contest.is_active,
+            'is_currently_active': contest.is_currently_active,
             'total_entries': entries.count(),
             'verified_entries': entries.filter(is_verified=True).count(),
             'flagged_entries': entries.filter(status='rejected').count(),
@@ -356,6 +371,11 @@ def contest_home(request):
         'total_winners': total_winners,
     }
     
+    # Get popular products, stores, and locations from CSV data
+    popular_products = csv_service.get_popular_products(limit=3)
+    popular_stores = csv_service.get_popular_stores(limit=3)
+    popular_locations = csv_service.get_popular_locations(limit=3)
+    
     context = {
         'tenant': tenant,
         'contests': all_contests,
@@ -363,6 +383,9 @@ def contest_home(request):
         'active_contest_stats': active_contest_stats,
         'contest_stats': contest_stats,
         'overall_stats': overall_stats,
+        'popular_products': popular_products,
+        'popular_stores': popular_stores,
+        'popular_locations': popular_locations,
         'now': dj_timezone.now(),
     }
     return render(request, 'messaging/contest_home_enhanced.html', context)
@@ -788,15 +811,129 @@ def whatsapp_settings(request):
     })
 
 
+@require_http_methods(["GET"])
+def wabot_status(request):
+    """
+    Lightweight JSON endpoint to confirm WABot instance connectivity from the server side.
+    This helps debug cases where webhook GET works but inbound message POSTs never arrive.
+    """
+    try:
+        svc = WhatsAppAPIService()
+        return JsonResponse(
+            {
+                "success": True,
+                "instance_id": getattr(svc, "instance_id", None),
+                "base_url": getattr(svc, "base_url", None),
+                "status": svc.get_instance_status(),
+            },
+            status=200,
+        )
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
+@login_required
+def error_handling_dashboard(request):
+    """Error handling and system status dashboard"""
+    tenant = _get_tenant(request)
+    if not tenant:
+        return redirect('auth_login')
+    
+    # Check WABot connection status
+    wabot_status = {'connected': False, 'error': None, 'instance_id': None}
+    try:
+        from .whatsapp_service import WhatsAppAPIService
+        svc = WhatsAppAPIService()
+        status = svc.get_instance_status()
+        wabot_status = {
+            'connected': status.get('status') == 'connected' if isinstance(status, dict) else False,
+            'error': None,
+            'instance_id': getattr(svc, 'instance_id', None),
+            'base_url': getattr(svc, 'base_url', None),
+            'details': status
+        }
+    except Exception as e:
+        wabot_status['error'] = str(e)
+        logger.error(f"Error checking WABot status: {e}", exc_info=True)
+    
+    # Check API/security key issues
+    api_status = {'valid': False, 'error': None}
+    try:
+        from django.conf import settings
+        api_key = getattr(settings, 'WABOT_API_KEY', None)
+        if api_key:
+            api_status['valid'] = True
+            api_status['key_length'] = len(api_key)
+        else:
+            api_status['error'] = 'API key not configured'
+    except Exception as e:
+        api_status['error'] = str(e)
+    
+    # Check web app status
+    web_app_status = {
+        'database': 'unknown',
+        'migrations': 'unknown',
+        'errors': []
+    }
+    try:
+        from django.db import connection
+        connection.ensure_connection()
+        web_app_status['database'] = 'connected'
+    except Exception as e:
+        web_app_status['database'] = 'error'
+        web_app_status['errors'].append(f'Database: {str(e)}')
+    
+    # Check account issues
+    account_status = {
+        'tenant': tenant.name if tenant else None,
+        'plan': tenant.plan if tenant else None,
+        'active': tenant.is_active if hasattr(tenant, 'is_active') else True,
+        'issues': []
+    }
+    if not tenant:
+        account_status['issues'].append('No tenant associated with account')
+    
+    # Get recent errors from logs (if available)
+    recent_errors = []
+    try:
+        # This would typically come from a logging system or database
+        # For now, we'll just show system status
+        pass
+    except Exception as e:
+        logger.error(f"Error fetching recent errors: {e}", exc_info=True)
+    
+    context = {
+        'tenant': tenant,
+        'wabot_status': wabot_status,
+        'api_status': api_status,
+        'web_app_status': web_app_status,
+        'account_status': account_status,
+        'recent_errors': recent_errors,
+    }
+    
+    return render(request, 'messaging/error_handling_dashboard.html', context)
+
+
 # =========================
 # Contest: Create & Analytics
 # =========================
 @login_required
-def contest_create(request):
-    """Enhanced contest creation with PDPA integration and custom messages"""
+def contest_create(request, contest_id=None):
+    """Enhanced contest creation/editing with PDPA integration and custom messages"""
     tenant = _get_tenant(request)
     if not _require_plan(tenant, 'contest'):
         return redirect('dashboard')
+    
+    # Check if editing existing contest
+    contest = None
+    is_editing = False
+    if contest_id:
+        try:
+            contest = Contest.objects.get(contest_id=contest_id, tenant=tenant)
+            is_editing = True
+        except Contest.DoesNotExist:
+            messages.error(request, 'Contest not found')
+            return redirect('contest_home')
     
     if request.method == 'POST':
         try:
@@ -827,6 +964,7 @@ def contest_create(request):
             participant_rejection = request.POST.get('participant_rejection', '').strip()
             
             # Contest instructions
+            introduction_message = request.POST.get('introduction_message', '').strip()
             contest_instructions = request.POST.get('contest_instructions', '').strip()
             verification_instructions = request.POST.get('verification_instructions', '').strip()
             eligibility_message = request.POST.get('eligibility_message', '').strip()
@@ -841,49 +979,130 @@ def contest_create(request):
                 auto_reply_priority = 5
             
             from django.utils.dateparse import parse_datetime
+            from django.utils import timezone
+            from datetime import timedelta
+            from zoneinfo import ZoneInfo
             from decimal import Decimal
+
+            start_dt = parse_datetime(starts_at)
+            end_dt = parse_datetime(ends_at)
+
+            # `datetime-local` inputs are naive (no tz). Treat them as Malaysia time so that
+            # contests become active when the user expects (MYT), regardless of server UTC.
+            my_tz = ZoneInfo("Asia/Kuala_Lumpur")
+            if start_dt and timezone.is_naive(start_dt):
+                start_dt = timezone.make_aware(start_dt, my_tz)
+            if end_dt and timezone.is_naive(end_dt):
+                end_dt = timezone.make_aware(end_dt, my_tz)
+
+            # Guardrail: if values look like they were mistakenly interpreted as UTC (about +8h),
+            # shift them back so newly created contests don't appear inactive.
+            now = timezone.now()
+            if start_dt and start_dt > (now + timedelta(hours=2)):
+                delta_hours = (start_dt - now).total_seconds() / 3600.0
+                if 6.5 <= delta_hours <= 9.5:
+                    start_dt = start_dt - timedelta(hours=8)
+                    if end_dt:
+                        end_dt = end_dt - timedelta(hours=8)
             
-            contest = Contest.objects.create(
-                tenant=tenant,
-                name=name or 'Untitled Contest',
-                description=description or None,
-                starts_at=parse_datetime(starts_at),
-                ends_at=parse_datetime(ends_at),
-                is_active=is_active,
-                
-                # Keyword auto-reply
-                keywords=keywords or None,
-                auto_reply_message=auto_reply_message or None,
-                auto_reply_priority=auto_reply_priority,
-                
-                # Requirements
-                requires_nric=requires_nric,
-                requires_receipt=requires_receipt,
-                min_purchase_amount=min_purchase_amount,
-                
-                # Custom messages
-                post_pdpa_text=post_pdpa_text or None,
-                post_pdpa_image_url=post_pdpa_image_url or None,
-                post_pdpa_gif_url=post_pdpa_gif_url or None,
-                
-                # PDPA consent messages
-                pdpa_message=pdpa_message or None,
-                participant_agreement=participant_agreement or None,
-                participant_rejection=participant_rejection or None,
-                
-                # Instructions
-                contest_instructions=contest_instructions or None,
-                verification_instructions=verification_instructions or None,
-                eligibility_message=eligibility_message or "Congratulations! You are eligible to participate in this contest. Please follow the instructions to complete your entry.",
-            )
+            # Handle default messages - use defaults if field is empty
+            default_pdpa_message = "Before we continue, we need your consent to collect and process your personal data.\n\nPlease read our privacy policy here:\nhttps://khind.com.my/pages/privacy-policy\n\nDo you agree to participate and allow us to process your information?\n\nReply \"I agree\" to continue or \"No\" to opt out."
+            default_agreement = "✅ Thank you for your consent!"
+            default_post_pdpa = "One final step before we continue and enter you into the contest.\n\nWe need your:\n• Full name\n• Email address\n• IC/NRIC number\n\nPlease provide these details in the following format:\nName: [Your Name]\nEmail: [Your Email]\nNRIC: [Your NRIC]"
+            default_rejection = "We respect your choice, you won't receive contest messages."
+            default_eligibility = "Congratulations! You are eligible to participate in this contest. Please follow the instructions to complete your entry."
             
-            messages.success(request, f'Contest "{contest.name}" created successfully!')
-            return redirect('contest_detail', contest_id=contest.contest_id)
+            if is_editing and contest:
+                # Update existing contest
+                contest.name = name or contest.name
+                contest.description = description or contest.description
+                contest.starts_at = start_dt or contest.starts_at
+                contest.ends_at = end_dt or contest.ends_at
+                contest.is_active = is_active
+                contest.keywords = keywords or contest.keywords
+                contest.auto_reply_message = auto_reply_message or contest.auto_reply_message
+                contest.auto_reply_priority = auto_reply_priority
+                contest.requires_nric = requires_nric
+                contest.requires_receipt = requires_receipt
+                contest.min_purchase_amount = min_purchase_amount or contest.min_purchase_amount
+                # Use provided value or default if empty
+                contest.post_pdpa_text = post_pdpa_text or default_post_pdpa
+                contest.post_pdpa_image_url = post_pdpa_image_url or contest.post_pdpa_image_url
+                contest.post_pdpa_gif_url = post_pdpa_gif_url or contest.post_pdpa_gif_url
+                contest.pdpa_message = pdpa_message or default_pdpa_message
+                contest.participant_agreement = participant_agreement or default_agreement
+                contest.participant_rejection = participant_rejection or default_rejection
+                contest.contest_instructions = contest_instructions or contest.contest_instructions
+                contest.verification_instructions = verification_instructions or contest.verification_instructions
+                contest.eligibility_message = eligibility_message or default_eligibility
+                contest.save()
+                messages.success(request, f'Contest "{contest.name}" updated successfully!')
+            else:
+                # Create new contest
+                contest = Contest.objects.create(
+                    tenant=tenant,
+                    name=name or 'Untitled Contest',
+                    description=description or None,
+                    starts_at=start_dt,
+                    ends_at=end_dt,
+                    is_active=is_active,
+                    
+                    # Keyword auto-reply
+                    keywords=keywords or None,
+                    auto_reply_message=auto_reply_message or None,
+                    auto_reply_priority=auto_reply_priority,
+                    
+                    # Requirements
+                    requires_nric=requires_nric,
+                    requires_receipt=requires_receipt,
+                    min_purchase_amount=min_purchase_amount,
+                    
+                    # Custom messages - use defaults if empty
+                    post_pdpa_text=post_pdpa_text or default_post_pdpa,
+                    post_pdpa_image_url=post_pdpa_image_url or None,
+                    post_pdpa_gif_url=post_pdpa_gif_url or None,
+                    
+                    # PDPA consent messages - use defaults if empty
+                    pdpa_message=pdpa_message or default_pdpa_message,
+                    participant_agreement=participant_agreement or default_agreement,
+                    participant_rejection=participant_rejection or default_rejection,
+                    
+                    # Instructions
+                    contest_instructions=contest_instructions or None,
+                    verification_instructions=verification_instructions or None,
+                    eligibility_message=eligibility_message or default_eligibility,
+                )
+                messages.success(request, f'Contest "{contest.name}" created successfully!')
+            
+            # Redirect to contest manager after creation, or contest detail after editing
+            if is_editing:
+                return redirect('contest_detail', contest_id=contest.contest_id)
+            else:
+                return redirect('contest_manager')
             
         except Exception as e:
-            messages.error(request, f'Failed to create contest: {e}')
+            messages.error(request, f'Failed to {"update" if is_editing else "create"} contest: {e}')
+            logger.error(f"Error {'updating' if is_editing else 'creating'} contest: {e}", exc_info=True)
     
-    return render(request, 'messaging/contest_create.html')
+    # Prepare context for template
+    context = {
+        'is_editing': is_editing,
+        'contest': contest,
+    }
+    
+    # Format dates for datetime-local inputs
+    if contest:
+        from django.utils import timezone
+        context['starts_at_formatted'] = contest.starts_at.strftime('%Y-%m-%dT%H:%M') if contest.starts_at else ''
+        context['ends_at_formatted'] = contest.ends_at.strftime('%Y-%m-%dT%H:%M') if contest.ends_at else ''
+    
+    return render(request, 'messaging/contest_create.html', context)
+
+
+@login_required
+def contest_edit(request, contest_id):
+    """Edit existing contest - redirects to contest_create with contest_id"""
+    return contest_create(request, contest_id=contest_id)
 
 
 @login_required
@@ -1110,94 +1329,301 @@ def contest_verify_entry(request, entry_id):
 
 @login_required
 def contest_manager(request):
-    """Contest manager page with detailed entries table"""
+    """Contest manager page with detailed entries table - uses database only"""
     try:
         tenant = _get_tenant(request)
         if not _require_plan(tenant, 'contest'):
             return redirect('dashboard')
     except Exception as e:
-        print(f"Error in contest_manager: {e}")
+        logger.error(f"Error in contest_manager (auth): {e}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return redirect('dashboard')
     
     # Get filter parameters
     search_query = request.GET.get('search', '').strip()
-    status_filter = request.GET.get('status', '')
+    status_filter = request.GET.get('status', '')  # 'active' or 'inactive'
     store_filter = request.GET.get('store', '')
     location_filter = request.GET.get('location', '')
+    contest_id = request.GET.get('contest', '')
     
-    # Get CSV data service
-    csv_service = CSVDataService()
-    merdeka_contests = csv_service.get_contest_data()
+    # Get all contests from database
+    try:
+        db_contests = Contest.objects.filter(tenant=tenant).order_by('-created_at')
+        logger.info(f"Loaded {db_contests.count()} contests from database")
+    except Exception as e:
+        logger.error(f"Error loading contests from database: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        db_contests = []
     
-    # Build contests list from CSV data
+    # Build contests list from database
     contests = []
-    for contest in merdeka_contests:
-        contests.append({
-            'id': contest['contest_id'],
-            'name': contest['name'],
-            'status': 'active' if contest['is_active'] else 'ended',
-            'total_entries': contest['total_entries'],
-            'valid_entries': contest['valid_entries'],
-            'total_amount': contest['total_amount']
-        })
+    for contest in db_contests:
+        try:
+            entries = contest.entries.all()
+            # Safely calculate total amount (handle missing receipt_amount field)
+            total_amount = 0
+            for e in entries:
+                try:
+                    receipt_amt = getattr(e, 'receipt_amount', None)
+                    if receipt_amt:
+                        total_amount += float(receipt_amt)
+                except (ValueError, TypeError):
+                    pass
+            
+            # Calculate flagged entries (rejected status)
+            flagged_count = entries.filter(status='rejected').count() if hasattr(entries.model, 'status') else 0
+            verified_count = entries.filter(is_verified=True).count() if hasattr(entries.model, 'is_verified') else 0
+            
+            contests.append({
+                'id': str(contest.contest_id),
+                'name': contest.name,
+                'description': contest.description or '',
+                'status': 'active' if contest.is_currently_active else 'ended',
+                'total_entries': entries.count(),
+                'valid_entries': verified_count,
+                'verified_entries': verified_count,  # Alias for template compatibility
+                'flagged_entries': flagged_count,
+                'total_amount': total_amount,
+                'starts_at': contest.starts_at,
+                'ends_at': contest.ends_at,
+                'requires_nric': getattr(contest, 'requires_nric', False),
+                'requires_receipt': getattr(contest, 'requires_receipt', False),
+                'min_purchase_amount': float(contest.min_purchase_amount) if hasattr(contest, 'min_purchase_amount') and contest.min_purchase_amount else None
+            })
+        except Exception as e:
+            logger.error(f"Error processing contest {contest.contest_id}: {e}", exc_info=True)
+            # Continue with next contest
+            continue
     
-    # Get selected contest (default to first contest)
-    selected_contest = contests[0] if contests else None
-    contest_filter = selected_contest['id'] if selected_contest else None
+    # Optionally try to add CSV contests (silently fail if not available)
+    try:
+        csv_service = CSVDataService()
+        merdeka_contests = csv_service.get_contest_data()
+        for contest in merdeka_contests:
+            # Apply status filter if specified
+            if status_filter:
+                is_active = contest['is_active']
+                if status_filter == 'active' and not is_active:
+                    continue
+                if status_filter == 'inactive' and is_active:
+                    continue
+            
+            # Calculate flagged entries for CSV contests
+            flagged_csv = contest.get('total_entries', 0) - contest.get('valid_entries', 0)
+            contests.append({
+                'id': contest['contest_id'],
+                'name': contest['name'],
+                'description': contest.get('description', ''),
+                'status': 'active' if contest['is_active'] else 'ended',
+                'total_entries': contest['total_entries'],
+                'valid_entries': contest['valid_entries'],
+                'verified_entries': contest.get('valid_entries', 0),  # Alias for template compatibility
+                'flagged_entries': flagged_csv,
+                'total_amount': contest['total_amount'],
+                'starts_at': None,
+                'ends_at': None,
+                'requires_nric': False,
+                'requires_receipt': False,
+                'min_purchase_amount': None
+            })
+    except Exception:
+        # CSV files not available - that's fine, we'll use database only
+        pass
+    
+    # Get selected contest
+    selected_contest = None
+    if contest_id:
+        selected_contest = next((c for c in contests if c['id'] == contest_id), None)
+    
+    if not selected_contest and contests:
+        selected_contest = contests[0]
+    
+    # If still no contest, create a default empty one
+    if not selected_contest:
+        from datetime import datetime
+        selected_contest = {
+            'id': 'default',
+            'name': 'No Contests Available',
+            'description': 'Create a contest to get started.',
+            'status': 'active',
+            'total_entries': 0,
+            'valid_entries': 0,
+            'total_amount': 0,
+            'starts_at': datetime.now(),
+            'ends_at': datetime.now(),
+            'requires_nric': False,
+            'requires_receipt': False,
+            'min_purchase_amount': None
+        }
+        contests = [selected_contest]
     
     # Get entries for the selected contest
     sample_entries = []
-    if contest_filter and contest_filter in ['merdeka_w1', 'merdeka_w2']:
-        # Get data for the selected contest
-        if contest_filter == 'merdeka_w1':
-            data = csv_service.w1_data
-        else:
-            data = csv_service.w2_data
+    
+    # Check if it's a CSV-based contest (merdeka_w1, merdeka_w2)
+    if selected_contest['id'] in ['merdeka_w1', 'merdeka_w2']:
+        # First try to use hardcoded data (most reliable)
+        hardcoded_data = []
+        if selected_contest['id'] == 'merdeka_w1':
+            hardcoded_data = KHIND_MERDEKA_W1_DATA_HARDCODED
+        elif selected_contest['id'] == 'merdeka_w2':
+            hardcoded_data = KHIND_MERDEKA_W2_DATA_HARDCODED
         
-        for entry in data:
-            sample_entries.append({
-                'submission_no': entry.get('submission_no', ''),
-                'full_name': entry.get('full_name', ''),
-                'phone_number': entry.get('phone_number', ''),
-                'email': entry.get('email', ''),
-                'validity': entry.get('validity', ''),
-                'reason': entry.get('reason', ''),
-                'submitted_date': entry.get('submitted_date', ''),
-                'store': entry.get('store', ''),
-                'store_location': entry.get('store_location', ''),
-                'product_purchased_1': entry.get('product_purchased_1', ''),
-                'amount_purchased_1': entry.get('amount_purchased_1', ''),
-                'product_purchased_2': entry.get('product_purchased_2', ''),
-                'amount_purchased_2': entry.get('amount_purchased_2', ''),
-                'product_purchased_3': entry.get('product_purchased_3', ''),
-                'amount_purchased_3': entry.get('amount_purchased_3', ''),
-                'amount_spent': entry.get('amount_spent', ''),
-                'address': entry.get('address', ''),
-                'postcode': entry.get('postcode', ''),
-                'city': entry.get('city', ''),
-                'state': entry.get('state', ''),
-                'receipt_url': entry.get('receipt_url', ''),
-                'how_heard': entry.get('how_heard', '')
-            })
+        # If hardcoded data exists, use it
+        if hardcoded_data:
+            logger.info(f"Using hardcoded data for {selected_contest['id']}: {len(hardcoded_data)} entries")
+            for entry in hardcoded_data:
+                sample_entries.append({
+                    'submission_no': entry.get('submission_no', ''),
+                    'full_name': entry.get('full_name', ''),
+                    'phone_number': entry.get('phone_number', ''),
+                    'email': entry.get('email', ''),
+                    'validity': entry.get('validity', 'valid' if entry.get('validity') == 'valid' else 'invalid'),
+                    'reason': entry.get('reason', ''),
+                    'submitted_date': entry.get('submitted_date', ''),
+                    'store': entry.get('store', ''),
+                    'store_location': entry.get('store_location', ''),
+                    'product_purchased_1': entry.get('product_purchased_1', ''),
+                    'amount_purchased_1': entry.get('amount_purchased_1', ''),
+                    'product_purchased_2': entry.get('product_purchased_2', ''),
+                    'amount_purchased_2': entry.get('amount_purchased_2', ''),
+                    'product_purchased_3': entry.get('product_purchased_3', ''),
+                    'amount_purchased_3': entry.get('amount_purchased_3', ''),
+                    'amount_spent': entry.get('amount_spent', ''),
+                    'address': entry.get('address', ''),
+                    'postcode': entry.get('postcode', ''),
+                    'city': entry.get('city', ''),
+                    'state': entry.get('state', ''),
+                    'receipt_url': entry.get('receipt_url', ''),
+                    'how_heard': entry.get('how_heard', '')
+                })
+        else:
+            # Fallback to CSV service if hardcoded data not available
+            try:
+                csv_service = CSVDataService()
+                if selected_contest['id'] == 'merdeka_w1':
+                    data = csv_service.w1_data
+                else:
+                    data = csv_service.w2_data
+                
+                logger.info(f"Using CSV service for {selected_contest['id']}: {len(data)} entries")
+                for entry in data:
+                    sample_entries.append({
+                        'submission_no': entry.get('submission_no', ''),
+                        'full_name': entry.get('full_name', ''),
+                        'phone_number': entry.get('phone_number', ''),
+                        'email': entry.get('email', ''),
+                        'validity': entry.get('validity', 'valid' if entry.get('validity') == 'valid' else 'invalid'),
+                        'reason': entry.get('reason', ''),
+                        'submitted_date': entry.get('submitted_date', ''),
+                        'store': entry.get('store', ''),
+                        'store_location': entry.get('store_location', ''),
+                        'product_purchased_1': entry.get('product_purchased_1', ''),
+                        'amount_purchased_1': entry.get('amount_purchased_1', ''),
+                        'product_purchased_2': entry.get('product_purchased_2', ''),
+                        'amount_purchased_2': entry.get('amount_purchased_2', ''),
+                        'product_purchased_3': entry.get('product_purchased_3', ''),
+                        'amount_purchased_3': entry.get('amount_purchased_3', ''),
+                        'amount_spent': entry.get('amount_spent', ''),
+                        'address': entry.get('address', ''),
+                        'postcode': entry.get('postcode', ''),
+                        'city': entry.get('city', ''),
+                        'state': entry.get('state', ''),
+                        'receipt_url': entry.get('receipt_url', ''),
+                        'how_heard': entry.get('how_heard', '')
+                    })
+            except Exception as e:
+                logger.error(f"Error loading CSV data for {selected_contest['id']}: {e}", exc_info=True)
+                pass  # CSV not available - that's fine
+    else:
+        # Database contest - get entries from ContestEntry
+        try:
+            contest_obj = Contest.objects.get(contest_id=selected_contest['id'], tenant=tenant)
+            entries = contest_obj.entries.all().select_related('customer')
+            
+            for entry in entries:
+                try:
+                    # Get products from JSON field (safely handle missing field)
+                    products = getattr(entry, 'products_purchased', None) or []
+                    if not isinstance(products, list):
+                        products = []
+                    
+                    product_purchased_1 = products[0].get('name', '') if len(products) > 0 and isinstance(products[0], dict) else ''
+                    amount_purchased_1 = str(products[0].get('quantity', '')) if len(products) > 0 and isinstance(products[0], dict) else ''
+                    product_purchased_2 = products[1].get('name', '') if len(products) > 1 and isinstance(products[1], dict) else ''
+                    amount_purchased_2 = str(products[1].get('quantity', '')) if len(products) > 1 and isinstance(products[1], dict) else ''
+                    product_purchased_3 = products[2].get('name', '') if len(products) > 2 and isinstance(products[2], dict) else ''
+                    amount_purchased_3 = str(products[2].get('quantity', '')) if len(products) > 2 and isinstance(products[2], dict) else ''
+                    
+                    # Safely get all fields with fallbacks
+                    store_name = getattr(entry, 'store_name', None) or ''
+                    store_location = getattr(entry, 'store_location', None) or ''
+                    receipt_store = getattr(entry, 'receipt_store', None) or ''
+                    rejection_reason = getattr(entry, 'rejection_reason', None) or ''
+                    
+                    sample_entries.append({
+                        'submission_no': str(entry.entry_id)[:8],
+                        'full_name': getattr(entry, 'contestant_name', None) or getattr(entry.customer, 'name', None) or '',
+                        'phone_number': getattr(entry, 'contestant_phone', None) or getattr(entry.customer, 'phone_number', None) or '',
+                        'email': getattr(entry, 'contestant_email', None) or getattr(entry.customer, 'email', None) or '',
+                        'validity': 'valid' if (getattr(entry, 'is_verified', False) and getattr(entry, 'status', '') == 'verified') else ('invalid' if getattr(entry, 'status', '') == 'rejected' else 'pending'),
+                        'reason': rejection_reason,
+                        'submitted_date': entry.submitted_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(entry, 'submitted_at') and entry.submitted_at else '',
+                        'store': receipt_store or store_name,
+                        'store_location': store_location,
+                        'product_purchased_1': product_purchased_1,
+                        'amount_purchased_1': amount_purchased_1,
+                        'product_purchased_2': product_purchased_2,
+                        'amount_purchased_2': amount_purchased_2,
+                        'product_purchased_3': product_purchased_3,
+                        'amount_purchased_3': amount_purchased_3,
+                        'amount_spent': f"RM{entry.receipt_amount}" if hasattr(entry, 'receipt_amount') and entry.receipt_amount else '',
+                        'address': getattr(entry.customer, 'address', None) or '',
+                        'postcode': getattr(entry.customer, 'postcode', None) or '',
+                        'city': getattr(entry.customer, 'city', None) or '',
+                        'state': getattr(entry.customer, 'state', None) or '',
+                        'receipt_url': getattr(entry, 'receipt_image_url', None) or '',
+                        'how_heard': ''
+                    })
+                except Exception as entry_error:
+                    logger.error(f"Error processing entry {entry.entry_id}: {entry_error}", exc_info=True)
+                    # Continue with next entry
+                    continue
+                    
+        except Contest.DoesNotExist:
+            # Contest doesn't exist - that's fine, just show empty list
+            logger.warning(f"Contest {selected_contest.get('id')} not found in database")
+            pass
+        except Exception as e:
+            logger.error(f"Error loading contest entries: {e}", exc_info=True)
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
     
     # Apply search filter
     if search_query:
         sample_entries = [entry for entry in sample_entries if 
-                         search_query.lower() in entry['full_name'].lower() or
-                         search_query.lower() in entry['phone_number'].lower() or
-                         search_query.lower() in entry['email'].lower() or
-                         search_query.lower() in entry['submission_no'].lower()]
+                         search_query.lower() in entry.get('full_name', '').lower() or
+                         search_query.lower() in entry.get('phone_number', '').lower() or
+                         search_query.lower() in entry.get('email', '').lower() or
+                         search_query.lower() in entry.get('submission_no', '').lower()]
     
-    # Apply status filter
+    # Apply status filter (map database statuses to validity)
     if status_filter:
-        sample_entries = [entry for entry in sample_entries if entry['validity'] == status_filter]
+        if status_filter == 'valid':
+            sample_entries = [entry for entry in sample_entries if entry.get('validity') == 'valid']
+        elif status_filter == 'invalid':
+            sample_entries = [entry for entry in sample_entries if entry.get('validity') == 'invalid']
+        else:
+            sample_entries = [entry for entry in sample_entries if entry.get('validity') == status_filter]
     
-    # Apply store and location filters to sample data
+    # Apply store and location filters
     if store_filter:
-        sample_entries = [entry for entry in sample_entries if store_filter.lower() in entry['store'].lower()]
+        sample_entries = [entry for entry in sample_entries if store_filter.lower() in entry.get('store', '').lower()]
     
     if location_filter:
-        sample_entries = [entry for entry in sample_entries if location_filter.lower() in entry['store_location'].lower()]
+        sample_entries = [entry for entry in sample_entries if location_filter.lower() in entry.get('store_location', '').lower()]
     
     # Implement pagination
     from django.core.paginator import Paginator
@@ -1205,166 +1631,425 @@ def contest_manager(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    context = {
-        'contests': contests,
-        'selected_contest': selected_contest,
-        'entries': page_obj,
-        'total_entries': len(sample_entries),
-        'search_query': search_query,
-        'status_filter': status_filter,
-        'store_filter': store_filter,
-        'location_filter': location_filter,
-        'contest_filter': contest_filter,
-    }
-    return render(request, 'messaging/contest_manager.html', context)
+    # Get current contest index for navigation
+    current_index = 0
+    if selected_contest:
+        for i, c in enumerate(contests):
+            if c['id'] == selected_contest['id']:
+                current_index = i
+                break
+    
+    try:
+        context = {
+            'contests': contests,
+            'selected_contest': selected_contest,
+            'entries': page_obj,
+            'total_entries': len(sample_entries),
+            'search_query': search_query,
+            'status_filter': status_filter,
+            'store_filter': store_filter,
+            'location_filter': location_filter,
+            'contest_filter': selected_contest['id'],
+            'current_index': current_index,
+            'total_contests': len(contests),
+            'has_previous': current_index > 0,
+            'has_next': current_index < len(contests) - 1,
+            'previous_contest_id': contests[current_index - 1]['id'] if current_index > 0 else None,
+            'next_contest_id': contests[current_index + 1]['id'] if current_index < len(contests) - 1 else None,
+        }
+        return render(request, 'messaging/contest_manager.html', context)
+    except Exception as e:
+        logger.error(f"Error rendering contest_manager template: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Return a simple error page
+        from django.http import HttpResponse
+        return HttpResponse(f"Error loading contest manager: {str(e)}<br><pre>{traceback.format_exc()}</pre>", status=500)
 
 
 @login_required
 def participants_manager(request):
-    """Participants manager page with filtering and detailed view"""
+    """Participants manager page with filtering and detailed view - uses database contests"""
     try:
         tenant = _get_tenant(request)
         if not _require_plan(tenant, 'contest'):
             return redirect('dashboard')
     except Exception as e:
-        print(f"Error in participants_manager: {e}")
+        logger.error(f"Error in participants_manager: {e}", exc_info=True)
         return redirect('dashboard')
     
     # Get filter parameters
-    contest_filter = request.GET.get('contest', '')
+    contest_id = request.GET.get('contest', '')
     status_filter = request.GET.get('status', '')
     search_query = request.GET.get('search', '').strip()
     
-    # Get Merdeka participants data from CSV files
-    csv_service = CSVDataService()
-    chat_service = ChatHistoryService()
+    # Get all contests from database
+    try:
+        db_contests = Contest.objects.filter(tenant=tenant).order_by('-created_at')
+        logger.info(f"Loaded {db_contests.count()} contests from database for participants manager")
+        for c in db_contests:
+            logger.debug(f"  - Contest: {c.name} (ID: {c.contest_id}, Active: {c.is_active})")
+    except Exception as e:
+        logger.error(f"Error loading contests: {e}", exc_info=True)
+        db_contests = []
     
-    # Initialize participants list (only CSV data, no demo data)
+    # Build contests list from database
+    contests = []
+    for contest in db_contests:
+        contests.append({
+            'id': str(contest.contest_id),
+            'name': contest.name,
+            'contest_id': str(contest.contest_id)  # For template compatibility
+        })
+    logger.info(f"Built contests list with {len(contests)} contests for dropdown")
+    
+    # Optionally add CSV contests
+    try:
+        csv_service = CSVDataService()
+        merdeka_contests = csv_service.get_contest_data()
+        for contest in merdeka_contests:
+            contests.append({
+                'id': contest['contest_id'],
+                'name': contest['name'],
+                'contest_id': contest['contest_id']
+            })
+    except Exception:
+        pass  # CSV not available - that's fine
+    
+    # Initialize participants list
     participants = []
     
-    # Add W1 participants
-    w1_participants = csv_service.get_participants_data('w1')
-    for participant in w1_participants:
-        chat_history = chat_service.generate_chat_history(participant)
-        participants.append({
-            'id': participant['submission_no'],
-            'name': participant['full_name'],
-            'phone': participant['phone_number'],
-            'email': participant['email'],
-            'ic': '',
-            'contest': 'Khind Merdeka Campaign 2025 - Week 1',
-            'status': 'approved' if participant['validity'] == 'valid' else 'flagged',
-            'errors': participant['reason'] if participant['validity'] != 'valid' else '',
-            'submission_date': participant['submitted_date'],
-            'store': participant['store'],
-                    'company_no': '',
-            'location': participant['store_location'],
-            'product': participant['products'][0]['product'] if participant['products'] else '',
-            'amount': participant['products'][0]['amount'] if participant['products'] else '',
-            'spent': participant['amount_spent'],
-            'address': participant['address'],
-            'postcode': participant['postcode'],
-            'city': participant['city'],
-            'state': participant['state'],
-            'receipt_url': participant['receipt_url'],
-            'how_heard': participant['how_heard'],
-            'product_2': participant['products'][1]['product'] if len(participant['products']) > 1 else '',
-            'amount_2': participant['products'][1]['amount'] if len(participant['products']) > 1 else '',
-            'product_3': participant['products'][2]['product'] if len(participant['products']) > 2 else '',
-            'amount_3': participant['products'][2]['amount'] if len(participant['products']) > 2 else '',
-            'chat_history': chat_history,
-            # Additional fields for chat history
-            'submission_no': participant['submission_no'],
-            'validity': participant['validity'],
-            'reason': participant['reason'],
-            'amount_spent': participant['amount_spent'],
-            'store_location': participant['store_location'],
-            'submitted_date': participant['submitted_date'],
-            'products': participant['products']
-        })
+    # Get participants from database contests
+    for contest in db_contests:
+        try:
+            entries = ContestEntry.objects.filter(contest=contest, tenant=tenant).select_related('customer')
+            for entry in entries:
+                try:
+                    # Get products from JSON field
+                    products = getattr(entry, 'products_purchased', None) or []
+                    if not isinstance(products, list):
+                        products = []
+                    
+                    # Get contest messages for conversation flow
+                    contest_intro = getattr(contest, 'introduction_message', None) or ''
+                    contest_pdpa = getattr(contest, 'pdpa_message', None) or ''
+                    contest_agreement = getattr(contest, 'participant_agreement', None) or ''
+                    contest_keywords = getattr(contest, 'keywords', '') or 'JOIN,START'
+                    
+                    # Determine status: check if receipt details are complete
+                    store_name = getattr(entry, 'receipt_store', None) or getattr(entry, 'store_name', None) or ''
+                    store_location = getattr(entry, 'store_location', None) or ''
+                    receipt_amount = getattr(entry, 'receipt_amount', None)
+                    has_complete_receipt = bool(store_name and store_name.strip() and store_location and store_location.strip() and receipt_amount)
+                    
+                    # Status logic: verified > flagged (incomplete receipt) > pending
+                    if getattr(entry, 'is_verified', False) and getattr(entry, 'status', '') == 'verified':
+                        entry_status = 'approved'
+                    elif getattr(entry, 'status', '') == 'rejected':
+                        entry_status = 'flagged'
+                    elif not has_complete_receipt and getattr(entry, 'receipt_image_url', None):
+                        # Has receipt image but details incomplete - flag it
+                        entry_status = 'flagged'
+                    else:
+                        entry_status = 'pending'
+                    
+                    participant = {
+                        'id': str(entry.entry_id),
+                        'name': getattr(entry, 'contestant_name', None) or getattr(entry.customer, 'name', None) or '',
+                        'phone': getattr(entry, 'contestant_phone', None) or getattr(entry.customer, 'phone_number', None) or '',
+                        'email': getattr(entry, 'contestant_email', None) or getattr(entry.customer, 'email', None) or '',
+                        'ic': getattr(entry, 'contestant_nric', None) or '',
+                        'contest': contest.name,
+                        'contest_id': str(contest.contest_id),  # For filtering
+                        'status': entry_status,
+                        'errors': getattr(entry, 'rejection_reason', None) or '',
+                        'submission_date': entry.submitted_at.strftime('%Y-%m-%d %I:%M %p') if hasattr(entry, 'submitted_at') and entry.submitted_at else (entry.created_at.strftime('%Y-%m-%d %I:%M %p') if hasattr(entry, 'created_at') and entry.created_at else ''),
+                        'store': getattr(entry, 'receipt_store', None) or getattr(entry, 'store_name', None) or '',
+                        'company_no': '',
+                        'location': getattr(entry, 'store_location', None) or '',
+                        'product': (products[0].get('name', '') if isinstance(products[0], dict) else (products[0][0] if isinstance(products[0], (list, tuple)) and len(products[0]) > 0 else '')) if len(products) > 0 else '',
+                        'amount': (str(products[0].get('quantity', '')) if isinstance(products[0], dict) else (str(products[0][1]) if isinstance(products[0], (list, tuple)) and len(products[0]) > 1 else '')) if len(products) > 0 else '',
+                        'spent': f"RM{entry.receipt_amount}" if hasattr(entry, 'receipt_amount') and entry.receipt_amount else '',
+                        'address': getattr(entry.customer, 'address', None) or '',
+                        'postcode': getattr(entry.customer, 'postcode', None) or '',
+                        'city': getattr(entry.customer, 'city', None) or '',
+                        'state': getattr(entry.customer, 'state', None) or '',
+                        'receipt_url': getattr(entry, 'receipt_image_url', None) or '',
+                        'how_heard': '',
+                        'product_2': products[1].get('name', '') if len(products) > 1 and isinstance(products[1], dict) else '',
+                        'amount_2': str(products[1].get('quantity', '')) if len(products) > 1 and isinstance(products[1], dict) else '',
+                        'product_3': products[2].get('name', '') if len(products) > 2 and isinstance(products[2], dict) else '',
+                        'amount_3': str(products[2].get('quantity', '')) if len(products) > 2 and isinstance(products[2], dict) else '',
+                        'submission_no': str(entry.entry_id)[:8],
+                        'entry_id': str(entry.entry_id),
+                        'validity': 'valid' if getattr(entry, 'is_verified', False) else 'invalid',
+                        'reason': getattr(entry, 'rejection_reason', None) or '',
+                        'amount_spent': f"RM{entry.receipt_amount}" if hasattr(entry, 'receipt_amount') and entry.receipt_amount else '',
+                        'store_location': getattr(entry, 'store_location', None) or '',
+                        'submitted_date': entry.submitted_at.strftime('%Y-%m-%d') if hasattr(entry, 'submitted_at') and entry.submitted_at else '',
+                        'products': products,
+                        # Contest messages for conversation flow
+                        'contest_intro': contest_intro,
+                        'contest_pdpa': contest_pdpa,
+                        'contest_agreement': contest_agreement,
+                        'contest_keywords': contest_keywords.split(',')[0].strip() if contest_keywords else 'JOIN'
+                    }
+                    participants.append(participant)
+                except Exception as entry_error:
+                    logger.error(f"Error processing entry {entry.entry_id}: {entry_error}", exc_info=True)
+                    continue
+        except Exception as e:
+            logger.error(f"Error loading entries for contest {contest.contest_id}: {e}", exc_info=True)
+            continue
     
-    # Add W2 participants
-    w2_participants = csv_service.get_participants_data('w2')
-    for participant in w2_participants:
-        chat_history = chat_service.generate_chat_history(participant)
-        participants.append({
-            'id': participant['submission_no'],
-            'name': participant['full_name'],
-            'phone': participant['phone_number'],
-            'email': participant['email'],
-            'ic': '',
-            'contest': 'Khind Merdeka Campaign 2025 - Week 2',
-            'status': 'approved' if participant['validity'] == 'valid' else 'flagged',
-            'errors': participant['reason'] if participant['validity'] != 'valid' else '',
-            'submission_date': participant['submitted_date'],
-            'store': participant['store'],
-            'company_no': '',
-            'location': participant['store_location'],
-            'product': participant['products'][0]['product'] if participant['products'] else '',
-            'amount': participant['products'][0]['amount'] if participant['products'] else '',
-            'spent': participant['amount_spent'],
-            'address': participant['address'],
-            'postcode': participant['postcode'],
-            'city': participant['city'],
-            'state': participant['state'],
-            'receipt_url': participant['receipt_url'],
-            'how_heard': participant['how_heard'],
-            'product_2': participant['products'][1]['product'] if len(participant['products']) > 1 else '',
-            'amount_2': participant['products'][1]['amount'] if len(participant['products']) > 1 else '',
-            'product_3': participant['products'][2]['product'] if len(participant['products']) > 2 else '',
-            'amount_3': participant['products'][2]['amount'] if len(participant['products']) > 2 else '',
-            'chat_history': chat_history,
-            # Additional fields for chat history
-            'submission_no': participant['submission_no'],
-            'validity': participant['validity'],
-            'reason': participant['reason'],
-            'amount_spent': participant['amount_spent'],
-            'store_location': participant['store_location'],
-            'submitted_date': participant['submitted_date'],
-            'products': participant['products']
-        })
+    # Optionally add CSV participants (use hardcoded data first, then fallback to CSV service)
+    try:
+        chat_service = ChatHistoryService()
+        
+        # Add W1 participants (only if no contest filter or filter matches)
+        if not contest_id or contest_id == 'merdeka_w1':
+            # First try hardcoded data
+            w1_participants = []
+            if KHIND_MERDEKA_W1_DATA_HARDCODED:
+                logger.info(f"Using hardcoded data for W1: {len(KHIND_MERDEKA_W1_DATA_HARDCODED)} entries")
+                # Convert hardcoded data to participant format
+                for entry in KHIND_MERDEKA_W1_DATA_HARDCODED:
+                    products = []
+                    if entry.get('product_purchased_1'):
+                        products.append({'product': entry['product_purchased_1'], 'amount': entry.get('amount_purchased_1', '1')})
+                    if entry.get('product_purchased_2'):
+                        products.append({'product': entry['product_purchased_2'], 'amount': entry.get('amount_purchased_2', '1')})
+                    if entry.get('product_purchased_3'):
+                        products.append({'product': entry['product_purchased_3'], 'amount': entry.get('amount_purchased_3', '1')})
+                    
+                    w1_participants.append({
+                        'submission_no': entry.get('submission_no', ''),
+                        'full_name': entry.get('full_name', ''),
+                        'phone_number': entry.get('phone_number', ''),
+                        'email': entry.get('email', ''),
+                        'validity': entry.get('validity', 'valid'),
+                        'reason': entry.get('reason', ''),
+                        'submitted_date': entry.get('submitted_date', ''),
+                        'store': entry.get('store', ''),
+                        'store_location': entry.get('store_location', ''),
+                        'amount_spent': entry.get('amount_spent', ''),
+                        'address': entry.get('address', ''),
+                        'postcode': entry.get('postcode', ''),
+                        'city': entry.get('city', ''),
+                        'state': entry.get('state', ''),
+                        'receipt_url': entry.get('receipt_url', ''),
+                        'how_heard': entry.get('how_heard', ''),
+                        'products': products
+                    })
+            else:
+                # Fallback to CSV service
+                csv_service = CSVDataService()
+                w1_participants = csv_service.get_participants_data('w1')
+                logger.info(f"Using CSV service for W1: {len(w1_participants)} entries")
+            
+            logger.info(f"Loading {len(w1_participants)} W1 participants")
+            for participant in w1_participants:
+                try:
+                    chat_history = chat_service.generate_chat_history(participant)
+                    participants.append({
+                        'id': participant['submission_no'],
+                        'name': participant['full_name'],
+                        'phone': participant['phone_number'],
+                        'email': participant['email'],
+                        'ic': '',
+                        'contest': 'Khind Merdeka Campaign 2025 - Week 1',
+                        'contest_id': 'merdeka_w1',
+                        'status': 'approved' if participant['validity'] == 'valid' else 'flagged',
+                        'errors': participant['reason'] if participant['validity'] != 'valid' else '',
+                        'submission_date': participant['submitted_date'],
+                        'store': participant['store'],
+                        'company_no': '',
+                        'location': participant['store_location'],
+                        'product': participant['products'][0]['product'] if participant['products'] and len(participant['products']) > 0 else '',
+                        'amount': participant['products'][0]['amount'] if participant['products'] and len(participant['products']) > 0 else '',
+                        'spent': participant['amount_spent'],
+                        'address': participant['address'],
+                        'postcode': participant['postcode'],
+                        'city': participant['city'],
+                        'state': participant['state'],
+                        'receipt_url': participant['receipt_url'],
+                        'how_heard': participant['how_heard'],
+                        'product_2': participant['products'][1]['product'] if len(participant['products']) > 1 else '',
+                        'amount_2': participant['products'][1]['amount'] if len(participant['products']) > 1 else '',
+                        'product_3': participant['products'][2]['product'] if len(participant['products']) > 2 else '',
+                        'amount_3': participant['products'][2]['amount'] if len(participant['products']) > 2 else '',
+                        'chat_history': chat_history,
+                        'submission_no': participant['submission_no'],
+                        'validity': participant['validity'],
+                        'reason': participant['reason'],
+                        'amount_spent': participant['amount_spent'],
+                        'store_location': participant['store_location'],
+                        'submitted_date': participant['submitted_date'],
+                        'products': participant['products']
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing W1 participant {participant.get('submission_no', 'unknown')}: {e}", exc_info=True)
+                    continue
+        
+        # Add W2 participants (only if no contest filter or filter matches)
+        if not contest_id or contest_id == 'merdeka_w2':
+            # First try hardcoded data
+            w2_participants = []
+            if KHIND_MERDEKA_W2_DATA_HARDCODED:
+                logger.info(f"Using hardcoded data for W2: {len(KHIND_MERDEKA_W2_DATA_HARDCODED)} entries")
+                # Convert hardcoded data to participant format
+                for entry in KHIND_MERDEKA_W2_DATA_HARDCODED:
+                    products = []
+                    if entry.get('product_purchased_1'):
+                        products.append({'product': entry['product_purchased_1'], 'amount': entry.get('amount_purchased_1', '1')})
+                    if entry.get('product_purchased_2'):
+                        products.append({'product': entry['product_purchased_2'], 'amount': entry.get('amount_purchased_2', '1')})
+                    if entry.get('product_purchased_3'):
+                        products.append({'product': entry['product_purchased_3'], 'amount': entry.get('amount_purchased_3', '1')})
+                    
+                    w2_participants.append({
+                        'submission_no': entry.get('submission_no', ''),
+                        'full_name': entry.get('full_name', ''),
+                        'phone_number': entry.get('phone_number', ''),
+                        'email': entry.get('email', ''),
+                        'validity': entry.get('validity', 'valid'),
+                        'reason': entry.get('reason', ''),
+                        'submitted_date': entry.get('submitted_date', ''),
+                        'store': entry.get('store', ''),
+                        'store_location': entry.get('store_location', ''),
+                        'amount_spent': entry.get('amount_spent', ''),
+                        'address': entry.get('address', ''),
+                        'postcode': entry.get('postcode', ''),
+                        'city': entry.get('city', ''),
+                        'state': entry.get('state', ''),
+                        'receipt_url': entry.get('receipt_url', ''),
+                        'how_heard': entry.get('how_heard', ''),
+                        'products': products
+                    })
+            else:
+                # Fallback to CSV service
+                csv_service = CSVDataService()
+                w2_participants = csv_service.get_participants_data('w2')
+                logger.info(f"Using CSV service for W2: {len(w2_participants)} entries")
+            
+            logger.info(f"Loading {len(w2_participants)} W2 participants")
+            for participant in w2_participants:
+                try:
+                    chat_history = chat_service.generate_chat_history(participant)
+                    participants.append({
+                        'id': participant['submission_no'],
+                        'name': participant['full_name'],
+                        'phone': participant['phone_number'],
+                        'email': participant['email'],
+                        'ic': '',
+                        'contest': 'Khind Merdeka Campaign 2025 - Week 2',
+                        'contest_id': 'merdeka_w2',
+                        'status': 'approved' if participant['validity'] == 'valid' else 'flagged',
+                        'errors': participant['reason'] if participant['validity'] != 'valid' else '',
+                        'submission_date': participant['submitted_date'],
+                        'store': participant['store'],
+                        'company_no': '',
+                        'location': participant['store_location'],
+                        'product': participant['products'][0]['product'] if participant['products'] and len(participant['products']) > 0 else '',
+                        'amount': participant['products'][0]['amount'] if participant['products'] and len(participant['products']) > 0 else '',
+                        'spent': participant['amount_spent'],
+                        'address': participant['address'],
+                        'postcode': participant['postcode'],
+                        'city': participant['city'],
+                        'state': participant['state'],
+                        'receipt_url': participant['receipt_url'],
+                        'how_heard': participant['how_heard'],
+                        'product_2': participant['products'][1]['product'] if len(participant['products']) > 1 else '',
+                        'amount_2': participant['products'][1]['amount'] if len(participant['products']) > 1 else '',
+                        'product_3': participant['products'][2]['product'] if len(participant['products']) > 2 else '',
+                        'amount_3': participant['products'][2]['amount'] if len(participant['products']) > 2 else '',
+                        'chat_history': chat_history,
+                        'submission_no': participant['submission_no'],
+                        'validity': participant['validity'],
+                        'reason': participant['reason'],
+                        'amount_spent': participant['amount_spent'],
+                        'store_location': participant['store_location'],
+                        'submitted_date': participant['submitted_date'],
+                        'products': participant['products']
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing W2 participant {participant.get('submission_no', 'unknown')}: {e}", exc_info=True)
+                    continue
+    except Exception as e:
+        logger.error(f"Error loading CSV participants: {e}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        pass  # CSV not available - that's fine
     
     # Apply filters
-    if contest_filter:
-        participants = [p for p in participants if p['contest'] == contest_filter]
+    if contest_id:
+        # Filter by contest ID (database) or contest_id (CSV)
+        participants = [p for p in participants if p.get('contest_id') == contest_id or str(p.get('contest_id', '')) == contest_id]
     
     if status_filter:
         if status_filter == 'approved':
             participants = [p for p in participants if p['status'] == 'approved']
         elif status_filter == 'flagged':
             participants = [p for p in participants if p['status'] == 'flagged']
+        elif status_filter == 'pending':
+            participants = [p for p in participants if p['status'] == 'pending']
     
     if search_query:
         participants = [p for p in participants if 
-                      search_query.lower() in p['name'].lower() or
-                      search_query.lower() in p['phone'].lower() or
-                      search_query.lower() in p['email'].lower()]
+                      search_query.lower() in p.get('name', '').lower() or
+                      search_query.lower() in p.get('phone', '').lower() or
+                      search_query.lower() in p.get('email', '').lower()]
     
     # Get chat history for participants
     chat_history = {}
     for participant in participants:
         try:
-            # Find the conversation for this participant
-            customer = Customer.objects.get(tenant=tenant, phone_number=participant['phone'])
-            contest = Contest.objects.get(tenant=tenant, name=participant['contest'])
-            conversation = Conversation.objects.filter(customer=customer, contest=contest).first()
-            
-            if conversation:
-                messages = CoreMessage.objects.filter(conversation=conversation).order_by('sent_at')
-                chat_messages = []
-                for msg in messages:
-                    chat_messages.append({
-                        'text': msg.text_body,
-                        'direction': msg.direction,
-                        'timestamp': msg.sent_at.strftime('%H:%M'),
-                        'is_image': msg.text_body == '[image]'
-                    })
-                chat_history[participant['id']] = chat_messages
+            # Try to find customer and conversation
+            phone = participant.get('phone', '')
+            if phone:
+                customer = Customer.objects.filter(tenant=tenant, phone_number__icontains=phone).first()
+                if customer:
+                    # Try to find contest by name or ID
+                    contest_name = participant.get('contest', '')
+                    contest_obj = None
+                    if participant.get('contest_id') and participant['contest_id'] not in ['merdeka_w1', 'merdeka_w2']:
+                        try:
+                            contest_obj = Contest.objects.get(contest_id=participant['contest_id'], tenant=tenant)
+                        except Contest.DoesNotExist:
+                            pass
+                    elif contest_name:
+                        contest_obj = Contest.objects.filter(tenant=tenant, name=contest_name).first()
+                    
+                    if contest_obj:
+                        conversation = Conversation.objects.filter(customer=customer, contest=contest_obj).first()
+                        if conversation:
+                            messages = CoreMessage.objects.filter(conversation=conversation).order_by('sent_at')
+                            chat_messages = []
+                            for msg in messages:
+                                chat_messages.append({
+                                    'text': msg.text_body,
+                                    'direction': msg.direction,
+                                    'timestamp': msg.sent_at.strftime('%H:%M') if hasattr(msg, 'sent_at') and msg.sent_at else '',
+                                    'is_image': msg.text_body == '[image]'
+                                })
+                            chat_history[participant['id']] = chat_messages
         except Exception as e:
-            print(f"Error getting chat history for {participant['name']}: {e}")
+            logger.debug(f"Error getting chat history for {participant.get('name', 'unknown')}: {e}")
             chat_history[participant['id']] = []
     
     import json
+    
+    # Ensure contests list is always present (even if empty)
+    if not contests:
+        logger.warning("Contests list is empty - this might indicate an issue")
+        # Try to reload contests as fallback
+        try:
+            db_contests_fallback = Contest.objects.filter(tenant=tenant).order_by('-created_at')
+            contests = [{'id': str(c.contest_id), 'name': c.name, 'contest_id': str(c.contest_id)} 
+                        for c in db_contests_fallback]
+            logger.info(f"Reloaded {len(contests)} contests as fallback")
+        except Exception as e:
+            logger.error(f"Failed to reload contests: {e}", exc_info=True)
     
     context = {
         'participants': participants,
@@ -1372,10 +2057,12 @@ def participants_manager(request):
         'chat_history': chat_history,
         'chat_history_json': json.dumps(chat_history),
         'total_participants': len(participants),
-        'contest_filter': contest_filter,
+        'contests': contests,  # Add contests list for dropdown - always ensure this is a list
+        'contest_filter': contest_id,  # Use contest_id instead of contest_filter
         'status_filter': status_filter,
         'search_query': search_query,
     }
+    logger.info(f"Rendering participants_manager with {len(contests)} contests and {len(participants)} participants")
     return render(request, 'messaging/participants_manager.html', context)
 
 def select_winners(request):
@@ -2722,7 +3409,6 @@ def pdpa_settings(request):
 
 
 @login_required
-@csrf_exempt
 def toggle_contest_status(request):
     """Toggle contest active status via AJAX"""
     if request.method != 'POST':
@@ -2763,6 +3449,29 @@ def toggle_contest_status(request):
             # Try to find in database
             try:
                 contest = Contest.objects.get(contest_id=contest_id, tenant=tenant)
+                
+                # Check if contest period has ended
+                now = dj_timezone.now()
+                if now > contest.ends_at:
+                    # Contest period has ended - automatically disable
+                    if new_status:
+                        return JsonResponse({
+                            'success': False,
+                            'error': 'Cannot activate contest: contest period has ended',
+                            'is_active': False,
+                            'contest_name': contest.name
+                        }, status=400)
+                    # If trying to deactivate an already ended contest, just save the status
+                    contest.is_active = False
+                    contest.save()
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Contest is already ended and inactive',
+                        'is_active': False,
+                        'contest_name': contest.name
+                    })
+                
+                # Contest period hasn't ended - allow toggle
                 contest.is_active = new_status
                 contest.save()
                 
@@ -2778,4 +3487,201 @@ def toggle_contest_status(request):
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'error': 'Invalid JSON data'}, status=400)
     except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def delete_contest(request, contest_id):
+    """Delete a contest and all its associated entries via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    tenant = _get_tenant(request)
+    if not tenant:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    if not _require_plan(tenant, 'contest'):
+        return JsonResponse({'success': False, 'error': 'Contest plan required'}, status=403)
+    
+    try:
+        # Handle hardcoded contests - don't allow deletion
+        hardcoded_contests = ['merdeka_w1', 'merdeka_w2', 'merdeka_w3']
+        if contest_id in hardcoded_contests:
+            return JsonResponse({
+                'success': False,
+                'error': 'Cannot delete hardcoded contest'
+            }, status=403)
+        
+        # Try to find the contest in database
+        contest = Contest.objects.get(contest_id=contest_id, tenant=tenant)
+        contest_name = contest.name
+        
+        # Delete all associated entries first (cascade delete)
+        ContestEntry.objects.filter(contest=contest, tenant=tenant).delete()
+        
+        # Delete the contest
+        contest.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Contest "{contest_name}" and all associated entries deleted successfully',
+        })
+    except Contest.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Contest not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error deleting contest: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def delete_participant(request, entry_id):
+    """Delete a contest entry (participant) via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    tenant = _get_tenant(request)
+    if not tenant:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    if not _require_plan(tenant, 'contest'):
+        return JsonResponse({'success': False, 'error': 'Contest plan required'}, status=403)
+    
+    try:
+        # Try to find the entry in database
+        entry = ContestEntry.objects.get(entry_id=entry_id, tenant=tenant)
+        participant_name = entry.contestant_name or entry.customer.name if entry.customer else 'Unknown'
+        
+        # Delete the entry
+        entry.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Participant "{participant_name}" deleted successfully',
+        })
+    except ContestEntry.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Participant entry not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error deleting participant: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def update_manual_entry(request, entry_id):
+    """Update contest entry with manual data and remove flagged status"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    tenant = _get_tenant(request)
+    if not tenant:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    if not _require_plan(tenant, 'contest'):
+        return JsonResponse({'success': False, 'error': 'Contest plan required'}, status=403)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        # Get the entry
+        entry = ContestEntry.objects.get(entry_id=entry_id, tenant=tenant)
+        
+        # Update receipt/store information
+        entry.receipt_store = data.get('store', '')
+        entry.store_name = data.get('store', '')
+        entry.store_location = data.get('location', '')
+        entry.receipt_amount = float(data.get('amount', 0))
+        
+        # Update products purchased (store as JSON)
+        products = data.get('products', [])
+        if products:
+            entry.products_purchased = products
+        
+        # Update status to verified and remove flagged status
+        entry.status = 'verified'
+        entry.is_verified = True
+        entry.rejection_reason = None  # Clear rejection reason
+        
+        # Save the entry
+        entry.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Entry updated and verified successfully',
+        })
+    except ContestEntry.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Entry not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error updating manual entry: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def reset_submission(request, entry_id):
+    """Reset a contest submission for testing - clears entry data but keeps the entry record"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    tenant = _get_tenant(request)
+    if not tenant:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    if not _require_plan(tenant, 'contest'):
+        return JsonResponse({'success': False, 'error': 'Contest plan required'}, status=403)
+    
+    try:
+        entry = ContestEntry.objects.get(entry_id=entry_id, tenant=tenant)
+        
+        # Reset entry data
+        entry.status = 'pending'
+        entry.is_verified = False
+        entry.rejection_reason = None
+        entry.receipt_store = None
+        entry.store_name = None
+        entry.store_location = None
+        entry.receipt_amount = None
+        entry.products_purchased = []
+        entry.verified_at = None
+        entry.verified_by = None
+        entry.verification_notes = None
+        
+        entry.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Submission reset successfully. Entry is now pending.',
+        })
+    except ContestEntry.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Entry not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error resetting submission: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def check_reply_status(request, message_id):
+    """Check if a reply message was successfully sent"""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    tenant = _get_tenant(request)
+    if not tenant:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=401)
+    
+    try:
+        message = CoreMessage.objects.get(message_id=message_id, tenant=tenant)
+        
+        return JsonResponse({
+            'success': True,
+            'message_id': str(message.message_id),
+            'status': message.status,
+            'direction': message.direction,
+            'text_body': message.text_body[:100] if message.text_body else None,
+            'created_at': message.created_at.isoformat() if message.created_at else None,
+            'error_code': getattr(message, 'error_code', None),
+            'error_message': getattr(message, 'error_message', None),
+        })
+    except CoreMessage.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Message not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error checking reply status: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)

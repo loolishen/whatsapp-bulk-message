@@ -226,11 +226,26 @@ Your deployment is successful when:
 ## 📞 Important Commands Reference
 
 ```bash
+# IMPORTANT: if you are editing code locally but deploying from Cloud Shell,
+# make sure Cloud Shell has the latest code. Old code = old bugs still showing.
+#
+# Recommended approach:
+# 1) Sync local -> Cloud Shell (example uses a GCS bucket as the bridge)
+# 2) Deploy from Cloud Shell
+#
+# (If you are already developing directly in Cloud Shell, you can skip the sync step.)
+
 # Deploy (Windows CMD)
 deploy_local.bat
 
 # Deploy (Linux/Mac)
 gcloud app deploy --project=PROJECT_ID
+
+# Verify which version is live
+gcloud app versions list --service=default --project=PROJECT_ID
+
+# Tail live logs while testing
+gcloud app logs tail -s default --project=PROJECT_ID
 
 # Migrate (Cloud Shell)
 ./deploy_to_gcp.sh
@@ -247,6 +262,22 @@ cloud-sql-proxy PROJECT:REGION:INSTANCE --port=5432 &
 # Stop Cloud SQL Proxy
 pkill cloud-sql-proxy
 ```
+
+---
+
+## 🧯 If you fixed something locally but production still shows the old error
+
+Example symptom:
+- You fixed a template bug locally, but App Engine still throws the same `NoReverseMatch` error.
+
+This almost always means **your new code was not deployed** (or you deployed from an old folder).
+
+Checklist:
+- Confirm your local repo contains the fix (e.g. no `{% url '' %}` left in templates)
+- Deploy from the *same folder* that contains the fix
+- After deploy, confirm a *new version* exists:
+  - `gcloud app versions list --service=default --project=PROJECT_ID`
+- Hard refresh the page (Ctrl+F5) after deploy
 
 ---
 

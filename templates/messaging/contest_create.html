@@ -370,6 +370,88 @@
       .back-btn{position:static; margin-bottom:16px; display:inline-block}
       .main-layout{padding:16px}
     }
+    
+    /* ===== Conversation Steps Styles ===== */
+    .conversation-step{
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      background: var(--white);
+      position: relative;
+    }
+    
+    .conversation-step:hover{
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(24, 119, 242, 0.1);
+    }
+    
+    .step-header{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .step-header h4{
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .step-badge{
+      background: var(--primary);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .step-badge.optional{
+      background: var(--secondary);
+    }
+    
+    .step-content{
+      margin-top: 12px;
+    }
+    
+    .btn-add-step{
+      background: var(--secondary);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    
+    .btn-add-step:hover{
+      background: var(--secondary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(66, 184, 131, 0.3);
+    }
+    
+    .btn-remove-step{
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 12px;
+      position: absolute;
+      top: 16px;
+      right: 16px;
+    }
+    
+    .btn-remove-step:hover{
+      background: #c0392b;
+    }
   </style>
 </head>
 <body>
@@ -409,6 +491,10 @@
         <span class="nav-item-icon">🏆</span>
         Select Winners
       </a>
+      <a href="{% url 'error_handling_dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">🔧</span>
+        Error Handling
+      </a>
       
       <!-- Blasting Feature Section -->
       <div class="nav-separator">
@@ -433,8 +519,8 @@
       <a href="{% url 'contest_home' %}" class="back-btn">← Back to Contests</a>
       
       <div class="page-header">
-        <h1 class="page-title">Contest Creation</h1>
-        <p class="page-subtitle">Create your contest and manage participant interactions</p>
+        <h1 class="page-title">{% if is_editing %}Edit Contest{% else %}Contest Creation{% endif %}</h1>
+        <p class="page-subtitle">{% if is_editing %}Update your contest settings and messages{% else %}Create your contest and manage participant interactions{% endif %}</p>
       </div>
 
       <form method="post" id="contestForm">
@@ -451,56 +537,69 @@
           <div class="section-content">
             <div class="form-group">
               <input type="text" id="name" name="name" class="form-input" required 
-                     placeholder="Enter your contest name">
+                     placeholder="Enter your contest name" value="{% if contest %}{{ contest.name }}{% endif %}">
             </div>
             
             <div class="form-group">
               <label for="description" class="form-label">Description</label>
               <textarea id="description" name="description" class="form-input form-textarea" 
-                        placeholder="Describe your contest..."></textarea>
+                        placeholder="Describe your contest...">{% if contest %}{{ contest.description|default:'' }}{% endif %}</textarea>
             </div>
             
             <div class="form-row">
               <div class="form-group">
                 <label for="starts_at" class="form-label">Start Date & Time <span class="required">*</span></label>
-                <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required>
+                <input type="datetime-local" id="starts_at" name="starts_at" class="form-input" required value="{% if contest %}{{ starts_at_formatted }}{% endif %}">
               </div>
               <div class="form-group">
                 <label for="ends_at" class="form-label">End Date & Time <span class="required">*</span></label>
-                <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required>
+                <input type="datetime-local" id="ends_at" name="ends_at" class="form-input" required value="{% if contest %}{{ ends_at_formatted }}{% endif %}">
               </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 8px;">
+              <div class="checkbox-group">
+                <input type="checkbox" id="is_active" name="is_active" class="checkbox" {% if not contest or contest.is_active %}checked{% endif %}>
+                <label for="is_active" class="checkbox-label">Set contest as active immediately</label>
+              </div>
+              <div class="help-text">If unchecked, the contest will be created inactive (no auto-replies).</div>
             </div>
             
           </div>
         </div>
 
-        <!-- Keyword Auto-Reply -->
+        <!-- Auto-Reply Keywords -->
         <div class="form-section">
           <div class="section-header" onclick="toggleSection(this)">
-            <div class="section-icon">🤖</div>
-            <div class="section-title">Keyword Auto-Reply</div>
+            <div class="section-icon">🔔</div>
+            <div class="section-title">Auto-Reply Keywords</div>
             <div class="section-toggle">▼</div>
           </div>
           
           <div class="section-content">
+            <div class="help-text" style="margin-bottom: 16px; padding: 12px; background: #e7f3ff; border-left: 4px solid #1877f2; border-radius: 6px;">
+              <strong>🎯 How it works:</strong> When users send these keywords, the contest conversation flow will automatically start!<br>
+              The bot will send: Introduction Message → PDPA Consent → Participant Agreement → Contest Instructions → Verification Instructions → Eligibility Message
+            </div>
+            
             <div class="form-group">
-              <label for="keywords" class="form-label">Keywords (comma-separated) <span class="required">*</span></label>
+              <label for="keywords" class="form-label">Trigger Keywords (comma-separated) <span class="required">*</span></label>
               <input type="text" id="keywords" name="keywords" class="form-input" 
-                     placeholder="JOIN,MASUK,SERTAI,START,HI,HELLO" required>
-              <div class="help-text">When someone sends any of these keywords via WhatsApp, they'll automatically receive your reply message</div>
+                     placeholder="JOIN, START, MASUK, SERTAI, HELLO" required value="{% if contest and contest.keywords %}{{ contest.keywords }}{% endif %}">
+              <div class="help-text">These keywords will trigger the contest flow. Users will progress through all sections below automatically.</div>
             </div>
             
             <div class="form-group">
-              <label for="auto_reply_message" class="form-label">Auto-Reply Message <span class="required">*</span></label>
+              <label for="auto_reply_message" class="form-label">Auto-Reply Message (optional)</label>
               <textarea id="auto_reply_message" name="auto_reply_message" class="form-input form-textarea" 
-                        placeholder="🎉 Thank you for your interest! Welcome to our contest..." required></textarea>
-              <div class="help-text">This message will be sent automatically when someone sends a keyword</div>
+                        placeholder="Custom auto-reply message when keywords are matched...">{% if contest and contest.auto_reply_message %}{{ contest.auto_reply_message }}{% endif %}</textarea>
+              <div class="help-text">Optional custom message sent when keywords are matched (before contest flow starts)</div>
             </div>
             
             <div class="form-group">
-              <label for="auto_reply_priority" class="form-label">Priority</label>
+              <label for="auto_reply_priority" class="form-label">Contest Priority</label>
               <input type="number" id="auto_reply_priority" name="auto_reply_priority" class="form-input" 
-                     value="5" min="1" max="10">
+                     value="{% if contest and contest.auto_reply_priority %}{{ contest.auto_reply_priority }}{% else %}5{% endif %}" min="1" max="10">
               <div class="help-text">Higher priority contests are checked first if keywords overlap (1-10)</div>
             </div>
           </div>
@@ -531,27 +630,49 @@ https://khind.com.my/pages/privacy-policy
 
 Do you agree to participate and allow us to process your information?
 
-Reply "I agree" to continue or "No" to opt out.">Before we continue, we need your consent to collect and process your personal data.
+Reply "I agree" to continue or "No" to opt out.">{% if contest and contest.pdpa_message %}{{ contest.pdpa_message }}{% else %}Before we continue, we need your consent to collect and process your personal data.
 
 Please read our privacy policy here:
 https://khind.com.my/pages/privacy-policy
 
 Do you agree to participate and allow us to process your information?
 
-Reply "I agree" to continue or "No" to opt out.</textarea>
+Reply "I agree" to continue or "No" to opt out.{% endif %}</textarea>
               <div class="help-text">The URL in the message will automatically update when you change the PDPA Link above</div>
             </div>
             
             <div class="form-group">
-              <label for="participant_agreement" class="form-label">Participant's Agreement Message</label>
+              <label for="participant_agreement" class="form-label">Participant's Agreement Message (sent immediately after they agree)</label>
               <textarea id="participant_agreement" name="participant_agreement" class="form-input form-textarea" 
-                        placeholder="Wonderful! Welcome to the contest! Ready to submit your entry? Let's get started!"></textarea>
+                        placeholder="✅ Thank you for your consent!">{% if contest and contest.participant_agreement %}{{ contest.participant_agreement }}{% else %}✅ Thank you for your consent!{% endif %}</textarea>
+              <div class="help-text">This message is sent immediately after participant agrees to PDPA. After 3 seconds, the system will automatically ask for their name, email, and NRIC.</div>
+            </div>
+            
+            <div class="form-group">
+              <label for="post_pdpa_text" class="form-label">Information Request Message (sent 3 seconds after agreement)</label>
+              <textarea id="post_pdpa_text" name="post_pdpa_text" class="form-input form-textarea" 
+                        placeholder="One final step before we continue and enter you into the contest.
+
+We need your:
+• Full name
+• Email address
+• IC/NRIC number
+
+Please reply with your **full name** to start.">{% if contest and contest.post_pdpa_text %}{{ contest.post_pdpa_text }}{% else %}One final step before we continue and enter you into the contest.
+
+We need your:
+• Full name
+• Email address
+• IC/NRIC number
+
+Please reply with your **full name** to start.{% endif %}</textarea>
+              <div class="help-text">This message is automatically sent 3 seconds after the agreement message. It asks participants to provide their personal information.</div>
             </div>
             
             <div class="form-group">
               <label for="participant_rejection" class="form-label">Participant's Rejection Message</label>
               <textarea id="participant_rejection" name="participant_rejection" class="form-input form-textarea" 
-                        placeholder="We respect your choice, you won't receive contest messages."></textarea>
+                        placeholder="We respect your choice, you won't receive contest messages.">{% if contest and contest.participant_rejection %}{{ contest.participant_rejection }}{% else %}We respect your choice, you won't receive contest messages.{% endif %}</textarea>
             </div>
           </div>
         </div>
@@ -568,7 +689,7 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
             <div class="form-group">
               <label for="introduction_message" class="form-label">Introduction Message</label>
               <textarea id="introduction_message" name="introduction_message" class="form-input form-textarea" 
-                        placeholder="Hi [Name]! Welcome to our contest..."></textarea>
+                        placeholder="Hi [Name]! Welcome to our contest...">{% if contest and contest.introduction_message %}{{ contest.introduction_message }}{% endif %}</textarea>
             </div>
           </div>
         </div>
@@ -586,23 +707,23 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
             <div class="form-group">
               <label for="contest_instructions" class="form-label">Instructions</label>
               <textarea id="contest_instructions" name="contest_instructions" class="form-input form-textarea" 
-                        placeholder="Instructions for participants..."></textarea>
+                        placeholder="Instructions for participants...">{% if contest and contest.contest_instructions %}{{ contest.contest_instructions }}{% endif %}</textarea>
             </div>
             
             <div class="checkbox-group">
-              <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" checked>
+              <input type="checkbox" id="requires_nric" name="requires_nric" class="checkbox" {% if not contest or contest.requires_nric %}checked{% endif %}>
               <label for="requires_nric" class="checkbox-label">Require NRIC for participation</label>
             </div>
             
             <div class="checkbox-group">
-              <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" checked>
+              <input type="checkbox" id="requires_receipt" name="requires_receipt" class="checkbox" {% if not contest or contest.requires_receipt %}checked{% endif %}>
               <label for="requires_receipt" class="checkbox-label">Require proof of purchase (receipt)</label>
             </div>
             
             <div class="form-group">
               <label for="min_purchase_amount" class="form-label">Minimum Purchase Amount (RM)</label>
               <input type="number" id="min_purchase_amount" name="min_purchase_amount" class="form-input" 
-                     step="0.01" min="0" placeholder="0.00">
+                     step="0.01" min="0" placeholder="0.00" value="{% if contest and contest.min_purchase_amount %}{{ contest.min_purchase_amount }}{% endif %}">
               <div class="help-text">Leave empty for no minimum purchase requirement</div>
             </div>
           </div>
@@ -620,13 +741,13 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
           <div class="section-content">
             <div class="form-group">
               <textarea id="verification_instructions" name="verification_instructions" class="form-input form-textarea" 
-                        placeholder="Instructions for verification process..."></textarea>
+                        placeholder="Instructions for verification process...">{% if contest and contest.verification_instructions %}{{ contest.verification_instructions }}{% endif %}</textarea>
             </div>
             
             <div class="form-group">
               <label for="post_pdpa_image_url" class="form-label">Instructions GIF/Image URL</label>
               <input type="url" id="post_pdpa_image_url" name="post_pdpa_image_url" class="form-input" 
-                     placeholder="https://example.com/contest-animation.gif">
+                     placeholder="https://example.com/contest-animation.gif" value="{% if contest and contest.post_pdpa_image_url %}{{ contest.post_pdpa_image_url }}{% endif %}">
               <div class="help-text">URL to show example on how to take picture</div>
             </div>
           </div>
@@ -644,13 +765,13 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
             <div class="form-group">
               <label for="eligibility_message" class="form-label">Success Message</label>
               <textarea id="eligibility_message" name="eligibility_message" class="form-input form-textarea" 
-                        placeholder="Congratulations! You are eligible to participate..."></textarea>
+                        placeholder="Congratulations! You are eligible to participate...">{% if contest and contest.eligibility_message %}{{ contest.eligibility_message }}{% else %}Congratulations! You are eligible to participate in this contest. Please follow the instructions to complete your entry.{% endif %}</textarea>
             </div>
             
             <div class="form-group">
               <label for="failure_message" class="form-label">Failure Message</label>
               <textarea id="failure_message" name="failure_message" class="form-input form-textarea" 
-                        placeholder="Sorry, we couldn't detect a valid receipt..."></textarea>
+                        placeholder="Sorry, we couldn't detect a valid receipt...">{% if contest and contest.failure_message %}{{ contest.failure_message }}{% endif %}</textarea>
             </div>
           </div>
         </div>
@@ -659,7 +780,7 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
         <!-- Form Actions -->
         <div class="form-actions">
           <a href="{% url 'contest_home' %}" class="btn btn-secondary">Cancel</a>
-          <button type="submit" class="btn btn-primary">Create Contest</button>
+          <button type="submit" class="btn btn-primary">{% if is_editing %}Update Contest{% else %}Create Contest{% endif %}</button>
         </div>
       </form>
     </div>
@@ -695,12 +816,11 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
 
           <!-- WhatsApp Messages Area -->
           <div class="wa-messages">
-            <!-- Message 1: Introduction -->
-            <div class="wa-message incoming">
-              <div class="wa-message-avatar">🤖</div>
-              <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Hi [Name]! 👋 Welcome to the Khind Merdeka W1 Contest!<br><br>We're celebrating Malaysia's independence with amazing prizes!</div>
-                <div class="wa-bubble-time">10:30 AM</div>
+            <!-- Message 1: Participant sends receipt image FIRST -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">📷 [Receipt Photo]</div>
+                <div class="wa-bubble-time">10:30 AM <span class="wa-bubble-status">✓✓</span></div>
               </div>
             </div>
 
@@ -713,72 +833,80 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
               </div>
             </div>
 
-            <!-- Message 3: User Agreement -->
+            <!-- Message 4: User Agreement -->
             <div class="wa-message outgoing">
               <div class="wa-bubble outgoing">
-                <div class="wa-bubble-text">I agree to the terms</div>
+                <div class="wa-bubble-text">I agree</div>
                 <div class="wa-bubble-time">10:32 AM <span class="wa-bubble-status">✓✓</span></div>
               </div>
             </div>
 
-            <!-- Message 4: Agreement Response -->
+            <!-- Message 5: Agreement Response (immediate) -->
             <div class="wa-message incoming">
               <div class="wa-message-avatar">🤖</div>
               <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Wonderful! Welcome to the contest!<br>Ready to submit your entry? Let's get started!</div>
+                <div class="wa-bubble-text">✅ Thank you for your consent!</div>
+                <div class="wa-bubble-time">10:32 AM</div>
+              </div>
+            </div>
+
+            <!-- Message 6: Information Request (after 3 seconds) -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">One final step before we continue and enter you into the contest.<br><br>We need your:<br>• Full name<br>• Email address<br>• IC/NRIC number<br><br>Please reply with your **full name** to start.</div>
+                <div class="wa-bubble-time">10:32 AM</div>
+              </div>
+            </div>
+
+            <!-- Message 7: Participant provides name -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">John Doe</div>
+                <div class="wa-bubble-time">10:33 AM <span class="wa-bubble-status">✓✓</span></div>
+              </div>
+            </div>
+
+            <!-- Message 8: Bot asks for email -->
+            <div class="wa-message incoming">
+              <div class="wa-message-avatar">🤖</div>
+              <div class="wa-bubble incoming">
+                <div class="wa-bubble-text">Thanks, John Doe! Now please reply with your **email address**.</div>
                 <div class="wa-bubble-time">10:33 AM</div>
               </div>
             </div>
 
-            <!-- Message 5: Customer Information Requirements -->
+            <!-- Message 9: Participant provides email -->
+            <div class="wa-message outgoing">
+              <div class="wa-bubble outgoing">
+                <div class="wa-bubble-text">john@example.com</div>
+                <div class="wa-bubble-time">10:34 AM <span class="wa-bubble-status">✓✓</span></div>
+              </div>
+            </div>
+
+            <!-- Message 10: Bot asks for NRIC -->
             <div class="wa-message incoming">
               <div class="wa-message-avatar">🤖</div>
               <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Please provide your details as well as a picture of your NRIC!<br><br>Name:<br>Email address:<br>NRIC:</div>
+                <div class="wa-bubble-text">Great. Finally, please reply with your **IC/NRIC** (e.g., 901231-01-1234).</div>
                 <div class="wa-bubble-time">10:34 AM</div>
               </div>
             </div>
 
-            <!-- Message 6: Participant Information Response -->
+            <!-- Message 11: Participant provides NRIC -->
             <div class="wa-message outgoing">
               <div class="wa-bubble outgoing">
-                <div class="wa-bubble-text">Name: [Name]<br>Email: [email@example.com]<br>NRIC: [NRIC Number]</div>
+                <div class="wa-bubble-text">901231-01-1234</div>
                 <div class="wa-bubble-time">10:35 AM <span class="wa-bubble-status">✓✓</span></div>
               </div>
             </div>
 
-            <!-- Message 7: Instructions -->
+            <!-- Message 12: Final acknowledgment with receipt result + entry confirmation -->
             <div class="wa-message incoming">
               <div class="wa-message-avatar">🤖</div>
               <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Excellent! Now please upload your purchase receipt photo.<br><br>For best results, follow these steps:<br>1️⃣ Place receipt on a flat surface<br>2️⃣ Ensure good lighting (avoid shadows)<br>3️⃣ Hold your phone steady<br>4️⃣ Capture the ENTIRE receipt in frame<br>5️⃣ Make sure all text is clear and readable<br><br>The receipt must show:<br>✅ Store name<br>✅ Product purchased (Khind product)<br>✅ Total amount (minimum RM98)<br>✅ Purchase date (within contest period)<br>✅ Receipt number/invoice<br><br>Please upload your receipt now!</div>
-                <div class="wa-bubble-time">10:36 AM</div>
-              </div>
-            </div>
-
-            <!-- Message 8: Participant Receipt Response -->
-            <div class="wa-message outgoing">
-              <div class="wa-bubble outgoing">
-                <div class="wa-bubble-text">Here's my receipt! 📷</div>
-                <div class="wa-bubble-time">10:37 AM <span class="wa-bubble-status">✓✓</span></div>
-              </div>
-            </div>
-
-            <!-- Message 9: Processing -->
-            <div class="wa-message incoming">
-              <div class="wa-message-avatar">🤖</div>
-              <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Processing your receipt... Please wait a moment.</div>
-                <div class="wa-bubble-time">10:38 AM</div>
-              </div>
-            </div>
-
-            <!-- Message 10: Success -->
-            <div class="wa-message incoming">
-              <div class="wa-message-avatar">🤖</div>
-              <div class="wa-bubble incoming">
-                <div class="wa-bubble-text">Perfect! I can see your receipt clearly.<br><br>Here's what I found:<br>📋 Invoice #[Invoice Number]<br>🏪 Store: [Store Name]<br>📍 Location: [Store Location]<br>📅 Purchase Date: [Purchase Date]<br>🛍️ Product: [Product Name]<br>💰 Amount: RM[Amount]<br><br>All details verified! ✅<br><br>Your entry is VALID and has been successfully submitted! 🎊<br><br>Contest Entry Details:<br>👤 Name: [Name]<br>📧 Email: [Email]<br>📱 Phone: [Phone]<br>🎫 Entry Number: [Entry Number]<br><br>Winner announcement: [Announcement Date]<br>We'll notify winners directly via WhatsApp.<br><br>Good luck!</div>
-                <div class="wa-bubble-time">10:39 AM</div>
+                <div class="wa-bubble-text">✅ Receipt details extracted:<br><br>🏪 Store: Khind Customer Service<br>📍 Location: Shah Alam, Selangor<br>💰 Amount: RM98.00<br>🛍️ Product: VC9678MS Vacuum Cleaner<br><br>📋 Your Entry Details:<br>👤 Name: John Doe<br>📧 Email: john@example.com<br>🆔 IC/NRIC: 901231-01-1234<br><br>🎉 Congratulations! You have been entered into the contest!<br><br>🎫 Entry Number: ABC12345<br><br>Your contest entry has been successfully registered. We'll contact you on WhatsApp if you're selected as a winner.<br><br>Good luck! 🍀</div>
+                <div class="wa-bubble-time">10:35 AM</div>
               </div>
             </div>
 
@@ -805,13 +933,19 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
   </div>
 
   <script>
-    // Set default datetime values
+    // Set default datetime values (IMPORTANT: datetime-local expects LOCAL time, not UTC)
+    function toDatetimeLocalValue(date) {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
     const now = new Date();
-    const startTime = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+    // Default to "active immediately" so keyword tests work right after creating a contest
+    const startTime = new Date(now.getTime() - 60 * 1000); // 1 minute ago
     const endTime = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 1 week from now
-    
-    document.getElementById('starts_at').value = startTime.toISOString().slice(0, 16);
-    document.getElementById('ends_at').value = endTime.toISOString().slice(0, 16);
+
+    document.getElementById('starts_at').value = toDatetimeLocalValue(startTime);
+    document.getElementById('ends_at').value = toDatetimeLocalValue(endTime);
 
     // Toggle section collapse/expand
     function toggleSection(header) {
@@ -838,21 +972,18 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
       const pdpaUrl = document.getElementById('pdpa_url').value || 'https://khind.com.my/pages/privacy-policy';
       const introductionMessage = document.getElementById('introduction_message').value || 'Hi Li Shen! 👋 Welcome to the Khind Merdeka W1 Contest!\n\nWe\'re celebrating Malaysia\'s independence with amazing prizes!';
       const pdpaMessage = document.getElementById('pdpa_message').value || `Before we continue, we need your consent to collect and process your personal data.\n\nPlease read our privacy policy here:\n${pdpaUrl}\n\nDo you agree to participate and allow us to process your information?\n\nReply "I agree" to continue or "No" to opt out.`;
-      const participantAgreement = document.getElementById('participant_agreement').value || 'Wonderful! Welcome to the contest!\nReady to submit your entry? Let\'s get started!';
+      const participantAgreement = document.getElementById('participant_agreement').value || '✅ Thank you for your consent!';
+      const postPDPAText = document.getElementById('post_pdpa_text').value || 'One final step before we continue and enter you into the contest.\n\nWe need your:\n• Full name\n• Email address\n• IC/NRIC number\n\nPlease reply with your **full name** to start.';
       const participantRejection = document.getElementById('participant_rejection').value || 'We respect your choice, you won\'t receive contest messages.';
       const contestInstructions = document.getElementById('contest_instructions').value || 'Please provide your details as well as a picture of your NRIC!\n\nName:\nEmail address:\nNRIC:';
       const verificationInstructions = document.getElementById('verification_instructions').value || 'Excellent! Now please upload your purchase receipt photo.\n\nFor best results, follow these steps:\n1️⃣ Place receipt on a flat surface\n2️⃣ Ensure good lighting (avoid shadows)\n3️⃣ Hold your phone steady\n4️⃣ Capture the ENTIRE receipt in frame\n5️⃣ Make sure all text is clear and readable\n\nThe receipt must show:\n✅ Store name\n✅ Product purchased (Khind product)\n✅ Total amount (minimum RM98)\n✅ Purchase date (within contest period)\n✅ Receipt number/invoice\n\nPlease upload your receipt now!';
       const eligibilityMessage = document.getElementById('eligibility_message').value || 'Perfect! I can see your receipt clearly.\n\nHere\'s what I found:\n📋 Invoice #[Invoice Number]\n🏪 Store: [Store Name]\n📍 Location: [Store Location]\n📅 Purchase Date: [Purchase Date]\n🛍️ Product: [Product Name]\n💰 Amount: RM[Amount]\n\nAll details verified! ✅\n\nYour entry is VALID and has been successfully submitted! 🎊\n\nContest Entry Details:\n👤 Name: [Name]\n📧 Email: [Email]\n📱 Phone: [Phone]\n🎫 Entry Number: [Entry Number]\n\nWinner announcement: [Announcement Date]\nWe\'ll notify winners directly via WhatsApp.\n\nGood luck!';
       
-      // Update WhatsApp preview messages in correct order:
-      // 1. Introduction
-      const introBubble = document.querySelector('.wa-message:nth-child(1) .wa-bubble-text');
-      if (introBubble) {
-        introBubble.innerHTML = introductionMessage.replace(/\n/g, '<br>');
-      }
-      
-      // 2. PDPA Agreement
-      const pdpaBubble = document.querySelector('.wa-message:nth-child(2) .wa-bubble-text');
+      // Update WhatsApp preview messages in correct order (new flow):
+      // Message 1: Receipt image (outgoing) - static
+      // Message 2: Bot acknowledges receipt - static
+      // Message 3: PDPA Agreement
+      const pdpaBubble = document.querySelector('.wa-message:nth-child(3) .wa-bubble-text');
       if (pdpaBubble) {
         // Replace the URL in the message with the current pdpa_url value
         let updatedMessage = pdpaMessage;
@@ -865,28 +996,36 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
         pdpaBubble.innerHTML = updatedMessage.replace(/\n/g, '<br>');
       }
       
-      // 4. Agreement Response
-      const agreementBubble = document.querySelector('.wa-message:nth-child(4) .wa-bubble-text');
+      // Message 5: Agreement Response (immediate)
+      const agreementBubble = document.querySelector('.wa-message:nth-child(5) .wa-bubble-text');
       if (agreementBubble) {
         agreementBubble.innerHTML = participantAgreement.replace(/\n/g, '<br>');
       }
       
-      // 5. Customer Information Requirements
-      const customerInfoBubble = document.querySelector('.wa-message:nth-child(5) .wa-bubble-text');
-      if (customerInfoBubble) {
-        customerInfoBubble.innerHTML = contestInstructions.replace(/\n/g, '<br>');
+      // Message 6: Information Request (after 3 seconds)
+      const infoRequestBubble = document.querySelector('.wa-message:nth-child(6) .wa-bubble-text');
+      if (infoRequestBubble) {
+        infoRequestBubble.innerHTML = postPDPAText.replace(/\n/g, '<br>');
       }
       
-      // 7. Instructions
-      const instructionBubble = document.querySelector('.wa-message:nth-child(7) .wa-bubble-text');
-      if (instructionBubble) {
-        instructionBubble.innerHTML = verificationInstructions.replace(/\n/g, '<br>');
-      }
-      
-      // 10. Success Response
-      const successBubble = document.querySelector('.wa-message:nth-child(10) .wa-bubble-text');
-      if (successBubble) {
-        successBubble.innerHTML = eligibilityMessage.replace(/\n/g, '<br>');
+      // Message 12: Final acknowledgment with receipt result + entry confirmation
+      const finalBubble = document.querySelector('.wa-message:nth-child(12) .wa-bubble-text');
+      if (finalBubble) {
+        // Build final message with receipt details + entry confirmation
+        let finalMsg = '✅ Receipt details extracted:\n\n';
+        finalMsg += '🏪 Store: Khind Customer Service\n';
+        finalMsg += '📍 Location: Shah Alam, Selangor\n';
+        finalMsg += '💰 Amount: RM98.00\n';
+        finalMsg += '🛍️ Product: VC9678MS Vacuum Cleaner\n\n';
+        finalMsg += '📋 Your Entry Details:\n';
+        finalMsg += '👤 Name: John Doe\n';
+        finalMsg += '📧 Email: john@example.com\n';
+        finalMsg += '🆔 IC/NRIC: 901231-01-1234\n\n';
+        finalMsg += '🎉 Congratulations! You have been entered into the contest!\n\n';
+        finalMsg += '🎫 Entry Number: ABC12345\n\n';
+        finalMsg += "Your contest entry has been successfully registered. We'll contact you on WhatsApp if you're selected as a winner.\n\n";
+        finalMsg += 'Good luck! 🍀';
+        finalBubble.innerHTML = finalMsg.replace(/\n/g, '<br>');
       }
       
       // Update rejection response
@@ -901,6 +1040,7 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
     document.getElementById('introduction_message').addEventListener('input', updatePreview);
     document.getElementById('pdpa_message').addEventListener('input', updatePreview);
     document.getElementById('participant_agreement').addEventListener('input', updatePreview);
+    document.getElementById('post_pdpa_text').addEventListener('input', updatePreview);
     document.getElementById('participant_rejection').addEventListener('input', updatePreview);
     document.getElementById('contest_instructions').addEventListener('input', updatePreview);
     document.getElementById('verification_instructions').addEventListener('input', updatePreview);
@@ -938,6 +1078,56 @@ Reply "I agree" to continue or "No" to opt out.</textarea>
         toggleSection(firstSection);
       }
     });
+    
+    // Conversation Steps Management
+    let stepCounter = 1;
+    
+    function addConversationStep() {
+      stepCounter++;
+      const container = document.getElementById('conversation-steps-container');
+      
+      const stepHtml = `
+        <div class="conversation-step" data-step="${stepCounter}">
+          <button type="button" class="btn-remove-step" onclick="removeConversationStep(this)">✕ Remove</button>
+          
+          <div class="step-header">
+            <h4 style="margin: 0; color: #42b883;">📍 Step ${stepCounter}</h4>
+            <span class="step-badge optional">Optional</span>
+          </div>
+          
+          <div class="step-content">
+            <div class="form-group">
+              <label class="form-label">Step Name</label>
+              <input type="text" name="step_${stepCounter}_name" class="form-input" 
+                     placeholder="e.g., Request NRIC, Request Receipt, Confirmation">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Keywords (comma-separated)</label>
+              <input type="text" name="step_${stepCounter}_keywords" class="form-input" 
+                     placeholder="PHOTO,RECEIPT,IMAGE,GAMBAR">
+              <div class="help-text">These keywords will trigger this step</div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Auto-Reply Message</label>
+              <textarea name="step_${stepCounter}_message" class="form-input form-textarea" 
+                        placeholder="Great! Now please send your NRIC photo..."></textarea>
+              <div class="help-text">This message will be sent when keywords match</div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      container.insertAdjacentHTML('beforeend', stepHtml);
+    }
+    
+    function removeConversationStep(button) {
+      const step = button.closest('.conversation-step');
+      if (step) {
+        step.remove();
+      }
+    }
   </script>
 </body>
 </html>

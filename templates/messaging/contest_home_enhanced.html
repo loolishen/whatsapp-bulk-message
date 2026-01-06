@@ -43,11 +43,20 @@
     }
 
     .profile-name{
-      font-size:18px; font-weight:500; color:var(--text); margin:0
+      font-size:18px; font-weight:500; color:var(--text); margin:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center
+    }
+    .pro-badge{
+      background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:0.5px
     }
 
     .profile-role{
       font-size:11px; font-weight:300; color:var(--text-muted); margin:0
+    }
+    .logout-btn{
+      margin-top:12px; padding:8px 16px; background:var(--danger); color:white; text-decoration:none; border-radius:6px; font-size:12px; font-weight:600; transition:all 0.2s; display:inline-block
+    }
+    .logout-btn:hover{
+      background:#c0392b; transform:translateY(-1px); box-shadow:0 2px 8px rgba(231,76,60,0.3)
     }
 
     .sidebar-nav{
@@ -182,16 +191,41 @@
       background:var(--gray-light); transform:translateY(-1px)
     }
     .status-item.active{
-      border-left:4px solid var(--success)
+      border-left:4px solid var(--success); background:linear-gradient(90deg, rgba(66, 184, 131, 0.1) 0%, transparent 100%);
+      border:1px solid rgba(66, 184, 131, 0.3)
+    }
+    .status-item.inactive{
+      border-left:4px solid var(--gray-dark); background:var(--gray-light);
+      opacity:0.7
     }
     .status-item.upcoming{
       border-left:4px solid var(--info)
     }
     .status-item.ended{
-      border-left:4px solid var(--gray-dark)
+      border-left:4px solid var(--gray-dark); background:var(--gray-light);
+      opacity:0.6
     }
     .status-item.flagged{
       border-left:4px solid var(--danger); background:#fef2f2
+    }
+    .status-item-actions{
+      display:flex; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border)
+    }
+    .btn-edit{
+      padding:6px 12px; background:var(--primary); color:white; border:none; border-radius:6px;
+      font-size:12px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex;
+      align-items:center; gap:4px; transition:all 0.2s
+    }
+    .btn-edit:hover{
+      background:var(--primary-hover); transform:translateY(-1px)
+    }
+    .btn-view{
+      padding:6px 12px; background:var(--gray-light); color:var(--text); border:1px solid var(--border);
+      border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; text-decoration:none;
+      display:inline-flex; align-items:center; gap:4px; transition:all 0.2s
+    }
+    .btn-view:hover{
+      background:var(--gray); border-color:var(--primary)
     }
     .status-item-info{
       margin-bottom:8px
@@ -229,6 +263,10 @@
     }
     .status-item-date{
       margin-top:8px; padding-top:8px; border-top:1px solid var(--border)
+    }
+    @keyframes pulse{
+      0%, 100%{opacity:1}
+      50%{opacity:0.5}
     }
 
     /* ===== Contest Table ===== */
@@ -358,6 +396,12 @@
     .toggle-switch input:disabled + .toggle-slider{
       opacity:0.5; cursor:not-allowed
     }
+    .toggle-slider.disabled{
+      opacity:0.5; cursor:not-allowed; background-color:#999 !important
+    }
+    .toggle-switch input:disabled + .toggle-slider.disabled:before{
+      background-color:#ddd
+    }
 
     /* ===== Empty State ===== */
     .empty-state{
@@ -396,9 +440,10 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <div class="profile-section">
-        <div class="profile-avatar">K</div>
-        <h3 class="profile-name">Khind</h3>
+        <div class="profile-avatar">{{ request.user.first_name|default:"U"|slice:":1"|upper }}</div>
+        <h3 class="profile-name">{{ request.user.get_full_name|default:request.user.username }} <span class="pro-badge">PRO</span></h3>
         <p class="profile-role">Admin</p>
+        <a href="{% url 'auth_logout' %}" class="logout-btn">🚪 Logout</a>
     </div>
     </div>
     
@@ -422,6 +467,10 @@
       <a href="{% url 'select_winners' %}" class="nav-item">
         <span class="nav-item-icon">🏆</span>
         Select Winners
+      </a>
+      <a href="{% url 'error_handling_dashboard' %}" class="nav-item">
+        <span class="nav-item-icon">🔧</span>
+        Error Handling
       </a>
     </nav>
   </div>
@@ -448,13 +497,19 @@
             {% if contest.is_active %}
               <div class="status-item active {% if contest.flagged_entries > 0 %}flagged{% endif %}">
                 <div class="status-item-info">
-                  <h4 class="status-item-title">
-                    {{ contest.name }}
-                    {% if contest.flagged_entries > 0 %}
-                      <span style="color: var(--danger); font-size: 12px; margin-left: 8px;">⚠️ {{ contest.flagged_entries }} flagged</span>
-                    {% endif %}
-                  </h4>
-                  <p class="status-item-desc">{{ contest.description|truncatechars:60 }}</p>
+                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px">
+                    <div style="flex:1">
+                      <h4 class="status-item-title">
+                        <span style="display:inline-block; width:8px; height:8px; background:var(--success); border-radius:50%; margin-right:8px; animation:pulse 2s infinite"></span>
+                        {{ contest.name }}
+                        {% if contest.flagged_entries > 0 %}
+                          <span style="color: var(--danger); font-size: 12px; margin-left: 8px;">⚠️ {{ contest.flagged_entries }} flagged</span>
+                        {% endif %}
+                      </h4>
+                      <p class="status-item-desc">{{ contest.description|truncatechars:60|default:"No description" }}</p>
+                    </div>
+                    <span style="background:var(--success); color:white; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; white-space:nowrap">Active</span>
+                  </div>
                   <div class="status-item-date">
                     <span class="date-label">Duration:</span>
                     <span class="date-value">{{ contest.starts_at|date:"M d" }} - {{ contest.ends_at|date:"M d, Y" }}</span>
@@ -466,7 +521,13 @@
                   {% if contest.flagged_entries > 0 %}
                     <span class="stat-badge" style="background: var(--danger); color: white;">{{ contest.flagged_entries }} flagged</span>
                   {% endif %}
-                  <span class="stat-badge" style="background: var(--primary-light); color: var(--primary);">Min: RM{{ contest.min_purchase_amount }}</span>
+                  <span class="stat-badge" style="background: var(--primary-light); color: var(--primary);">Min: RM{{ contest.min_purchase_amount|default:"0" }}</span>
+                </div>
+                <div class="status-item-actions">
+                  {% if contest.contest_id %}
+                  <a href="{% url 'contest_edit' contest.contest_id %}" class="btn-edit">✏️ Edit</a>
+                  <a href="{% url 'contest_detail' contest.contest_id %}" class="btn-view">👁️ View Details</a>
+                  {% endif %}
                 </div>
               </div>
             {% endif %}
@@ -475,6 +536,52 @@
           {% endfor %}
       </div>
         </div>
+
+      <div class="status-section">
+        <div class="status-header">
+          <h3 class="status-title">Inactive Contests</h3>
+          <span class="status-count">{% for c in contests %}{% if not c.is_active %}{{ forloop.counter0|add:1 }}{% endif %}{% endfor %}</span>
+        </div>
+        <div class="status-content">
+          {% for contest in contests %}
+            {% if not contest.is_active %}
+              <div class="status-item inactive {% if contest.ends_at < now %}ended{% endif %}">
+                <div class="status-item-info">
+                  <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px">
+                    <div style="flex:1">
+                      <h4 class="status-item-title">
+                        <span style="display:inline-block; width:8px; height:8px; background:var(--gray-dark); border-radius:50%; margin-right:8px"></span>
+                        {{ contest.name }}
+                      </h4>
+                      <p class="status-item-desc">{{ contest.description|truncatechars:60|default:"No description" }}</p>
+                    </div>
+                    <span style="background:var(--gray-dark); color:white; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; white-space:nowrap">{% if contest.ends_at < now %}Ended{% else %}Inactive{% endif %}</span>
+                  </div>
+                  <div class="status-item-date">
+                    <span class="date-label">Duration:</span>
+                    <span class="date-value">{{ contest.starts_at|date:"M d" }} - {{ contest.ends_at|date:"M d, Y" }}</span>
+                  </div>
+                </div>
+                <div class="status-item-stats">
+                  <span class="stat-badge">{{ contest.total_entries }} entries</span>
+                  <span class="stat-badge">{{ contest.verified_entries }} verified</span>
+                  {% if contest.flagged_entries > 0 %}
+                    <span class="stat-badge" style="background: var(--danger); color: white;">{{ contest.flagged_entries }} flagged</span>
+                  {% endif %}
+                </div>
+                <div class="status-item-actions">
+                  {% if contest.contest_id %}
+                  <a href="{% url 'contest_edit' contest.contest_id %}" class="btn-edit">✏️ Edit</a>
+                  <a href="{% url 'contest_detail' contest.contest_id %}" class="btn-view">👁️ View Details</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% empty %}
+            <div class="status-empty">No inactive contests</div>
+          {% endfor %}
+        </div>
+      </div>
 
       <div class="status-section">
         <div class="status-header">
@@ -579,9 +686,11 @@
                           <input type="checkbox" 
                                  class="contest-toggle" 
                                  data-contest-id="{{ contest.contest_id }}"
-                                 {% if contest.is_active %}checked{% endif %}
+                                 data-ends-at="{{ contest.ends_at|date:'c' }}"
+                                 {% if contest.is_active and contest.ends_at >= now %}checked{% elif contest.ends_at < now %}disabled{% endif %}
+                                 {% if contest.ends_at < now %}title="Contest period has ended"{% endif %}
                                  onchange="toggleContestStatus(this)">
-                          <span class="toggle-slider"></span>
+                          <span class="toggle-slider {% if contest.ends_at < now %}disabled{% endif %}"></span>
                         </label>
                       </div>
                       <div class="contest-name-content">
@@ -599,21 +708,29 @@
                 </td>
                 <td>
                   <div class="products-list">
-                    <div class="product-item">🏆 VC9678MS (42%)</div>
-                    <div class="product-item">📱 AP500 Air Purifier (28%)</div>
-                    <div class="product-item">💧 WD390 Dispenser (18%)</div>
+                    {% for product in popular_products %}
+                    <div class="product-item">🏆 {{ product.product }} ({{ product.percentage }}%)</div>
+                    {% empty %}
+                    <div class="product-item">No data available</div>
+                    {% endfor %}
                   </div>
                 </td>
                 <td>
                   <div class="stores-list">
-                    <div class="store-item">🏪 Khind Customer Service (38%)</div>
-                    <div class="store-item">🛒 Harvey Norman (22%)</div>
-                    <div class="store-item">🏬 Courts Mammoth (15%)</div>
+                    {% for store in popular_stores %}
+                    <div class="store-item">🏪 {{ store.store }} ({{ store.percentage }}%)</div>
+                    {% empty %}
+                    <div class="store-item">No data available</div>
+                    {% endfor %}
                   </div>
                 </td>
                 <td>
                   <div class="locations-list">
-                    <div class="location-item">📍 Selangor (35%)</div>
+                    {% for location in popular_locations %}
+                    <div class="location-item">📍 {{ location.location }} ({{ location.percentage }}%)</div>
+                    {% empty %}
+                    <div class="location-item">No data available</div>
+                    {% endfor %}
                     <div class="location-item">📍 Kuala Lumpur (28%)</div>
                     <div class="location-item">📍 Penang (12%)</div>
                   </div>
@@ -662,44 +779,84 @@
   </div>
 
   <script>
-    // Toggle contest status functionality (Artificial/Demo mode)
-    function toggleContestStatus(toggleElement) {
-      const isActive = toggleElement.checked;
+    // Toggle contest status functionality (real backend)
+    async function toggleContestStatus(toggleElement) {
+      // Check if contest has ended
+      const endsAtStr = toggleElement.getAttribute('data-ends-at');
+      if (endsAtStr) {
+        const endsAt = new Date(endsAtStr);
+        const now = new Date();
+        if (endsAt < now && toggleElement.checked) {
+          // Contest has ended - prevent activation
+          toggleElement.checked = false;
+          showNotification('Cannot activate contest: contest period has ended.', 'error');
+          return;
+        }
+      }
+
+      const desiredActive = !!toggleElement.checked;
+      const previousActive = !desiredActive;
       const row = toggleElement.closest('tr');
-      const contestName = row.querySelector('.contest-name-content strong')?.textContent || 'Contest';
-      
+      const contestName = row?.querySelector('.contest-name-content strong')?.textContent || 'Contest';
+      const contestId = toggleElement.getAttribute('data-contest-id');
+
+      if (!contestId) {
+        showNotification('Missing contest id - cannot toggle.', 'error');
+        toggleElement.checked = previousActive;
+        return;
+      }
+
       // Disable the toggle while processing
       toggleElement.disabled = true;
-      
-      // Show loading notification
-      const loadingNotification = showNotification('⏳ Processing...', 'info');
-      
-      // Simulate API delay (artificial processing)
-      setTimeout(() => {
-        // Update status badge
-        const statusBadge = row.querySelector('.status-badge');
+      const loadingNotification = showNotification('Processing...', 'info');
+
+      try {
+        const csrftoken = getCookie('csrftoken');
+        const resp = await fetch("{% url 'toggle_contest_status' %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || ''
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            contest_id: contestId,
+            is_active: desiredActive
+          })
+        });
+
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.success) {
+          const msg = data.error || `Request failed (${resp.status})`;
+          throw new Error(msg);
+        }
+
+        // Update UI based on server response
+        const isActive = !!data.is_active;
+        toggleElement.checked = isActive;
+
+        const statusBadge = row?.querySelector('.status-badge');
         if (statusBadge) {
           if (isActive) {
             statusBadge.textContent = 'ACTIVE';
             statusBadge.className = 'status-badge active';
-            // Show success message
-            showNotification(`✅ "${contestName}" is now ACTIVE and back online! Participants can now submit entries.`, 'success');
+            showNotification(`"${contestName}" is now ACTIVE.`, 'success');
           } else {
             statusBadge.textContent = 'INACTIVE';
             statusBadge.className = 'status-badge ended';
-            // Show inactive message
-            showNotification(`⏸️ "${contestName}" is now INACTIVE. New submissions are paused.`, 'warning');
+            showNotification(`"${contestName}" is now INACTIVE.`, 'warning');
           }
         }
-        
-        // Re-enable the toggle
+      } catch (e) {
+        // Revert toggle on error
+        toggleElement.checked = previousActive;
+        showNotification(`Failed to toggle "${contestName}": ${e.message}`, 'error');
+      } finally {
         toggleElement.disabled = false;
-        
-        // Remove loading notification
         if (loadingNotification && loadingNotification.parentElement) {
           loadingNotification.remove();
         }
-      }, 800);
+      }
     }
     
     // Get CSRF token from cookies

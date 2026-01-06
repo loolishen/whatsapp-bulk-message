@@ -148,7 +148,48 @@
       background:var(--gray-light)
     }
     .contest-row.active{
-      background:var(--primary-light); border-left:4px solid var(--primary)
+      background:linear-gradient(90deg, rgba(26, 115, 232, 0.1) 0%, transparent 100%);
+      border-left:4px solid var(--success); position:relative
+    }
+    .contest-row.active::before{
+      content:''; position:absolute; left:0; top:0; width:4px; height:100%;
+      background:var(--success); animation:pulse-border 2s infinite
+    }
+    .contest-row.inactive{
+      background:var(--gray-light); opacity:0.7; border-left:4px solid var(--gray-dark)
+    }
+    @keyframes pulse-border{
+      0%, 100%{opacity:1}
+      50%{opacity:0.5}
+    }
+    .contest-status-badge{
+      display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:12px;
+      font-size:11px; font-weight:700; text-transform:uppercase
+    }
+    .contest-status-badge.active{
+      background:var(--success); color:white
+    }
+    .contest-status-badge.inactive{
+      background:var(--gray-dark); color:white
+    }
+    .contest-actions{
+      display:flex; gap:6px
+    }
+    .btn-action{
+      padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; text-decoration:none;
+      display:inline-flex; align-items:center; gap:4px; transition:all 0.2s; border:none; cursor:pointer
+    }
+    .btn-action-edit{
+      background:var(--primary); color:white
+    }
+    .btn-action-edit:hover{
+      background:var(--primary-hover); transform:translateY(-1px)
+    }
+    .btn-action-view{
+      background:var(--gray-light); color:var(--text); border:1px solid var(--border)
+    }
+    .btn-action-view:hover{
+      background:var(--gray); border-color:var(--primary)
     }
     .contest-details-row{
       background:var(--gray-light)
@@ -365,7 +406,7 @@
     <div class="sidebar-header">
       <div class="profile-section">
         <div class="profile-avatar">K</div>
-        <h3 class="profile-name">Khind</h3>
+        <h3 class="profile-name">{{ request.user.username|title }}</h3>
         <p class="profile-role">Admin</p>
       </div>
     </div>
@@ -420,20 +461,26 @@
       <div>
         <h1 class="page-title">{{ selected_contest.name }} - Contest Management</h1>
         <p class="page-subtitle">Detailed view of contest submissions and participant data</p>
-        <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-muted);">
-          <span>📅 Aug 15 - Sep 15, 2024</span>
-          <span>👥 156 total entries</span>
-          <span>✅ 142 verified</span>
-          <span style="color: var(--danger);">⚠️ 14 flagged</span>
+        <div style="display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--text-muted); align-items: center;">
+          <span>📅 {{ selected_contest.starts_at|date:"M d, Y"|default:"N/A" }} - {{ selected_contest.ends_at|date:"M d, Y"|default:"N/A" }}</span>
+          <span>👥 {{ total_entries }} total entries</span>
+          <span>✅ {{ selected_contest.verified_entries|default:"0" }} verified</span>
+          <span style="color: var(--danger);">⚠️ {{ selected_contest.flagged_entries|default:"0" }} flagged</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;">
+            <span style="display:inline-block; width:8px; height:8px; background:{% if selected_contest.status == 'active' %}var(--success){% else %}var(--gray-dark){% endif %}; border-radius:50%;"></span>
+            <strong style="text-transform: uppercase;">{{ selected_contest.status }}</strong>
+          </span>
         </div>
       </div>
       <div class="header-actions">
         <a href="{% url 'contest_create' %}" class="btn btn-primary">
           ➕ Create New Contest
         </a>
-        <button class="btn btn-secondary" onclick="editContest()">
+        {% if selected_contest.id and selected_contest.id != 'merdeka_w1' and selected_contest.id != 'merdeka_w2' %}
+        <a href="{% url 'contest_edit' selected_contest.id %}" class="btn btn-secondary">
           ✏️ Edit Contest
-        </button>
+        </a>
+        {% endif %}
         <button class="btn btn-icon" title="Export Data">📊</button>
         <button class="btn btn-icon" title="Refresh">🔄</button>
         <a href="{% url 'contest_home' %}" class="btn btn-secondary">
@@ -442,90 +489,124 @@
       </div>
     </div>
 
-    <!-- All Contests Table -->
+    <!-- Contest Navigation and Filter -->
     <div class="table-container" style="margin-bottom: 20px;">
-      <div class="table-header">
-        <h3 class="table-title">All Contests</h3>
-        <p class="table-subtitle">Click on any contest to view detailed entries and download data</p>
+      <div class="table-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h3 class="table-title">Contest Navigation</h3>
+          <p class="table-subtitle">Viewing contest {{ current_index|add:1 }} of {{ total_contests }}</p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <!-- Status Filter -->
+          <select id="statusFilter" onchange="applyStatusFilter()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px;">
+            <option value="">All Contests</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive Only</option>
+          </select>
+          <!-- Navigation Buttons -->
+          <div style="display: flex; gap: 8px;">
+            {% if has_previous %}
+            <a href="?contest={{ previous_contest_id }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-secondary" style="padding: 8px 16px;">← Previous</a>
+            {% else %}
+            <button class="btn btn-secondary" disabled style="padding: 8px 16px; opacity: 0.5;">← Previous</button>
+            {% endif %}
+            {% if has_next %}
+            <a href="?contest={{ next_contest_id }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-secondary" style="padding: 8px 16px;">Next →</a>
+            {% else %}
+            <button class="btn btn-secondary" disabled style="padding: 8px 16px; opacity: 0.5;">Next →</button>
+            {% endif %}
+          </div>
+        </div>
       </div>
       
+      <!-- Contest Selector Dropdown -->
+      <div style="padding: 12px; background: var(--gray-light); border-radius: var(--radius); margin-bottom: 16px;">
+        <label for="contestSelector" style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; display: block;">Select Contest:</label>
+        <select id="contestSelector" onchange="switchContest()" style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); font-size: 14px;">
+          {% for contest in contests %}
+          <option value="{{ contest.id }}" {% if contest.id == selected_contest.id %}selected{% endif %}>
+            {{ contest.name }} ({{ contest.status|upper }}) - {{ contest.total_entries }} entries
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <!-- Entries Table for Selected Contest -->
       <div class="table-scroll-container">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Contest Name</th>
+            <th>Submission No</th>
+            <th>Full Name</th>
+            <th>Phone Number</th>
+            <th>Email</th>
+            <th>Store</th>
+            <th>Location</th>
+            <th>Amount Spent</th>
             <th>Status</th>
-            <th>Date Range</th>
-            <th>Total Entries</th>
-            <th>Verified</th>
-            <th>Flagged</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-            {% for contest in contests %}
-            <tr class="contest-row {% if contest.status == 'active' %}active{% endif %}" onclick="toggleContestDetails('{{ contest.id }}')">
+            {% for entry in entries %}
+            <tr>
+            <td><strong>{{ entry.submission_no|default:"N/A" }}</strong></td>
+            <td>{{ entry.full_name|default:"N/A" }}</td>
+            <td>{{ entry.phone_number|default:"N/A" }}</td>
+            <td>{{ entry.email|default:"N/A" }}</td>
+            <td>{{ entry.store|default:"N/A" }}</td>
+            <td>{{ entry.store_location|default:"N/A" }}</td>
+            <td><strong style="color: var(--primary);">RM{{ entry.amount_spent|default:"0.00" }}</strong></td>
             <td>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                  <strong>{{ contest.name }}</strong>
-                  {% if contest.status == 'active' %}
-                <span style="background: var(--primary-light); color: var(--primary); padding: 2px 6px; border-radius: 8px; font-size: 10px;">CURRENT</span>
-                  {% endif %}
-              </div>
+              {% if entry.validity == 'valid' %}
+                <span class="status-badge active" style="background:var(--success); color:white;">VALID</span>
+              {% elif entry.validity == 'invalid' %}
+                <span class="status-badge ended" style="background:var(--danger); color:white;">INVALID</span>
+              {% else %}
+                <span class="status-badge ended" style="background:var(--gray-dark); color:white;">{{ entry.validity|upper|default:"PENDING" }}</span>
+              {% endif %}
             </td>
-              <td>
-                {% if contest.status == 'active' %}
-                  <span class="status-badge active">ACTIVE</span>
-                {% else %}
-                  <span class="status-badge ended">ENDED</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if contest.id == 'merdeka_w1' %}
-                  Sep 1 - Sep 7, 2024
-                {% elif contest.id == 'merdeka_w2' %}
-                  Sep 8 - Sep 14, 2024
-                {% elif contest.id == 'merdeka_w3' %}
-                  Sep 15 - Sep 21, 2024
-                {% endif %}
-              </td>
-              <td><strong>
-                {% if contest.id == 'merdeka_w1' %}156
-                {% elif contest.id == 'merdeka_w2' %}89
-                {% elif contest.id == 'merdeka_w3' %}203
-                {% endif %}
-              </strong></td>
-              <td><span style="color: var(--secondary);">
-                {% if contest.id == 'merdeka_w1' %}142
-                {% elif contest.id == 'merdeka_w2' %}78
-                {% elif contest.id == 'merdeka_w3' %}195
-                {% endif %}
-              </span></td>
-              <td><span style="color: var(--danger);">
-                {% if contest.id == 'merdeka_w1' %}14
-                {% elif contest.id == 'merdeka_w2' %}11
-                {% elif contest.id == 'merdeka_w3' %}8
-                {% endif %}
-              </span></td>
-              <td>
-                <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('{{ contest.id }}', 'csv')">📊 CSV</button>
-                <button class="btn btn-sm" onclick="event.stopPropagation(); downloadContestData('{{ contest.id }}', 'xlsx')">📈 XLSX</button>
+            <td>
+              <button class="btn btn-sm" onclick="viewEntryDetails('{{ entry.submission_no }}')" title="View details">👁️</button>
             </td>
           </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                No entries found for this contest.
+              </td>
+            </tr>
             {% endfor %}
-          
-          <!-- Contest Details Row (Hidden by default) -->
-          <tr id="contest-details-current" class="contest-details-row" style="display: none;">
-            <td colspan="7">
-              <div style="padding: 20px; background: var(--gray-light); border-radius: var(--radius); margin: 8px 0;">
-                <h4 style="margin: 0 0 16px 0; color: var(--text);">Contest Details & Download Options</h4>
+        </tbody>
+      </table>
+      </div>
+      
+      <!-- Pagination -->
+      {% if entries.has_other_pages %}
+      <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; padding: 16px;">
+        {% if entries.has_previous %}
+        <a href="?contest={{ selected_contest.id }}&page={{ entries.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-secondary">← Previous</a>
+        {% endif %}
+        <span style="color: var(--text-muted); font-size: 14px;">
+          Page {{ entries.number }} of {{ entries.paginator.num_pages }}
+        </span>
+        {% if entries.has_next %}
+        <a href="?contest={{ selected_contest.id }}&page={{ entries.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}" class="btn btn-secondary">Next →</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px;">
                   <div>
                     <strong style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Contest Information</strong>
                     <div style="margin-top: 8px; font-size: 14px;">
-                      <div><strong>Description:</strong> Merdeka celebration contest with amazing prizes</div>
-                      <div><strong>Prize:</strong> RM10,000 cash + Khind products</div>
-                      <div><strong>Eligibility:</strong> Min RM50 purchase</div>
+                      <div><strong>Description:</strong> {{ selected_contest.description|default:"No description provided" }}</div>
+                      <div><strong>Requirements:</strong> 
+                        {% if selected_contest.requires_nric %}NRIC required{% endif %}
+                        {% if selected_contest.requires_receipt %}{% if selected_contest.requires_nric %}, {% endif %}Receipt required{% endif %}
+                        {% if selected_contest.min_purchase_amount %}, Min RM{{ selected_contest.min_purchase_amount }}{% endif %}
+                      </div>
+                      <div><strong>Period:</strong> {{ selected_contest.starts_at|date:"M d, Y" }} - {{ selected_contest.ends_at|date:"M d, Y" }}</div>
                     </div>
                   </div>
                   <div>
@@ -720,6 +801,29 @@
       // Redirect to the contest manager with the selected contest
       window.location.href = `{% url 'contest_manager' %}?contest=${contestId}`;
     }
+    
+    // Switch contest from dropdown
+    function switchContest() {
+      const selector = document.getElementById('contestSelector');
+      const contestId = selector.value;
+      const statusFilter = document.getElementById('statusFilter').value;
+      let url = `{% url 'contest_manager' %}?contest=${contestId}`;
+      if (statusFilter) {
+        url += `&status=${statusFilter}`;
+      }
+      window.location.href = url;
+    }
+    
+    // Apply status filter
+    function applyStatusFilter() {
+      const statusFilter = document.getElementById('statusFilter').value;
+      const contestId = '{{ selected_contest.id }}';
+      let url = `{% url 'contest_manager' %}?contest=${contestId}`;
+      if (statusFilter) {
+        url += `&status=${statusFilter}`;
+      }
+      window.location.href = url;
+    }
 
     // Search functionality with debouncing
     let searchTimeout;
@@ -787,16 +891,87 @@
       }
     }
 
+    // Delete contest
+    async function deleteContest(contestId, contestName) {
+      if (!confirm(`Are you sure you want to delete "${contestName}"?\n\nThis action cannot be undone and will delete all entries associated with this contest.`)) {
+        return;
+      }
+
+      try {
+        const csrftoken = getCookie('csrftoken');
+        const response = await fetch(`/contest/${contestId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken || ''
+          },
+          credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Remove the row from the table
+          const row = document.querySelector(`tr[onclick*="${contestId}"]`);
+          if (row) {
+            row.style.transition = 'opacity 0.3s';
+            row.style.opacity = '0';
+            setTimeout(() => {
+              row.remove();
+              // Also remove details row if it exists
+              const detailsRow = document.getElementById(`contest-details-${contestId}`);
+              if (detailsRow) {
+                detailsRow.remove();
+              }
+            }, 300);
+          }
+          
+          // Show success message
+          alert(`Contest "${contestName}" deleted successfully.`);
+          
+          // Reload page after a short delay to refresh the list
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } else {
+          alert(`Error deleting contest: ${data.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        alert(`Error deleting contest: ${error.message}`);
+      }
+    }
+
+    // Get CSRF token from cookies
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+
     // Download contest data
     function downloadContestData(contestId, format) {
-      // This would typically make an API call to download the data
-      const contestNames = {
-        'merdeka_w1': 'Khind Merdeka W1',
-        'merdeka_w2': 'Khind Merdeka W2',
-        'merdeka_w3': 'Khind Merdeka W3'
-      };
+      // Get contest name from the select element or current contest
+      const contestSelector = document.getElementById('contestSelector');
+      let contestName = 'Contest';
       
-      const contestName = contestNames[contestId] || 'Contest';
+      if (contestId === 'current') {
+        contestName = '{{ selected_contest.name|escapejs }}';
+      } else if (contestSelector) {
+        const option = contestSelector.querySelector(`option[value="${contestId}"]`);
+        if (option) {
+          contestName = option.textContent.split(' (')[0]; // Remove status part
+        }
+      }
+      
       const fileName = `${contestName.replace(/\s+/g, '_')}_entries.${format}`;
       
       // Simulate download (in real implementation, this would be an actual download)

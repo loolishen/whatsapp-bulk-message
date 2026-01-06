@@ -26,14 +26,21 @@ urlpatterns = [
     # Contest management
     path('contest/', views.contest_home, name='contest_home'),
     path('contest/create/', views.contest_create, name='contest_create'),
+    path('contest/<str:contest_id>/edit/', views.contest_edit, name='contest_edit'),
     path('contest/manager/', views.contest_manager, name='contest_manager'),
+    # IMPORTANT: keep specific contest routes ABOVE the parameterized contest/<id>/ route
+    path('contest/toggle-status/', views.toggle_contest_status, name='toggle_contest_status'),
+    path('contest/<str:contest_id>/delete/', views.delete_contest, name='delete_contest'),
     path('participants/', views.participants_manager, name='participants_manager'),
+    path('participants/<str:entry_id>/delete/', views.delete_participant, name='delete_participant'),
+    path('participants/<str:entry_id>/update-manual-entry/', views.update_manual_entry, name='update_manual_entry'),
+    path('participants/<str:entry_id>/reset/', views.reset_submission, name='reset_submission'),
+    path('messages/<str:message_id>/status/', views.check_reply_status, name='check_reply_status'),
     path('select-winners/', views.select_winners, name='select_winners'),
-    path('contest/<str:contest_id>/', views.contest_detail, name='contest_detail'),
     path('contest/<str:contest_id>/entries/', views.contest_entries, name='contest_entries'),
     path('contest/entry/<str:entry_id>/verify/', views.contest_verify_entry, name='contest_verify_entry'),
     path('contest/analytics/', views.contest_analytics, name='contest_analytics'),
-    path('contest/toggle-status/', views.toggle_contest_status, name='toggle_contest_status'),
+    path('contest/<str:contest_id>/', views.contest_detail, name='contest_detail'),
     
     # Auto Contest Management
     path('auto-contest/', auto_contest_views.auto_contest_dashboard, name='auto_contest_dashboard'),
@@ -49,8 +56,9 @@ urlpatterns = [
 
     # CRM
     path('crm/', views.crm_home, name='crm_home'),
-    path('crm/prompts/', views.crm_prompt_replies, name='crm_prompt_replies'),
-    path('crm/prompts/add/', views.crm_add_prompt_reply, name='crm_add_prompt_reply'),
+    # DEPRECATED: Prompt replies are now integrated into contest creation
+    # path('crm/prompts/', views.crm_prompt_replies, name='crm_prompt_replies'),
+    # path('crm/prompts/add/', views.crm_add_prompt_reply, name='crm_add_prompt_reply'),
     path('crm/schedule/', views.crm_schedule_message, name='crm_schedule_message'),
     path('crm/campaigns/', views.crm_campaigns, name='crm_campaigns'),
     path('crm/analytics/', views.crm_analytics, name='crm_analytics'),
@@ -72,8 +80,13 @@ urlpatterns = [
     path('settings/pdpa/', _safe(views.pdpa_settings), name='pdpa_settings'),
     
     # WhatsApp webhook
+    # IMPORTANT: accept both with and without trailing slash.
+    # Some providers POST to `/webhook/whatsapp` and will NOT follow Django's redirect to `/webhook/whatsapp/`.
+    path('webhook/whatsapp', whatsapp_webhook, name='whatsapp_webhook_noslash'),
     path('webhook/whatsapp/', whatsapp_webhook, name='whatsapp_webhook'),
     path('debug-webhook/', debug_webhook, name='debug_webhook'),
+    path('debug/wabot-status/', views.wabot_status, name='wabot_status'),
+    path('error-handling/', views.error_handling_dashboard, name='error_handling_dashboard'),
     
     # Incoming messages
     path('messages/incoming/', _safe(views.incoming_messages), name='incoming_messages'),

@@ -1,17 +1,23 @@
 import requests
 import json
+import os
 from django.conf import settings
 
 class WhatsAppAPIService:
     """Service class to handle WhatsApp API communications"""
     
     def __init__(self):
-        # Get configuration from Django settings
-        whatsapp_config = getattr(settings, 'WHATSAPP_API', {})
-        self.access_token = whatsapp_config.get('ACCESS_TOKEN', '68a0a10422130')
-        # Use static instance ID - no dynamic creation
-        self.instance_id = whatsapp_config.get('DEFAULT_INSTANCE_ID', '68A0A11A89A8D')
-        self.base_url = whatsapp_config.get('BASE_URL', 'https://app.wabot.my/api')
+        # Get configuration from environment variables (app.yaml)
+        self.access_token = os.getenv('WABOT_API_TOKEN', '68a0a10422130')
+        self.instance_id = os.getenv('WABOT_INSTANCE_ID', '68A0A11A89A8D')
+        self.base_url = os.getenv('WABOT_API_URL', 'https://app.wabot.my/api')
+
+    def _send_disabled(self):
+        """
+        Emergency stop switch to prevent spamming users during debugging.
+        Set env var WABOT_DISABLE_SEND=true to disable all outbound sends.
+        """
+        return os.getenv("WABOT_DISABLE_SEND", "false").lower() == "true"
     
     # DISABLED: Static instance ID configuration - no dynamic instance creation needed
     # def create_instance(self):
@@ -54,6 +60,9 @@ class WhatsAppAPIService:
     
     def send_text_message(self, number, message):
         """Send a text message to a phone number"""
+        if self._send_disabled():
+            return {'success': False, 'error': 'WABOT_DISABLE_SEND is true (outbound sending disabled)'}
+
         url = f"{self.base_url}/send"
         
         # Clean the phone number (remove + and any non-digits)
@@ -80,6 +89,9 @@ class WhatsAppAPIService:
     
     def send_media_message(self, number, message, media_url, filename=None):
         """Send a media message to a phone number"""
+        if self._send_disabled():
+            return {'success': False, 'error': 'WABOT_DISABLE_SEND is true (outbound sending disabled)'}
+
         url = f"{self.base_url}/send"
         
         # Clean the phone number (remove + and any non-digits)
@@ -145,6 +157,9 @@ class WhatsAppAPIService:
     
     def send_template_message(self, number, template_name, parameters=None):
         """Send template message to a phone number"""
+        if self._send_disabled():
+            return {'success': False, 'error': 'WABOT_DISABLE_SEND is true (outbound sending disabled)'}
+
         url = f"{self.base_url}/send"
         
         # Clean the phone number
@@ -181,9 +196,21 @@ class WhatsAppAPIService:
         }
         
         try:
-            response = requests.get(url, params=params)
+            response = requests.get(url, params=params, timeout=20)
             response.raise_for_status()
-            return {'success': True, 'data': response.json()}
+            try:
+                data = response.json()
+            except Exception:
+                # WABot sometimes returns non-JSON on error (HTML/plain text).
+                # Surface the raw response so debugging can happen without SSHing into the server.
+                text = (response.text or "")
+                return {
+                    'success': False,
+                    'error': 'Non-JSON response from WABot /status',
+                    'status_code': response.status_code,
+                    'response_snippet': text[:800],
+                }
+            return {'success': True, 'data': data}
         except requests.exceptions.RequestException as e:
             return {'success': False, 'error': str(e)}
     

@@ -26,7 +26,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'messaging',
+    'messaging.apps.MessagingConfig',
 ]
 
 MIDDLEWARE = [
@@ -58,19 +58,34 @@ TEMPLATES = [
 ]
 
 # Database - Use PostgreSQL for production
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'whatsapp_bulk',
-        'USER': 'whatsapp_user',
-        'PASSWORD': 'P@##w0rd',
-        'HOST': '/cloudsql/whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db',
-        'PORT': '5432',
-        'OPTIONS': {
-            'sslmode': 'require',
-        },
+# Auto-detect environment: Cloud Shell (TCP) vs App Engine (Unix socket)
+if os.getenv('GAE_ENV', '').startswith('standard'):
+    # Running on App Engine - use Unix socket
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'whatsapp_bulk',
+            'USER': 'whatsapp_user',
+            'PASSWORD': 'P@##w0rd',
+            'HOST': '/cloudsql/whatsapp-bulk-messaging-480620:asia-southeast1:whatsapp-bulk-db',
+            'PORT': '5432',
+            'OPTIONS': {
+                'sslmode': 'require',
+            },
+        }
     }
-}
+else:
+    # Running in Cloud Shell or locally - use TCP via Cloud SQL Proxy
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'whatsapp_bulk',
+            'USER': 'whatsapp_user',
+            'PASSWORD': 'P@##w0rd',
+            'HOST': '127.0.0.1',  # Cloud SQL Proxy on localhost
+            'PORT': '5432',
+        }
+    }
 
 # TEMPORARY: If Cloud SQL connection fails, uncomment below and comment out above
 # DATABASES = {
@@ -97,7 +112,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
+# Keep consistent with root `settings_production.py`
+TIME_ZONE = 'Asia/Kuala_Lumpur'
 USE_I18N = True
 USE_TZ = True
 
