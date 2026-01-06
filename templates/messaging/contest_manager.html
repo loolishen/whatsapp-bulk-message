@@ -559,11 +559,11 @@
             <td><strong style="color: var(--primary);">RM{{ entry.amount_spent|default:"0.00" }}</strong></td>
             <td>
               {% if entry.validity == 'valid' %}
-                <span class="status-badge active" style="background:var(--success); color:white;">VALID</span>
+                <span class="status-badge active" style="color:green;">VALID</span>
               {% elif entry.validity == 'invalid' %}
-                <span class="status-badge ended" style="background:var(--danger); color:white;">INVALID</span>
+                <span class="status-badge ended" style="color:red;">INVALID</span>
               {% else %}
-                <span class="status-badge ended" style="background:var(--gray-dark); color:white;">{{ entry.validity|upper|default:"PENDING" }}</span>
+                <span class="status-badge ended" style="color:orange;">{{ entry.validity|upper|default:"PENDING" }}</span>
               {% endif %}
             </td>
             <td>
@@ -636,165 +636,7 @@
     </div>
 
     <!-- Contest Selection and Search Bar -->
-    <div class="search-filter-bar">
-      <div class="filter-group" style="min-width: 200px;">
-        <label class="filter-label">Select Contest</label>
-        <select class="filter-select" onchange="handleContestChange(this.value)" id="contestSelector">
-          {% for contest in contests %}
-          <option value="{{ contest.id }}" {% if contest.id == selected_contest.id %}selected{% endif %}>
-            {{ contest.name }} ({{ contest.status|title }})
-          </option>
-          {% endfor %}
-        </select>
-      </div>
-      
-      <div class="search-box" style="flex: 1; min-width: 300px;">
-        <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" placeholder="Search entries by name, phone, email, or submission number..." 
-               value="{{ search_query }}" onkeyup="handleSearch(this.value)" id="entrySearch">
-      </div>
-      
-      <div class="filter-group">
-        <label class="filter-label">Status</label>
-        <select class="filter-select" onchange="handleFilter('status', this.value)">
-          <option value="">All Status</option>
-          <option value="valid" {% if status_filter == 'valid' %}selected{% endif %}>Valid</option>
-          <option value="invalid" {% if status_filter == 'invalid' %}selected{% endif %}>Invalid</option>
-        </select>
-      </div>
-      
-      <div class="filter-group">
-        <label class="filter-label">Store</label>
-        <select class="filter-select" onchange="handleFilter('store', this.value)">
-          <option value="">All Stores</option>
-          <option value="ED FEST" {% if store_filter == 'ED FEST' %}selected{% endif %}>ED FEST</option>
-          <option value="SK HARDWARE" {% if store_filter == 'SK HARDWARE' %}selected{% endif %}>SK HARDWARE</option>
-          <option value="HARVEY NORMAN" {% if store_filter == 'HARVEY NORMAN' %}selected{% endif %}>HARVEY NORMAN</option>
-        </select>
-      </div>
-      
-      <div class="filter-group">
-        <label class="filter-label">Location</label>
-        <select class="filter-select" onchange="handleFilter('location', this.value)">
-          <option value="">All Locations</option>
-          <option value="Selangor" {% if location_filter == 'Selangor' %}selected{% endif %}>Selangor</option>
-          <option value="Sarawak" {% if location_filter == 'Sarawak' %}selected{% endif %}>Sarawak</option>
-          <option value="Johor" {% if location_filter == 'Johor' %}selected{% endif %}>Johor</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Data Table -->
-    <div class="table-container">
-      <div class="table-header">
-        <h3 class="table-title" id="entriesTitle">{{ selected_contest.name }} Entries ({{ total_entries }} total)</h3>
-        <p class="table-subtitle">Click on any row to view detailed information</p>
-      </div>
-      
-      {% if entries %}
-      
-      <!-- Current Contest Entries (Default) -->
-      <div id="entries-current" class="contest-entries">
-        <div class="table-scroll-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Submission No</th>
-              <th>Amount Spent</th>
-              <th>Validity</th>
-              <th>Reason for Invalidity</th>
-              <th>Product 1</th>
-              <th>Qty 1</th>
-              <th>Product 2</th>
-              <th>Qty 2</th>
-              <th>Product 3</th>
-              <th>Qty 3</th>
-              <th>Store</th>
-              <th>Store Location</th>
-              <th>Full Name</th>
-              <th>Phone Number</th>
-              <th>Email Address</th>
-              <th>Address</th>
-              <th>Postcode</th>
-              <th>City</th>
-              <th>State</th>
-              <th>How Heard</th>
-              <th>Submitted Date</th>
-              <th>Receipt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in entries %}
-            <tr onclick="viewEntryDetails('{{ entry.submission_no }}')">
-              <td class="cell-submission">{{ entry.submission_no }}</td>
-              <td class="cell-amount">{{ entry.amount_spent }}</td>
-              <td><span class="cell-validity {% if entry.validity == 'valid' %}valid{% elif entry.validity == 'duplicate' %}invalid{% else %}invalid{% endif %}">{{ entry.validity|upper }}</span></td>
-              <td class="cell-reason">{{ entry.reason|default:"-" }}</td>
-              <td class="cell-product">{{ entry.product_purchased_1|default:"-" }}</td>
-              <td class="cell-qty">{{ entry.amount_purchased_1|default:"-" }}</td>
-              <td class="cell-product">{{ entry.product_purchased_2|default:"-" }}</td>
-              <td class="cell-qty">{{ entry.amount_purchased_2|default:"-" }}</td>
-              <td class="cell-product">{{ entry.product_purchased_3|default:"-" }}</td>
-              <td class="cell-qty">{{ entry.amount_purchased_3|default:"-" }}</td>
-              <td class="cell-store">{{ entry.store }}</td>
-              <td class="cell-location">{{ entry.store_location }}</td>
-              <td class="cell-name">{{ entry.full_name }}</td>
-              <td class="cell-phone">{{ entry.phone_number }}</td>
-              <td><a href="mailto:{{ entry.email }}" class="cell-email">{{ entry.email }}</a></td>
-              <td class="cell-address">{{ entry.address }}</td>
-              <td class="cell-postcode">{{ entry.postcode }}</td>
-              <td class="cell-city">{{ entry.city }}</td>
-              <td class="cell-state">{{ entry.state }}</td>
-              <td class="cell-how-heard">{{ entry.how_heard|default:"-" }}</td>
-              <td class="cell-date">{{ entry.submitted_date|default:"-" }}</td>
-              <td><a href="{{ entry.receipt_url }}" class="cell-receipt" onclick="event.stopPropagation()" target="_blank">View Receipt</a></td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-
-        <!-- Pagination -->
-        <div class="pagination">
-          <div class="pagination-info">
-            Showing {{ entries.start_index }}-{{ entries.end_index }} of {{ total_entries }} entries
-          </div>
-          <div class="pagination-controls">
-            {% if entries.has_previous %}
-              <a href="?page={{ entries.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}{% if contest_filter %}&contest={{ contest_filter }}{% endif %}" class="page-btn">Previous</a>
-            {% else %}
-              <span class="page-btn" disabled>Previous</span>
-            {% endif %}
-            
-            {% for num in entries.paginator.page_range %}
-              {% if entries.number == num %}
-                <span class="page-btn current">{{ num }}</span>
-              {% elif num > entries.number|add:'-3' and num < entries.number|add:'3' %}
-                <a href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}{% if contest_filter %}&contest={{ contest_filter }}{% endif %}" class="page-btn">{{ num }}</a>
-              {% endif %}
-            {% endfor %}
-            
-            {% if entries.has_next %}
-              <a href="?page={{ entries.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if store_filter %}&store={{ store_filter }}{% endif %}{% if location_filter %}&location={{ location_filter }}{% endif %}{% if contest_filter %}&contest={{ contest_filter }}{% endif %}" class="page-btn">Next</a>
-            {% else %}
-              <span class="page-btn" disabled>Next</span>
-            {% endif %}
-          </div>
-        </div>
-      {% else %}
-        <!-- Empty State -->
-        <div class="empty-state">
-          <div class="empty-state-icon">📋</div>
-          <h3 class="empty-state-title">No Contest Entries Found</h3>
-          <p class="empty-state-text">
-            No contest entries match your current search criteria. Try adjusting your filters or search terms.
-          </p>
-        </div>
-      {% endif %}
-    </div>
-  </div>
-
+    
   <script>
     // Contest change functionality
     function handleContestChange(contestId) {
